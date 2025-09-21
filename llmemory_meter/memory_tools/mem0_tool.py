@@ -31,17 +31,9 @@ class Mem0Tool(MemoryTool):
         """Initialize the Mem0 client with proper configuration."""
         try:
             from mem0 import Memory
-            
-            # Try full config with vector store first
+
+            # Use Mem0 cloud instead of local Qdrant
             self.mem0_config = {
-                "vector_store": {
-                    "provider": "qdrant",
-                    "config": {
-                        "collection_name": "test",
-                        "host": "localhost",
-                        "port": 6333,
-                    }
-                },
                 "llm": {
                     "provider": "openai",
                     "config": {
@@ -54,7 +46,7 @@ class Mem0Tool(MemoryTool):
                 "embedder": {
                     "provider": "openai",
                     "config": {
-                        "model": "text-embedding-ada-002",
+                        "model": "text-embedding-3-small",
                         "api_key": Config.OPENAI_API_KEY
                     }
                 }
@@ -98,15 +90,24 @@ class Mem0Tool(MemoryTool):
         """Retrieve memory from Mem0."""
         try:
             results = self.memory.search(query, user_id=self._user_id, limit=3)
-            if results:
+
+            # Handle different response formats
+            if isinstance(results, dict):
+                results = results.get('results', [])
+
+            if results and hasattr(results, '__iter__'):
                 memories = []
-                for result in results[:3]:
-                    memory_text = result.get('memory', result.get('text', 'No content'))
-                    score = result.get('score', 0)
-                    memories.append(f"[Score: {score:.3f}] {memory_text}")
-                return f"Retrieved from Mem0 for '{query}': " + " | ".join(memories)
-            else:
-                return f"No memories found in Mem0 for query: '{query}'"
+                # Safely iterate through results
+                for result in list(results)[:3]:
+                    if isinstance(result, dict):
+                        memory_text = result.get('memory', result.get('text', 'No content'))
+                        score = result.get('score', 0)
+                        memories.append(f"[Score: {score:.3f}] {memory_text}")
+
+                if memories:
+                    return f"Retrieved from Mem0 for '{query}': " + " | ".join(memories)
+
+            return f"No memories found in Mem0 for query: '{query}'"
         except Exception as e:
             raise Exception(f"Mem0 retrieve failed: {e}")
     

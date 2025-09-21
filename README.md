@@ -42,30 +42,59 @@ LLMemoryMeter measures comprehensive performance across multiple dimensions:
 
 ### 🚀 **Option 1: CLI with YAML Configuration (Recommended)**
 
-1. **Install dependencies**:
+1. **Set up Python environment** (optional but recommended):
+```bash
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+# venv\Scripts\activate
+
+# To deactivate when done:
+# deactivate
+```
+
+2. **Install dependencies**:
 ```bash
 pip install -r requirements.txt
 ```
 
-2. **Create default configuration**:
+3. **Start Qdrant vector database (required for Mem0)**:
+```bash
+# Using Docker (recommended)
+docker run -d --name qdrant -p 6333:6333 -p 6334:6334 \
+  -v $(pwd)/qdrant_storage:/qdrant/storage:z \
+  qdrant/qdrant
+
+# Or if you already have the container, just start it
+docker start qdrant
+
+# Verify Qdrant is running
+curl http://localhost:6333
+```
+
+4. **Create default configuration**:
 ```bash
 python llmemory create-config
 ```
 
-3. **Set up API keys**:
+5. **Set up API keys**:
 ```bash
 cp .env.example .env
 # Add your MEM0_API_KEY and OPENAI_API_KEY
 ```
 
-4. **Run benchmarks**:
+6. **Run benchmarks**:
 ```bash
 python llmemory run
 ```
 
 ### 🐍 **Option 2: Python API**
 
-1. Install dependencies and set up API keys (steps 1-3 above)
+1. Install dependencies and set up API keys (steps 1-5 above)
 
 2. Run the simple comparison:
 ```bash
@@ -262,7 +291,21 @@ python benchmark_demo.py
 ```bash
 git clone <repository>
 cd llmemory_meter
+
+# Optional: Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Start Qdrant for Mem0 (requires Docker)
+docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
+
+# When done, you can clean up:
+# deactivate  # Exit virtual environment
+# docker stop qdrant  # Stop Qdrant container
+# rm -rf venv  # Remove virtual environment (optional)
 ```
 
 ## Contributing
