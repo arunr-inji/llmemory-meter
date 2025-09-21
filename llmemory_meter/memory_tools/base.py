@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 import time
 from datetime import datetime
 
-from ..workload import WorkloadStep, StepResult
+from llmemory_meter.workload import WorkloadStep, StepResult
 
 
 class MemoryTool(ABC):

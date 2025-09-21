@@ -8,8 +8,8 @@ import asyncio
 import time
 from typing import Dict, Any, Optional
 
-from .base import MemoryTool
-from ..config import Config
+from llmemory_meter.memory_tools.base import MemoryTool
+from llmemory_meter.config_parser import Config
 
 
 class OpenAIMemoryTool(MemoryTool):
@@ -17,15 +17,13 @@ class OpenAIMemoryTool(MemoryTool):
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__("openai_memory", config)
-        self.api_key = Config.OPENAI_API_KEY
-        if not self.api_key:
-            print("⚠️  OPENAI_API_KEY not found - using mock implementation")
-            self._use_mock = True
-        else:
-            self._use_mock = False
         
-        if not self._use_mock:
-            self._initialize_openai_client()
+        # Require API key
+        if not Config.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY not found in environment variables")
+        
+        self.api_key = Config.OPENAI_API_KEY
+        self._initialize_openai_client()
         
         # Simple in-memory storage for this demo (in production, use persistent storage)
         self.stored_memories = []
@@ -39,18 +37,12 @@ class OpenAIMemoryTool(MemoryTool):
             self.model = self.config.get("model", "gpt-4o-mini")
             print("✅ OpenAI client initialized")
         except ImportError:
-            print("⚠️  openai package not installed - using mock implementation")
-            self._use_mock = True
+            raise ImportError("openai package not installed. Install with: pip install openai")
         except Exception as e:
-            print(f"⚠️  Failed to initialize OpenAI: {e} - using mock implementation")
-            self._use_mock = True
+            raise Exception(f"Failed to initialize OpenAI: {e}")
     
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store memory using OpenAI (simulated with in-memory storage)."""
-        if self._use_mock:
-            await asyncio.sleep(0.05)
-            return f"[MOCK] Stored in OpenAI Memory: {content[:50]}..."
-        
         try:
             # Store the memory with timestamp and metadata
             memory_entry = {
@@ -80,10 +72,6 @@ class OpenAIMemoryTool(MemoryTool):
     
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve memory using OpenAI."""
-        if self._use_mock:
-            await asyncio.sleep(0.1)
-            return f"[MOCK] Retrieved from OpenAI Memory for query '{query}': [mock response]"
-        
         try:
             if not self.stored_memories:
                 return f"No memories stored yet for query: '{query}'"
@@ -112,10 +100,6 @@ class OpenAIMemoryTool(MemoryTool):
     
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Chat with OpenAI memory context."""
-        if self._use_mock:
-            await asyncio.sleep(0.15)
-            return f"[MOCK] OpenAI response to '{message}': [mock response with memory context]"
-        
         try:
             # Build context from stored memories and conversation history
             context_messages = [

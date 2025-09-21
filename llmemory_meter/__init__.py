@@ -8,10 +8,10 @@ OpenAI Memory, MemGPT, and LangMem with custom workloads.
 __version__ = "0.1.0"
 __author__ = "Your Name"
 
-from .comparator import MemoryComparator
-from .memory_tools import Mem0Tool, OpenAIMemoryTool
-from .workload import Workload, WorkloadResult
-from .benchmarks import StandardBenchmarks, BenchmarkSuite, BenchmarkRunner
+from llmemory_meter.comparator import MemoryComparator
+from llmemory_meter.memory_tools import Mem0Tool, OpenAIMemoryTool
+from llmemory_meter.workload import Workload, WorkloadResult
+from llmemory_meter.benchmarks import StandardBenchmarks, BenchmarkSuite, BenchmarkRunner
 
 __all__ = [
     "MemoryComparator",

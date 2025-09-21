@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import List, Dict, Any
 import statistics
-from .workload import WorkloadResult
+from llmemory_meter.workload import WorkloadResult
 
 
 @dataclass

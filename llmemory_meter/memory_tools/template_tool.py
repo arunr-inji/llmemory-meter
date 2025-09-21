@@ -8,8 +8,8 @@ Copy this file and replace 'Template' with your memory tool name.
 import asyncio
 from typing import Dict, Any, Optional
 
-from .base import MemoryTool
-from ..config import Config
+from llmemory_meter.memory_tools.base import MemoryTool
+from llmemory_meter.config_parser import Config
 
 
 class TemplateTool(MemoryTool):

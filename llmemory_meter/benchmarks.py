@@ -7,7 +7,7 @@ datasets and evaluation frameworks for comprehensive memory system testing.
 
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-from .workload import Workload, WorkloadStep
+from llmemory_meter.workload import Workload, WorkloadStep
 
 
 @dataclass

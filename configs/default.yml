@@ -1,0 +1,56 @@
+memory_tools:
+- name: mem0
+  enabled: true
+  api_key_env: MEM0_API_KEY
+  model: gpt-4o-mini
+  settings:
+    user_id: benchmark_user
+    llm_provider: openai
+    llm_api_key_env: OPENAI_API_KEY
+    vector_store:
+      provider: qdrant
+      host: localhost
+      port: 6333
+      collection_name: test
+- name: openai_memory
+  enabled: true
+  api_key_env: OPENAI_API_KEY
+  model: gpt-4o-mini
+  settings:
+    temperature: 0.3
+    max_tokens: 300
+benchmarks:
+- name: Conversational AI Memory
+  enabled: true
+  settings: null
+- name: Long Context Memory
+  enabled: true
+  settings: null
+- name: Persona Consistency
+  enabled: false
+  settings: null
+- name: Technical Performance
+  enabled: false
+  settings: null
+- name: Memory Stress Testing
+  enabled: false
+  settings: null
+- name: Domain-Specific Applications
+  enabled: false
+  settings: null
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: false
+  memory_quality: false
+output:
+  save_results: true
+  output_file: benchmark_results.json
+  print_summary: true
+  detailed_logs: false
+general:
+  timeout: 30
+  max_retries: 3
+  concurrent_tools: true
+  debug: false

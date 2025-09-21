@@ -1,0 +1,58 @@
+# Example LLMemoryMeter Configuration
+# This shows how to customize your benchmarking setup
+
+memory_tools:
+  # OpenAI Memory only (if you only have OpenAI API key)
+  - name: openai_memory
+    enabled: true
+    api_key_env: OPENAI_API_KEY
+    model: gpt-4o-mini
+    settings:
+      temperature: 0.2
+      max_tokens: 500
+  
+  # Mem0 (requires both MEM0_API_KEY and OPENAI_API_KEY)
+  - name: mem0
+    enabled: false  # Disabled for this example
+    api_key_env: MEM0_API_KEY
+    model: gpt-4o-mini
+    settings:
+      user_id: example_user
+      llm_provider: openai
+      llm_api_key_env: OPENAI_API_KEY
+
+benchmarks:
+  # Run only basic benchmarks
+  - name: Conversational AI Memory
+    enabled: true
+  - name: Long Context Memory
+    enabled: true
+  
+  # Skip advanced benchmarks
+  - name: Persona Consistency
+    enabled: false
+  - name: Technical Performance
+    enabled: false
+  - name: Memory Stress Testing
+    enabled: false
+  - name: Domain-Specific Applications
+    enabled: false
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: false      # Future feature
+  memory_quality: false # Future feature
+
+output:
+  save_results: true
+  output_file: example_results.json
+  print_summary: true
+  detailed_logs: true  # Enable for debugging
+
+general:
+  timeout: 45          # Longer timeout for slower APIs
+  max_retries: 2
+  concurrent_tools: true
+  debug: false

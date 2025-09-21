@@ -7,8 +7,8 @@ Provides integration with Mem0 AI memory system.
 import asyncio
 from typing import Dict, Any, Optional
 
-from .base import MemoryTool
-from ..config import Config
+from llmemory_meter.memory_tools.base import MemoryTool
+from llmemory_meter.config_parser import Config
 
 
 class Mem0Tool(MemoryTool):
@@ -16,23 +16,16 @@ class Mem0Tool(MemoryTool):
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__("mem0", config)
+        
+        # Require API keys
+        if not Config.MEM0_API_KEY:
+            raise ValueError("MEM0_API_KEY not found in environment variables")
+        if not Config.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY required for Mem0 (underlying LLM)")
+        
         self.api_key = Config.MEM0_API_KEY
-        if not self.api_key:
-            print("⚠️  MEM0_API_KEY not found - using mock implementation")
-            self._use_mock = True
-        else:
-            self._use_mock = False
-        
-        if not self._use_mock:
-            # Check for OpenAI API key (required for Mem0)
-            if not Config.OPENAI_API_KEY:
-                print("⚠️  OPENAI_API_KEY required for Mem0 - falling back to mock")
-                self._use_mock = True
-        
         self._user_id = self.config.get("user_id", "benchmark_user")
-        
-        if not self._use_mock:
-            self._initialize_mem0_client()
+        self._initialize_mem0_client()
     
     def _initialize_mem0_client(self):
         """Initialize the Mem0 client with proper configuration."""
@@ -88,18 +81,12 @@ class Mem0Tool(MemoryTool):
                 print("✅ Mem0 initialized with simple config")
             
         except ImportError:
-            print("⚠️  mem0ai package not installed - using mock implementation")
-            self._use_mock = True
+            raise ImportError("mem0ai package not installed. Install with: pip install mem0ai")
         except Exception as e:
-            print(f"⚠️  Failed to initialize Mem0: {e} - using mock implementation")
-            self._use_mock = True
+            raise Exception(f"Failed to initialize Mem0: {e}")
     
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store memory in Mem0."""
-        if self._use_mock:
-            await asyncio.sleep(0.1)
-            return f"[MOCK] Stored in Mem0: {content[:50]}..."
-        
         try:
             result = self.memory.add(content, user_id=self._user_id, metadata=metadata)
             memory_id = result.get('id', 'unknown') if isinstance(result, dict) else str(result)
@@ -109,10 +96,6 @@ class Mem0Tool(MemoryTool):
     
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve memory from Mem0."""
-        if self._use_mock:
-            await asyncio.sleep(0.2)
-            return f"[MOCK] Retrieved from Mem0 for query '{query}': [mock response]"
-        
         try:
             results = self.memory.search(query, user_id=self._user_id, limit=3)
             if results:
@@ -129,10 +112,6 @@ class Mem0Tool(MemoryTool):
     
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Chat with Mem0 memory context."""
-        if self._use_mock:
-            await asyncio.sleep(0.3)
-            return f"[MOCK] Mem0 response to '{message}': [mock response with memory context]"
-        
         try:
             relevant_memories = self.memory.search(message, user_id=self._user_id, limit=5)
             

@@ -40,18 +40,34 @@ LLMemoryMeter measures comprehensive performance across multiple dimensions:
 
 ## Quick Start
 
-1. Install dependencies:
+### 🚀 **Option 1: CLI with YAML Configuration (Recommended)**
+
+1. **Install dependencies**:
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Set up API keys:
+2. **Create default configuration**:
+```bash
+python llmemory create-config
+```
+
+3. **Set up API keys**:
 ```bash
 cp .env.example .env
 # Add your MEM0_API_KEY and OPENAI_API_KEY
 ```
 
-3. Run the simple comparison:
+4. **Run benchmarks**:
+```bash
+python llmemory run
+```
+
+### 🐍 **Option 2: Python API**
+
+1. Install dependencies and set up API keys (steps 1-3 above)
+
+2. Run the simple comparison:
 ```bash
 python simple_example.py
 ```
@@ -97,6 +113,78 @@ results = await comparator.run_benchmark_suite(
 # Run all benchmarks
 all_results = await comparator.run_all_benchmarks()
 comparator.print_summary(all_results)
+```
+
+## YAML Configuration
+
+### 📋 **Configuration Structure**
+
+The YAML config has 4 main sections:
+
+```yaml
+memory_tools:    # Tools to compare
+benchmarks:      # Test suites to run  
+metrics:         # What to measure
+output:          # Results handling
+general:         # Global settings
+```
+
+### 🔧 **Memory Tools Configuration**
+
+```yaml
+memory_tools:
+  - name: mem0
+    enabled: true
+    api_key_env: MEM0_API_KEY
+    model: gpt-4o-mini
+    settings:
+      user_id: benchmark_user
+      llm_provider: openai
+      llm_api_key_env: OPENAI_API_KEY
+      vector_store:
+        provider: qdrant
+        host: localhost
+        port: 6333
+        collection_name: test
+
+  - name: openai_memory
+    enabled: true
+    api_key_env: OPENAI_API_KEY
+    model: gpt-4o-mini
+    settings:
+      temperature: 0.3
+      max_tokens: 300
+```
+
+### 📊 **Benchmarks Configuration**
+
+```yaml
+benchmarks:
+  - name: Conversational AI Memory
+    enabled: true
+  - name: Long Context Memory  
+    enabled: true
+  - name: Persona Consistency
+    enabled: false    # Skip this benchmark
+```
+
+### 📈 **CLI Commands**
+
+```bash
+# Create default config
+python llmemory create-config
+
+# Create custom config
+python llmemory create-config --output my_config.yml
+
+# Run with default config
+python llmemory run
+
+# Run with custom config
+python llmemory run --config my_config.yml
+
+# Verbose output
+python llmemory run --verbose
 ```
 
 ## Example Results

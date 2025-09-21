@@ -5,11 +5,11 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
 
-from .memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool
-from .workload import Workload, WorkloadResult
-from .metrics import MetricsCalculator
-from .config import Config
-from .benchmarks import StandardBenchmarks, BenchmarkRunner
+from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool
+from llmemory_meter.workload import Workload, WorkloadResult
+from llmemory_meter.metrics import MetricsCalculator
+from llmemory_meter.config_parser import Config
+from llmemory_meter.benchmarks import StandardBenchmarks, BenchmarkRunner
 
 
 class MemoryComparator:
@@ -23,12 +23,19 @@ class MemoryComparator:
     def _get_tool_instance(self, tool_name: str) -> MemoryTool:
         """Get or create a tool instance."""
         if tool_name not in self._tool_instances:
-            if tool_name == "mem0":
-                self._tool_instances[tool_name] = Mem0Tool(self.config.get("mem0", {}))
-            elif tool_name == "openai_memory":
-                self._tool_instances[tool_name] = OpenAIMemoryTool(self.config.get("openai_memory", {}))
-            else:
-                raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory")
+            try:
+                if tool_name == "mem0":
+                    self._tool_instances[tool_name] = Mem0Tool(self.config.get("mem0", {}))
+                elif tool_name == "openai_memory":
+                    self._tool_instances[tool_name] = OpenAIMemoryTool(self.config.get("openai_memory", {}))
+                else:
+                    raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory")
+            except (ValueError, ImportError) as e:
+                # Re-raise configuration and import errors
+                raise e
+            except Exception as e:
+                # Wrap other initialization errors
+                raise Exception(f"Failed to initialize {tool_name}: {e}")
         
         return self._tool_instances[tool_name]
     
