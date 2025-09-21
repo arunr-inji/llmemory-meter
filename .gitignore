@@ -142,3 +142,4 @@ benchmark_results.json
 custom_workload_results.json
 *.log
 test_results/
+CLAUDE.md
