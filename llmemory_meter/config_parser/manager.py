@@ -86,6 +86,15 @@ class ConfigManager:
                         "temperature": 0.3,
                         "max_tokens": 300
                     }
+                ),
+                MemoryToolConfig(
+                    name="zep",
+                    enabled=True,
+                    api_key_env="ZEP_API_KEY",
+                    settings={
+                        "api_url": "https://api.getzep.com",
+                        "user_id": "benchmark_user"
+                    }
                 )
             ],
             benchmarks=[

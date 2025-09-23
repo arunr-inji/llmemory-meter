@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
 
-from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool
+from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool, ZepTool
 from llmemory_meter.workload import Workload, WorkloadResult
 from llmemory_meter.metrics import MetricsCalculator
 from llmemory_meter.config_parser import Config
@@ -28,8 +28,10 @@ class MemoryComparator:
                     self._tool_instances[tool_name] = Mem0Tool(self.config.get("mem0", {}))
                 elif tool_name == "openai_memory":
                     self._tool_instances[tool_name] = OpenAIMemoryTool(self.config.get("openai_memory", {}))
+                elif tool_name == "zep":
+                    self._tool_instances[tool_name] = ZepTool(self.config.get("zep", {}))
                 else:
-                    raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory")
+                    raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory, zep")
             except (ValueError, ImportError) as e:
                 # Re-raise configuration and import errors
                 raise e
@@ -78,7 +80,7 @@ class MemoryComparator:
         # Run workload on all tools concurrently
         tasks = []
         for tool_name in tools:
-            if tool_name in ["mem0", "openai_memory"]:  # Supported tools
+            if tool_name in ["mem0", "openai_memory", "zep"]:  # Supported tools
                 task = self.run_workload_on_tool(workload, tool_name)
                 tasks.append((tool_name, task))
         

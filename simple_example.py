@@ -33,8 +33,8 @@ async def main():
     print(f"   Memory content: {workload.steps[0].content}")
     print(f"   Query: {workload.steps[1].content}")
     
-    # Test both tools
-    tools = ["mem0", "openai_memory"]
+    # Test available tools
+    tools = ["mem0", "openai_memory", "zep"]
     
     try:
         print(f"\n🚀 Comparing {len(tools)} memory tools...")

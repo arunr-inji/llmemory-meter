@@ -2,6 +2,7 @@
 mem0ai>=0.1.0
 openai>=1.0.0
 python-dotenv>=1.0.0
+zep-cloud>=2.0.0
 
 # Configuration management
 PyYAML>=6.0
