@@ -14,6 +14,7 @@ class Config:
     # API Keys
     MEM0_API_KEY: Optional[str] = os.getenv("MEM0_API_KEY")
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    GOOGLE_API_KEY: Optional[str] = os.getenv("GOOGLE_API_KEY")
     ZEP_API_KEY: Optional[str] = os.getenv("ZEP_API_KEY")
     LANGCHAIN_API_KEY: Optional[str] = os.getenv("LANGCHAIN_API_KEY")
     
