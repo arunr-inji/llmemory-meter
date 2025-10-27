@@ -24,7 +24,7 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
     if config_file:
         print(f"   Config file: {config_file}")
     else:
-        print(f"   Using default config: {ConfigManager.DEFAULT_CONFIG_FILE}")
+        print(f"   Using default config: {ConfigManager.get_default_config_file()}")
     
     config = ConfigManager.load_config(config_file)
     
@@ -63,7 +63,18 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
     # Initialize comparator with config
     print(f"\n🚀 Initializing memory tools...")
     try:
-        comparator = MemoryComparator()
+        # Pass both general config and memory tools config to comparator
+        full_config = {}
+        if hasattr(config, 'general') and config.general:
+            full_config.update(config.general)
+        
+        # Add memory tools configuration
+        if hasattr(config, 'memory_tools') and config.memory_tools:
+            for tool_config in config.memory_tools:
+                if hasattr(tool_config, 'name') and hasattr(tool_config, 'settings'):
+                    full_config[tool_config.name] = tool_config.settings
+        
+        comparator = MemoryComparator(full_config)
         
         # Run benchmarks
         print(f"\n🧪 Running benchmarks...")
@@ -135,7 +146,7 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
 
 def create_config_command(args):
     """Create default configuration file."""
-    config_file = args.output or ConfigManager.DEFAULT_CONFIG_FILE
+    config_file = args.output or ConfigManager.get_default_config_file()
     
     if Path(config_file).exists() and not args.force:
         print(f"❌ Config file {config_file} already exists. Use --force to overwrite.")
@@ -161,11 +172,14 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  llmemory run                                # Run with default config
-  llmemory run --config my_config.yml        # Run with custom config
-  llmemory run --config configs/example.yml  # Run with example config
-  llmemory create-config                      # Create default config file
+  llmemory run                          # Run with default config (starter.yml)
+  llmemory run --config comprehensive   # Run comprehensive evaluation  
+  llmemory run --config my_config.yml  # Run with custom config
+  llmemory create-config                # Create default config file
   llmemory create-config --output custom.yml # Create custom config file
+
+Environment Variables:
+  LLMEMORY_DEFAULT_CONFIG=comprehensive.yml  # Change default config
         """
     )
     

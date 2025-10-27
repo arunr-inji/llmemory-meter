@@ -20,6 +20,15 @@ memory_tools:
       user_id: example_user
       llm_provider: openai
       llm_api_key_env: OPENAI_API_KEY
+      llm_config:
+        model: gpt-4o-mini
+        temperature: 0.2
+        max_tokens: 1500
+      vector_store:
+        provider: qdrant
+        host: localhost
+        port: 6333
+        collection_name: llmemory_benchmarks
 
 benchmarks:
   # Run only basic benchmarks

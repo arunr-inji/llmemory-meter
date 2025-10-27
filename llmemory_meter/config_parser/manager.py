@@ -53,7 +53,14 @@ class LLMemoryMeterConfig:
 class ConfigManager:
     """Manages YAML configuration for LLMemoryMeter."""
     
-    DEFAULT_CONFIG_FILE = "configs/default.yml"
+    @classmethod
+    def get_default_config_file(cls) -> str:
+        """Get default config file from environment or fallback to starter.yml."""
+        import os
+        return os.getenv("LLMEMORY_DEFAULT_CONFIG", "configs/starter.yml")
+    
+    # Set default config file
+    DEFAULT_CONFIG_FILE = "configs/starter.yml"  # Will be overridden by get_default_config_file() when called
     
     @staticmethod
     def create_default_config() -> LLMemoryMeterConfig:
@@ -141,10 +148,31 @@ class ConfigManager:
         return file_path
     
     @staticmethod
+    def resolve_config_path(config_file: str) -> str:
+        """Resolve config file path, checking configs/ folder if needed."""
+        import os
+        
+        # If it's already a full path that exists, use it
+        if os.path.exists(config_file):
+            return config_file
+        
+        # If it doesn't have configs/ prefix, try adding it
+        if not config_file.startswith("configs/"):
+            configs_path = f"configs/{config_file}"
+            if os.path.exists(configs_path):
+                return configs_path
+        
+        # Return original path (will fail later with clear error)
+        return config_file
+    
+    @staticmethod
     def load_config(file_path: str = None) -> LLMemoryMeterConfig:
         """Load configuration from YAML file."""
         if file_path is None:
-            file_path = ConfigManager.DEFAULT_CONFIG_FILE
+            file_path = ConfigManager.get_default_config_file()
+        else:
+            # Resolve the path to check configs/ folder
+            file_path = ConfigManager.resolve_config_path(file_path)
         
         # Create default config if file doesn't exist
         if not os.path.exists(file_path):

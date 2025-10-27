@@ -25,24 +25,55 @@ class Mem0Tool(MemoryTool):
         
         self.api_key = Config.MEM0_API_KEY
         self._user_id = self.config.get("user_id", "benchmark_user")
+        
+        # Get LLM provider from config (default to openai)
+        self.llm_provider = self.config.get("llm_provider", "openai")
+        
+        # Validate required API key for the chosen LLM provider
+        if self.llm_provider == "openai" and not Config.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY required for Mem0 with OpenAI LLM")
+        elif self.llm_provider == "gemini":
+            if not Config.GOOGLE_API_KEY:
+                raise ValueError("GOOGLE_API_KEY required for Mem0 with Gemini LLM")
+            if not Config.OPENAI_API_KEY:
+                raise ValueError("OPENAI_API_KEY also required for embeddings (even with Gemini LLM)")
+        
         self._initialize_mem0_client()
     
     def _initialize_mem0_client(self):
         """Initialize the Mem0 client with proper configuration."""
         try:
             from mem0 import Memory
-
-            # Use Mem0 cloud instead of local Qdrant
-            self.mem0_config = {
-                "llm": {
+            
+            # Get LLM configuration from settings
+            llm_config = self.config.get("llm_config", {})
+            
+            # Configure LLM based on provider
+            if self.llm_provider == "gemini":
+                llm_provider_config = {
+                    "provider": "gemini",
+                    "config": {
+                        "model": llm_config.get("model", "gemini-2.0-flash-001"),
+                        "temperature": llm_config.get("temperature", 0.2),
+                        "max_tokens": llm_config.get("max_tokens", 2000),
+                        "top_p": llm_config.get("top_p", 1.0),
+                        "api_key": Config.GOOGLE_API_KEY
+                    }
+                }
+            else:  # default to openai
+                llm_provider_config = {
                     "provider": "openai",
                     "config": {
-                        "model": "gpt-4o-mini",
-                        "temperature": 0.2,
-                        "max_tokens": 1500,
+                        "model": llm_config.get("model", "gpt-4o-mini"),
+                        "temperature": llm_config.get("temperature", 0.2),
+                        "max_tokens": llm_config.get("max_tokens", 1500),
                         "api_key": Config.OPENAI_API_KEY
                     }
-                },
+                }
+            
+            # Build the complete Mem0 configuration
+            self.mem0_config = {
+                "llm": llm_provider_config,
                 "embedder": {
                     "provider": "openai",
                     "config": {
@@ -52,25 +83,25 @@ class Mem0Tool(MemoryTool):
                 }
             }
             
-            try:
-                self.memory = Memory.from_config(self.mem0_config)
-                print("✅ Mem0 initialized with vector store")
-            except Exception as e:
-                print(f"⚠️  Vector store failed, using simple config: {e}")
-                # Fallback to simpler config
-                simple_config = {
-                    "llm": {
-                        "provider": "openai",
+            # Add vector store configuration if provided
+            vector_store_config = self.config.get("vector_store")
+            if vector_store_config:
+                if vector_store_config.get("provider") == "qdrant":
+                    self.mem0_config["vector_store"] = {
+                        "provider": "qdrant",
                         "config": {
-                            "model": "gpt-4o-mini",
-                            "temperature": 0.2,
-                            "max_tokens": 1500,
-                            "api_key": Config.OPENAI_API_KEY
+                            "collection_name": vector_store_config.get("collection_name", "llmemory_benchmarks"),
+                            "host": vector_store_config.get("host", "localhost"),
+                            "port": vector_store_config.get("port", 6333),
                         }
                     }
-                }
-                self.memory = Memory.from_config(simple_config)
-                print("✅ Mem0 initialized with simple config")
+            
+            # Initialize Mem0 with the complete configuration
+            try:
+                self.memory = Memory.from_config(self.mem0_config)
+                # Mem0 initialized successfully
+            except Exception as e:
+                raise Exception(f"Failed to initialize Mem0: {e}")
             
         except ImportError:
             raise ImportError("mem0ai package not installed. Install with: pip install mem0ai")
@@ -80,16 +111,36 @@ class Mem0Tool(MemoryTool):
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store memory in Mem0."""
         try:
-            result = self.memory.add(content, user_id=self._user_id, metadata=metadata)
+            # Run in a thread-safe manner by using run_in_executor
+            import asyncio
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, self._sync_add, content, metadata)
             memory_id = result.get('id', 'unknown') if isinstance(result, dict) else str(result)
             return f"Stored in Mem0 (ID: {memory_id}): {content[:50]}..."
         except Exception as e:
             raise Exception(f"Mem0 store failed: {e}")
     
+    def _sync_add(self, content: str, metadata: Optional[Dict[str, Any]] = None):
+        """Synchronous wrapper for Mem0 add operation with fresh instance."""
+        # Create a new Mem0 instance for this thread to avoid SQLite conflicts
+        from mem0 import Memory
+        fresh_memory = Memory.from_config(self.mem0_config)
+        return fresh_memory.add(content, user_id=self._user_id, metadata=metadata)
+    
+    def _sync_search(self, query: str, metadata: Optional[Dict[str, Any]] = None):
+        """Synchronous wrapper for Mem0 search operation with fresh instance."""
+        # Create a new Mem0 instance for this thread to avoid SQLite conflicts
+        from mem0 import Memory
+        fresh_memory = Memory.from_config(self.mem0_config)
+        return fresh_memory.search(query, user_id=self._user_id, limit=3)
+    
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve memory from Mem0."""
         try:
-            results = self.memory.search(query, user_id=self._user_id, limit=3)
+            # Run in a thread-safe manner by using run_in_executor
+            import asyncio
+            loop = asyncio.get_event_loop()
+            results = await loop.run_in_executor(None, self._sync_search, query, metadata)
 
             # Handle different response formats
             if isinstance(results, dict):
@@ -114,15 +165,27 @@ class Mem0Tool(MemoryTool):
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Chat with Mem0 memory context."""
         try:
-            relevant_memories = self.memory.search(message, user_id=self._user_id, limit=5)
+            # Use thread-safe search
+            import asyncio
+            loop = asyncio.get_event_loop()
+            search_results = await loop.run_in_executor(None, self._sync_search, message, metadata)
+            
+            # Handle different response formats
+            memories = []
+            if isinstance(search_results, dict) and 'results' in search_results:
+                memories = search_results['results'][:3]  # Take top 3
+            elif isinstance(search_results, list):
+                memories = search_results[:3]
             
             context = ""
-            if relevant_memories:
-                context = "Relevant memories: " + " | ".join([
-                    mem.get('memory', mem.get('text', '')) 
-                    for mem in relevant_memories[:3]
-                ])
+            if memories:
+                memory_texts = []
+                for mem in memories:
+                    if isinstance(mem, dict):
+                        memory_text = mem.get('memory', mem.get('text', str(mem)))
+                        memory_texts.append(memory_text)
+                context = "Relevant memories: " + " | ".join(memory_texts)
             
-            return f"Mem0 chat response to '{message}' (with {len(relevant_memories)} memories): Based on your memories, I can help you with this request. {context[:200]}..."
+            return f"Mem0 chat response to '{message}' (with {len(memories)} memories): Based on your memories, I can help you with this request. {context[:200]}..."
         except Exception as e:
             raise Exception(f"Mem0 chat failed: {e}")

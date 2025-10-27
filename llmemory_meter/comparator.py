@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
 
-from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool, ZepTool
+from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool, MemGPTTool, ClaudeMemoryTool, ZepTool
 from llmemory_meter.workload import Workload, WorkloadResult
 from llmemory_meter.metrics import MetricsCalculator
 from llmemory_meter.config_parser import Config
@@ -19,6 +19,8 @@ class MemoryComparator:
         self.config = config or {}
         self.available_tools = Config.get_available_tools()
         self._tool_instances: Dict[str, MemoryTool] = {}
+        # Get concurrent_tools setting from config
+        self.concurrent_tools = self.config.get('concurrent_tools', True)
     
     def _get_tool_instance(self, tool_name: str) -> MemoryTool:
         """Get or create a tool instance."""
@@ -28,10 +30,14 @@ class MemoryComparator:
                     self._tool_instances[tool_name] = Mem0Tool(self.config.get("mem0", {}))
                 elif tool_name == "openai_memory":
                     self._tool_instances[tool_name] = OpenAIMemoryTool(self.config.get("openai_memory", {}))
+                elif tool_name == "memgpt":
+                    self._tool_instances[tool_name] = MemGPTTool(self.config.get("memgpt", {}))
+                elif tool_name == "claude_memory":
+                    self._tool_instances[tool_name] = ClaudeMemoryTool(self.config.get("claude_memory", {}))
                 elif tool_name == "zep":
                     self._tool_instances[tool_name] = ZepTool(self.config.get("zep", {}))
                 else:
-                    raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory, zep")
+                    raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory, memgpt, claude_memory, zep")
             except (ValueError, ImportError) as e:
                 # Re-raise configuration and import errors
                 raise e
@@ -77,30 +83,51 @@ class MemoryComparator:
         if not tools:
             raise ValueError("No tools available. Please check your API key configuration.")
         
-        # Run workload on all tools concurrently
-        tasks = []
-        for tool_name in tools:
-            if tool_name in ["mem0", "openai_memory", "zep"]:  # Supported tools
-                task = self.run_workload_on_tool(workload, tool_name)
-                tasks.append((tool_name, task))
-        
         results = {}
-        for tool_name, task in tasks:
-            try:
-                result = await task
-                results[tool_name] = result
-            except Exception as e:
-                print(f"Error running {tool_name}: {e}")
-                # Create a failed result
-                results[tool_name] = WorkloadResult(
-                    tool_name=tool_name,
-                    workload_name=workload.name,
-                    step_results=[],
-                    total_latency_ms=0,
-                    total_tokens_used=0,
-                    success_rate=0,
-                    timestamp=datetime.now()
-                )
+        
+        if self.concurrent_tools:
+            # Run workload on all tools concurrently
+            tasks = []
+            for tool_name in tools:
+                if tool_name in ["mem0", "openai_memory", "zep"]:  # Supported tools
+                    task = self.run_workload_on_tool(workload, tool_name)
+                    tasks.append((tool_name, task))
+            
+            for tool_name, task in tasks:
+                try:
+                    result = await task
+                    results[tool_name] = result
+                except Exception as e:
+                    print(f"Error running {tool_name}: {e}")
+                    # Create a failed result
+                    results[tool_name] = WorkloadResult(
+                        tool_name=tool_name,
+                        workload_name=workload.name,
+                        step_results=[],
+                        total_latency_ms=0,
+                        total_tokens_used=0,
+                        success_rate=0,
+                        timestamp=datetime.now()
+                    )
+        else:
+            # Run workload on tools sequentially (thread-safe)
+            for tool_name in tools:
+                if tool_name in ["mem0", "openai_memory", "zep"]:  # Supported tools
+                    try:
+                        result = await self.run_workload_on_tool(workload, tool_name)
+                        results[tool_name] = result
+                    except Exception as e:
+                        print(f"Error running {tool_name}: {e}")
+                        # Create a failed result
+                        results[tool_name] = WorkloadResult(
+                            tool_name=tool_name,
+                            workload_name=workload.name,
+                            step_results=[],
+                            total_latency_ms=0,
+                            total_tokens_used=0,
+                            success_rate=0,
+                            timestamp=datetime.now()
+                        )
         
         return results
     

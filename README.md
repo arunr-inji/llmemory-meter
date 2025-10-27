@@ -12,9 +12,12 @@ A comprehensive Python tool for benchmarking and comparing AI memory systems lik
 
 ## Supported Memory Tools
 
-- **Mem0** - Multi-level memory system with semantic search
-- **OpenAI Memory** - Built-in ChatGPT memory capabilities
-- **Extensible Framework** - Easy to add MemGPT, Zep, and other memory tools
+- **Mem0** - Multi-level memory system with semantic search and vector storage
+- **OpenAI Memory** - Built-in ChatGPT memory capabilities  
+- **MemGPT** - Virtual memory management system (requires local server)
+- **Claude Memory** - Anthropic's conversational memory via Claude API
+- **Zep** - Enterprise-grade memory platform (requires cloud setup)
+- **Extensible Framework** - Easy to add new memory tools
 
 ## Performance Metrics
 
@@ -37,6 +40,24 @@ LLMemoryMeter measures comprehensive performance across multiple dimensions:
 - **Long Context**: Document processing, needle-in-haystack tests (LongBench style)
 - **Technical Performance**: Stress testing, capacity limits, concurrent access
 - **Domain-Specific**: Customer service, research assistant, personal assistant scenarios
+
+## Configuration Tiers
+
+LLMemoryMeter offers **tiered configurations** for different use cases:
+
+### 🚀 **Starter Configuration (Default)**
+- **Tools**: Mem0 + OpenAI Memory (2 tools)
+- **Benchmarks**: 2 basic scenarios  
+- **Runtime**: ~2-3 minutes
+- **Use Case**: Quick evaluation, getting started
+- **Command**: `llmemory run` (uses `configs/starter.yml`)
+
+### 🔬 **Comprehensive Configuration**  
+- **Tools**: Mem0 + OpenAI + MemGPT + Claude (4+ tools)
+- **Benchmarks**: All 6 scenarios enabled
+- **Runtime**: ~15-20 minutes  
+- **Use Case**: Research, tech articles, vendor evaluation
+- **Command**: `llmemory run --config comprehensive`
 
 ## Quick Start
 
@@ -146,9 +167,36 @@ comparator.print_summary(all_results)
 
 ## YAML Configuration
 
+### 📋 **Configuration Files**
+
+LLMemoryMeter uses YAML configuration files stored in the `configs/` folder:
+
+- **`configs/starter.yml`** - Default config with 2 tools (quick evaluation)
+- **`configs/comprehensive.yml`** - Full config with 4+ tools (research/articles)
+- **`configs/example.yml`** - Alternative examples and options
+
+### 🎯 **Creating Custom Configs**
+
+**Option 1: Use the CLI**
+```bash
+llmemory create-config --output my_experiment.yml
+# Creates configs/my_experiment.yml
+```
+
+**Option 2: Copy and modify existing configs**
+```bash
+cp configs/starter.yml configs/my_config.yml
+# Edit configs/my_config.yml as needed
+```
+
+**Option 3: Create directly in configs/ folder**
+- Always place custom configs in the `configs/` directory
+- Use `.yml` extension for consistency
+- The tool automatically finds configs in this folder
+
 ### 📋 **Configuration Structure**
 
-The YAML config has 4 main sections:
+Each YAML config has 5 main sections:
 
 ```yaml
 memory_tools:    # Tools to compare
@@ -200,20 +248,24 @@ benchmarks:
 ### 📈 **CLI Commands**
 
 ```bash
-# Create default config
-python llmemory create-config
+# Basic benchmarking (uses starter.yml by default)
+llmemory run
 
-# Create custom config
-python llmemory create-config --output my_config.yml
+# Comprehensive evaluation (for research/articles)
+llmemory run --config comprehensive
 
-# Run with default config
-python llmemory run
+# Run with custom config (auto-finds in configs/ folder)
+llmemory run --config my_experiment
 
-# Run with custom config
-python llmemory run --config my_config.yml
+# Create new config file (saved to configs/ folder)
+llmemory create-config --output my_experiment.yml
 
-# Verbose output
-python llmemory run --verbose
+# Set preferred default config
+export LLMEMORY_DEFAULT_CONFIG=comprehensive.yml
+llmemory run  # Now uses comprehensive by default
+
+# Verbose output for debugging
+llmemory run --verbose
 ```
 
 ## Example Results
@@ -311,10 +363,11 @@ docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
 ## Contributing
 
 We welcome contributions! Areas where help is needed:
-- Real API implementations for Mem0, OpenAI Memory
-- Additional memory tools (MemGPT, Zep, LangMem)
-- New benchmark scenarios
-- Memory quality evaluation metrics
+- Additional memory tools (LangMem, custom implementations)
+- New benchmark scenarios and datasets
+- Enhanced memory quality evaluation metrics
+- Statistical analysis and visualization features
+- Performance optimization and caching
 
 ## License
 

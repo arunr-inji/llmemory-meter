@@ -4,15 +4,29 @@ This directory contains YAML configuration files for LLMemoryMeter benchmarks.
 
 ## Available Configurations
 
-### 📋 **default.yml**
-- Default configuration with both Mem0 and OpenAI Memory enabled
+### 🚀 **starter.yml** (Default - Recommended for Beginners)
+- **Production-ready** configuration with 100% success rate
+- Both Mem0 (with Qdrant vector store) and OpenAI Memory enabled
+- Optimized settings: sequential execution, proper timeouts
 - Runs basic conversational and long-context benchmarks
-- Good starting point for most users
+
+### 🔬 **comprehensive.yml** (For Tech Articles & Research)
+- **Complete evaluation** setup with all memory tools and benchmarks
+- Memory Tools: Mem0, OpenAI Memory, MemGPT, Claude Memory (+ Zep optional)
+- All 6 benchmarks enabled for thorough comparison
+- Full quality analysis (accuracy, memory_quality metrics)
+- Perfect for tech journal articles, research papers, vendor evaluation
 
 ### 📝 **example.yml**
-- Example custom configuration
-- Shows how to configure specific tools and benchmarks
+- Alternative configuration showing different options
+- OpenAI Memory only setup (for users with just OpenAI API key)
 - Includes detailed comments explaining each option
+- Shows how to enable/disable specific benchmarks
+
+### 🔬 **gemini.yml**
+- Mem0 with Google Gemini LLM instead of OpenAI
+- Requires GOOGLE_API_KEY and MEM0_API_KEY
+- Demonstrates multi-LLM provider setup
 
 ## Creating Your Own Config
 
@@ -63,11 +77,22 @@ general:         # Global settings
 ## Quick Commands
 
 ```bash
-# Create new config from default
-python llmemory create-config --output my_config.yml
+# Basic benchmarking (uses starter.yml by default)
+llmemory run
 
-# Run with specific config
-python llmemory run --config configs/example.yml
+# Comprehensive evaluation (for articles/research)
+llmemory run --config comprehensive
+
+# Set your preferred default config  
+export LLMEMORY_DEFAULT_CONFIG=comprehensive.yml
+llmemory run  # Now uses comprehensive.yml by default
+
+# Create new config from default
+llmemory create-config --output my_config.yml
+
+# Run with specific config (auto-checks configs/ folder)
+llmemory run --config example
+llmemory run --config my_config.yml
 
 # Run with default config
 python llmemory run
