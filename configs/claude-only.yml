@@ -4,12 +4,16 @@ general:
   max_retries: 1
 
 memory_tools:
-- name: zep
+- name: claude_memory
   enabled: true
-  api_key_env: ZEP_API_KEY
-  model: null
+  api_key_env: ANTHROPIC_API_KEY
+  model: claude-3-5-haiku-20241022
   settings:
-    api_url: https://api.getzep.com
+    user_id: benchmark_user
+    claude_config:
+      model: claude-3-5-haiku-20241022
+      temperature: 0.2
+      max_tokens: 1000
 
 benchmarks:
 - name: Conversational AI Memory
@@ -24,5 +28,6 @@ metrics:
   memory_quality: false
 
 output:
-  output_file: zep_results.json
+  output_file: claude_results.json
   verbose: true
+

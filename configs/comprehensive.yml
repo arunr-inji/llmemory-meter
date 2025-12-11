@@ -1,7 +1,7 @@
 # Comprehensive Configuration - All Memory Tools & Benchmarks
 # Perfect for tech journal articles and in-depth comparisons
 # Requires: MEM0_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY
-# Optional: MemGPT server running on localhost:8283
+# Optional: MemGPT, Zep, Claude Memory
 
 memory_tools:
 - name: mem0
@@ -47,12 +47,10 @@ memory_tools:
       temperature: 0.2
       max_tokens: 1000
 - name: zep
-  enabled: false  # Requires Zep Cloud setup
+  enabled: true
   api_key_env: ZEP_API_KEY
   model: gpt-4o-mini
-  settings:
-    project_uuid: your_zep_project_uuid
-    user_id: benchmark_user
+  settings: {}
 
 benchmarks:
 - name: Conversational AI Memory

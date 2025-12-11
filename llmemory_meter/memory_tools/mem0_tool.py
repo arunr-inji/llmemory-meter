@@ -132,9 +132,14 @@ class Mem0Tool(MemoryTool):
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, self._sync_add, content, metadata)
             memory_id = result.get('id', 'unknown') if isinstance(result, dict) else str(result)
-            # Estimate tokens for store operation
-            self._last_tokens = self._estimate_tokens(content)
-            return f"Stored in Mem0 (ID: {memory_id}): {content[:50]}..."
+            response = f"Stored in Mem0 (ID: {memory_id}): {content[:50]}..."
+            
+            # Estimate tokens: input (content) + output (processing + response)
+            input_tokens = self._estimate_tokens(content)
+            output_tokens = self._estimate_tokens(response) + int(input_tokens * 0.5)  # Mem0 processing overhead
+            self._last_tokens = input_tokens + output_tokens
+            
+            return response
         except Exception as e:
             raise Exception(f"Mem0 store failed: {e}")
     
@@ -174,13 +179,19 @@ class Mem0Tool(MemoryTool):
                         memories.append(f"[Score: {score:.3f}] {memory_text}")
 
                 if memories:
-                    # Estimate tokens for retrieve operation
-                    self._last_tokens = self._estimate_tokens(query)
-                    return f"Retrieved from Mem0 for '{query}': " + " | ".join(memories)
+                    response = f"Retrieved from Mem0 for '{query}': " + " | ".join(memories)
+                    # Estimate tokens: input (query) + output (retrieved memories)
+                    input_tokens = self._estimate_tokens(query)
+                    output_tokens = self._estimate_tokens(response)
+                    self._last_tokens = input_tokens + output_tokens
+                    return response
 
             # Estimate tokens even if no memories found
-            self._last_tokens = self._estimate_tokens(query)
-            return f"No memories found in Mem0 for query: '{query}'"
+            response = f"No memories found in Mem0 for query: '{query}'"
+            input_tokens = self._estimate_tokens(query)
+            output_tokens = self._estimate_tokens(response)
+            self._last_tokens = input_tokens + output_tokens
+            return response
         except Exception as e:
             raise Exception(f"Mem0 retrieve failed: {e}")
     
@@ -208,11 +219,15 @@ class Mem0Tool(MemoryTool):
                         memory_texts.append(memory_text)
                 context = "Relevant memories: " + " | ".join(memory_texts)
             
-            # Estimate tokens (Mem0 doesn't expose token usage directly)
-            total_text = message + " " + context
-            self._last_tokens = self._estimate_tokens(total_text)
+            response = f"Mem0 chat response to '{message}' (with {len(memories)} memories): Based on your memories, I can help you with this request. {context[:200]}..."
             
-            return f"Mem0 chat response to '{message}' (with {len(memories)} memories): Based on your memories, I can help you with this request. {context[:200]}..."
+            # Estimate tokens: input (message + context) + output (response)
+            input_text = message + " " + context
+            input_tokens = self._estimate_tokens(input_text)
+            output_tokens = self._estimate_tokens(response)
+            self._last_tokens = input_tokens + output_tokens
+            
+            return response
         except Exception as e:
             raise Exception(f"Mem0 chat failed: {e}")
     
