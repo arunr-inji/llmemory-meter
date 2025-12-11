@@ -1,0 +1,38 @@
+# Debug Claude Memory Only - Fast Testing
+# Runtime: ~10 seconds
+
+memory_tools:
+- name: claude_memory
+  enabled: true
+  api_key_env: ANTHROPIC_API_KEY
+  model: claude-3-5-haiku-20241022
+  settings:
+    user_id: debug_user
+    claude_config:
+      model: claude-3-5-haiku-20241022
+      temperature: 0.2
+      max_tokens: 50  # Very small for speed
+
+benchmarks:
+- name: Conversational AI Memory
+  enabled: true
+  settings: null
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: false
+  memory_quality: false
+
+output:
+  save_results: true
+  output_file: debug_claude_results.json
+  print_summary: true
+  detailed_logs: false
+
+general:
+  timeout: 30
+  max_retries: 1
+  concurrent_tools: false
+  debug: true

@@ -149,3 +149,4 @@ CLAUDE.md
 benchmark_results.json
 *.log
 
+.env.backup*

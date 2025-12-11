@@ -89,7 +89,7 @@ class MemoryComparator:
             # Run workload on all tools concurrently
             tasks = []
             for tool_name in tools:
-                if tool_name in ["mem0", "openai_memory", "zep"]:  # Supported tools
+                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep"]:  # Supported tools
                     task = self.run_workload_on_tool(workload, tool_name)
                     tasks.append((tool_name, task))
             
@@ -112,7 +112,7 @@ class MemoryComparator:
         else:
             # Run workload on tools sequentially (thread-safe)
             for tool_name in tools:
-                if tool_name in ["mem0", "openai_memory", "zep"]:  # Supported tools
+                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep"]:  # Supported tools
                     try:
                         result = await self.run_workload_on_tool(workload, tool_name)
                         results[tool_name] = result

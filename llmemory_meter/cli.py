@@ -26,7 +26,14 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
     else:
         print(f"   Using default config: {ConfigManager.get_default_config_file()}")
     
-    config = ConfigManager.load_config(config_file)
+    try:
+        config = ConfigManager.load_config(config_file)
+    except Exception as e:
+        print(f"\n❌ Failed to load configuration: {e}")
+        if verbose:
+            import traceback
+            traceback.print_exc()
+        return False
     
     # Validate configuration
     print("\n🔍 Validating configuration...")

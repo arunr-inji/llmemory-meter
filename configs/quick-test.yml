@@ -1,0 +1,78 @@
+# Quick Test Configuration - Fast iteration and testing
+# Runtime: ~30 seconds
+# Perfect for development and quick validation
+
+memory_tools:
+- name: mem0
+  enabled: true
+  api_key_env: MEM0_API_KEY
+  model: gpt-4o-mini
+  settings:
+    user_id: test_user
+    llm_provider: openai
+    llm_api_key_env: OPENAI_API_KEY
+    llm_config:
+      model: gpt-4o-mini
+      temperature: 0.2
+      max_tokens: 100  # Reduced for speed
+    vector_store:
+      provider: qdrant
+      host: localhost
+      port: 6333
+      collection_name: llmemory_test
+- name: openai_memory
+  enabled: true
+  api_key_env: OPENAI_API_KEY
+  model: gpt-4o-mini
+  settings:
+    temperature: 0.3
+    max_tokens: 100  # Reduced for speed
+- name: claude_memory
+  enabled: true
+  api_key_env: ANTHROPIC_API_KEY
+  model: claude-3-5-haiku-20241022
+  settings:
+    user_id: test_user
+    claude_config:
+      model: claude-3-5-haiku-20241022
+      temperature: 0.2
+      max_tokens: 100  # Reduced for speed
+
+benchmarks:
+- name: Conversational AI Memory
+  enabled: true
+  settings: null
+- name: Long Context Memory
+  enabled: false  # Skip for quick test
+  settings: null
+- name: Persona Consistency
+  enabled: false  # Skip for quick test
+  settings: null
+- name: Technical Performance
+  enabled: false  # Skip for quick test
+  settings: null
+- name: Memory Stress Testing
+  enabled: false  # Skip for quick test
+  settings: null
+- name: Domain-Specific Applications
+  enabled: false  # Skip for quick test
+  settings: null
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: false  # Skip for speed
+  memory_quality: false  # Skip for speed
+
+output:
+  save_results: true
+  output_file: quick_test_results.json
+  print_summary: true
+  detailed_logs: false
+
+general:
+  timeout: 30  # Shorter timeout
+  max_retries: 1  # Fewer retries
+  concurrent_tools: false  # Sequential for stability
+  debug: true  # Show what's happening

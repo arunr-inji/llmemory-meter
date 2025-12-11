@@ -10,6 +10,13 @@ from typing import Dict, Any, Optional
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser import Config
 
+# Try to import tiktoken for token estimation
+try:
+    import tiktoken
+    _has_tiktoken = True
+except ImportError:
+    _has_tiktoken = False
+
 
 class Mem0Tool(MemoryTool):
     """Mem0 memory tool implementation with real API calls."""
@@ -25,6 +32,7 @@ class Mem0Tool(MemoryTool):
         
         self.api_key = Config.MEM0_API_KEY
         self._user_id = self.config.get("user_id", "benchmark_user")
+        self._last_tokens = 0  # Track token usage
         
         # Get LLM provider from config (default to openai)
         self.llm_provider = self.config.get("llm_provider", "openai")
@@ -95,6 +103,14 @@ class Mem0Tool(MemoryTool):
                             "port": vector_store_config.get("port", 6333),
                         }
                     }
+                elif vector_store_config.get("provider") == "chroma":
+                    self.mem0_config["vector_store"] = {
+                        "provider": "chroma",
+                        "config": {
+                            "collection_name": vector_store_config.get("collection_name", "llmemory_benchmarks"),
+                            "path": vector_store_config.get("path", "./chroma_db"),
+                        }
+                    }
             
             # Initialize Mem0 with the complete configuration
             try:
@@ -116,6 +132,8 @@ class Mem0Tool(MemoryTool):
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, self._sync_add, content, metadata)
             memory_id = result.get('id', 'unknown') if isinstance(result, dict) else str(result)
+            # Estimate tokens for store operation
+            self._last_tokens = self._estimate_tokens(content)
             return f"Stored in Mem0 (ID: {memory_id}): {content[:50]}..."
         except Exception as e:
             raise Exception(f"Mem0 store failed: {e}")
@@ -156,8 +174,12 @@ class Mem0Tool(MemoryTool):
                         memories.append(f"[Score: {score:.3f}] {memory_text}")
 
                 if memories:
+                    # Estimate tokens for retrieve operation
+                    self._last_tokens = self._estimate_tokens(query)
                     return f"Retrieved from Mem0 for '{query}': " + " | ".join(memories)
 
+            # Estimate tokens even if no memories found
+            self._last_tokens = self._estimate_tokens(query)
             return f"No memories found in Mem0 for query: '{query}'"
         except Exception as e:
             raise Exception(f"Mem0 retrieve failed: {e}")
@@ -186,6 +208,69 @@ class Mem0Tool(MemoryTool):
                         memory_texts.append(memory_text)
                 context = "Relevant memories: " + " | ".join(memory_texts)
             
+            # Estimate tokens (Mem0 doesn't expose token usage directly)
+            total_text = message + " " + context
+            self._last_tokens = self._estimate_tokens(total_text)
+            
             return f"Mem0 chat response to '{message}' (with {len(memories)} memories): Based on your memories, I can help you with this request. {context[:200]}..."
         except Exception as e:
             raise Exception(f"Mem0 chat failed: {e}")
+    
+    def _estimate_tokens(self, text: str) -> int:
+        """Estimate token count for Mem0 operations."""
+        if not text:
+            return 0
+        if _has_tiktoken:
+            try:
+                encoding = tiktoken.get_encoding("cl100k_base")  # GPT-4 tokenizer
+                return len(encoding.encode(text))
+            except:
+                pass
+        # Fallback: rough estimate (1 token ≈ 4 characters)
+        return len(text) // 4
+    
+    async def execute_step(self, step, step_index: int):
+        """Override to track token usage."""
+        from llmemory_meter.workload import StepResult
+        import time
+        
+        start_time = time.time()
+        self._last_tokens = 0  # Reset before each call
+        
+        try:
+            if step.action == "store":
+                response = await self.store_memory(step.content, step.metadata)
+                # Estimate tokens for store operation
+                self._last_tokens = self._estimate_tokens(step.content)
+            elif step.action == "retrieve":
+                response = await self.retrieve_memory(step.content, step.metadata)
+                # Estimate tokens for retrieve operation
+                self._last_tokens = self._estimate_tokens(step.content)
+            elif step.action == "chat":
+                response = await self.chat(step.content, step.metadata)
+                # Tokens already tracked in chat method
+            else:
+                raise ValueError(f"Unknown action: {step.action}")
+            
+            latency_ms = (time.time() - start_time) * 1000
+            
+            return StepResult(
+                step_index=step_index,
+                action=step.action,
+                response=response,
+                latency_ms=latency_ms,
+                tokens_used=self._last_tokens,
+                success=True
+            )
+            
+        except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
+            return StepResult(
+                step_index=step_index,
+                action=step.action,
+                response="",
+                latency_ms=latency_ms,
+                tokens_used=0,
+                success=False,
+                error_message=str(e)
+            )

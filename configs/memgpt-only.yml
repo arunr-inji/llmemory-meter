@@ -1,0 +1,33 @@
+general:
+  concurrent: false
+  timeout: 60
+  max_retries: 2
+
+memory_tools:
+- name: memgpt
+  enabled: true
+  api_key_env: MEMGPT_API_KEY
+  model: gpt-4o-mini
+  settings:
+    user_id: benchmark_user
+    memgpt_config:
+      agent_name: benchmark_agent_with_openai
+
+benchmarks:
+- name: Conversational AI Memory
+  enabled: true
+  settings: null
+- name: Long Context Memory
+  enabled: true
+  settings: null
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: true
+  memory_quality: true
+
+output:
+  output_file: memgpt_results.json
+  verbose: true

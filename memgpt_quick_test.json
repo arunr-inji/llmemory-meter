@@ -1,0 +1,117 @@
+{
+  "config": {
+    "tools": [
+      "memgpt"
+    ],
+    "benchmarks": [
+      "Conversational AI Memory"
+    ],
+    "metrics": {
+      "latency": true,
+      "success_rate": true,
+      "token_usage": true,
+      "accuracy": false,
+      "memory_quality": false
+    }
+  },
+  "results": {
+    "Conversational AI Memory": {
+      "benchmark_info": {
+        "name": "Conversational AI Memory",
+        "description": "Benchmarks based on conversational AI datasets (MSC, PersonaChat)",
+        "category": "conversational",
+        "num_workloads": 2,
+        "reference": "Xu et al. 2021 (MSC), Zhang et al. 2018 (PersonaChat)",
+        "recommended_metrics": [
+          "persona_consistency",
+          "fact_accuracy",
+          "memory_retention",
+          "response_relevance"
+        ],
+        "workload_names": [
+          "Multi-Session Memory Retention",
+          "Persona Consistency Test"
+        ]
+      },
+      "standard_results": {
+        "workload_results": {
+          "Multi-Session Memory Retention": {
+            "memgpt": "WorkloadResult(tool_name='memgpt', workload_name='Multi-Session Memory Retention', step_results=[StepResult(step_index=0, action='store', response=\"Stored in Letta: Hi! I'm Sarah, a 28-year-old software engineer fro...\", latency_ms=10094.730854034424, tokens_used=5261, success=True, error_message=None, metadata=None), StepResult(step_index=1, action='chat', response='Received response from Letta agent.', latency_ms=5690.2830600738525, tokens_used=4020, success=True, error_message=None, metadata=None), StepResult(step_index=2, action='retrieve', response='Retrieved from Letta for query: What do you know about my pet?', latency_ms=8386.481046676636, tokens_used=4621, success=True, error_message=None, metadata=None), StepResult(step_index=3, action='chat', response='Received response from Letta agent.', latency_ms=9046.458959579468, tokens_used=2868, success=True, error_message=None, metadata=None), StepResult(step_index=4, action='retrieve', response=\"Retrieved from Letta for query: What's my current profession and location?\", latency_ms=8603.919744491577, tokens_used=6391, success=True, error_message=None, metadata=None), StepResult(step_index=5, action='chat', response='Received response from Letta agent.', latency_ms=9006.997108459473, tokens_used=7134, success=True, error_message=None, metadata=None)], total_latency_ms=50828.999, total_tokens_used=30295, success_rate=1.0, timestamp=datetime.datetime(2025, 12, 9, 22, 56, 43, 607097))"
+          },
+          "Persona Consistency Test": {
+            "memgpt": "WorkloadResult(tool_name='memgpt', workload_name='Persona Consistency Test', step_results=[StepResult(step_index=0, action='store', response=\"Stored in Letta: My personality: I'm an introverted book lover who ...\", latency_ms=6146.401166915894, tokens_used=7595, success=True, error_message=None, metadata=None), StepResult(step_index=1, action='chat', response='Received response from Letta agent.', latency_ms=8601.284980773926, tokens_used=4206, success=True, error_message=None, metadata=None), StepResult(step_index=2, action='chat', response='Received response from Letta agent.', latency_ms=5014.193296432495, tokens_used=4358, success=True, error_message=None, metadata=None), StepResult(step_index=3, action='retrieve', response='Retrieved from Letta for query: How many books have I read?', latency_ms=7307.11817741394, tokens_used=9881, success=True, error_message=None, metadata=None), StepResult(step_index=4, action='chat', response='Received response from Letta agent.', latency_ms=13904.103755950928, tokens_used=5834, success=True, error_message=None, metadata=None)], total_latency_ms=40973.247, total_tokens_used=31874, success_rate=1.0, timestamp=datetime.datetime(2025, 12, 9, 22, 57, 34, 436166))"
+          }
+        },
+        "overall_metrics": {
+          "memgpt": {
+            "tool_name": "memgpt",
+            "avg_latency_ms": 8345.63,
+            "p95_latency_ms": 13904.1,
+            "p99_latency_ms": 13904.1,
+            "total_tokens": 62169,
+            "avg_tokens_per_query": 5651.73,
+            "success_rate": 100.0,
+            "total_queries": 11
+          }
+        },
+        "comparison_summary": {
+          "tools": [
+            "memgpt"
+          ],
+          "latency_comparison": {
+            "values": {
+              "memgpt": 8345.633831891146
+            },
+            "best": "memgpt",
+            "relative_performance": {
+              "memgpt": "+0.0%"
+            }
+          },
+          "token_comparison": {
+            "values": {
+              "memgpt": 5651.727272727273
+            },
+            "best": "memgpt",
+            "relative_efficiency": {
+              "memgpt": "+0.0%"
+            }
+          },
+          "success_rate_comparison": {
+            "values": {
+              "memgpt": 100.0
+            },
+            "best": "memgpt"
+          },
+          "rankings": {
+            "latency": [
+              "memgpt"
+            ],
+            "token_efficiency": [
+              "memgpt"
+            ],
+            "success_rate": [
+              "memgpt"
+            ]
+          }
+        },
+        "benchmark_info": {
+          "num_workloads": 2,
+          "tools_tested": [
+            "memgpt"
+          ],
+          "timestamp": "2025-12-09T22:58:15.409981"
+        }
+      },
+      "benchmark_specific_analysis": {
+        "category": "conversational",
+        "reference": "Xu et al. 2021 (MSC), Zhang et al. 2018 (PersonaChat)",
+        "evaluation_focus": [
+          "persona_consistency",
+          "fact_accuracy",
+          "memory_retention",
+          "response_relevance"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+general:
+  concurrent: false
+  timeout: 30
+  max_retries: 1
+
+memory_tools:
+- name: mem0
+  enabled: true
+  api_key_env: MEM0_API_KEY
+  model: gpt-4o-mini
+  settings:
+    user_id: benchmark_user
+    llm_provider: openai
+    llm_api_key_env: OPENAI_API_KEY
+    llm_config:
+      model: gpt-4o-mini
+      temperature: 0.2
+      max_tokens: 2000
+    vector_store:
+      provider: qdrant
+      host: localhost
+      port: 6333
+      collection_name: llmemory_benchmarks
+
+benchmarks:
+- name: Conversational AI Memory
+  enabled: true
+  settings: null
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: true
+  memory_quality: true
+
+output:
+  output_file: mem0_results.json
+  verbose: true

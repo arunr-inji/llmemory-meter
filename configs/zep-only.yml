@@ -1,0 +1,29 @@
+general:
+  concurrent: false
+  timeout: 30
+  max_retries: 1
+
+memory_tools:
+- name: zep
+  enabled: true
+  api_key_env: ZEP_API_KEY
+  model: null
+  settings:
+    api_url: https://api.getzep.com
+    user_id: benchmark_user
+
+benchmarks:
+- name: Conversational AI Memory
+  enabled: true
+  settings: null
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: false
+  memory_quality: false
+
+output:
+  output_file: zep_results.json
+  verbose: true

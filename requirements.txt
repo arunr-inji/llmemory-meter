@@ -15,5 +15,6 @@ httpx>=0.25.0
 
 # Additional memory tools
 google-genai
-pymemgpt>=0.3.0
+letta-client
 anthropic>=0.7.0
+tiktoken>=0.5.0

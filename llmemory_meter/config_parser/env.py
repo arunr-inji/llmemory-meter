@@ -1,11 +1,25 @@
 """Configuration management for LLMemoryMeter."""
 
 import os
+from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Find .env file starting from this module's directory and going up
+try:
+    # Start from this file's directory and go up to find .env
+    current_dir = Path(__file__).resolve().parent
+    project_root = current_dir.parent.parent  # Go up two levels to project root
+    env_file = project_root / ".env"
+    
+    if env_file.exists():
+        load_dotenv(dotenv_path=env_file)
+    else:
+        # Try to find .env by searching upwards
+        load_dotenv(verbose=False)
+except (PermissionError, FileNotFoundError, OSError):
+    # If .env file can't be loaded, continue with system environment variables
+    pass
 
 
 class Config:
@@ -16,6 +30,28 @@ class Config:
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
     GOOGLE_API_KEY: Optional[str] = os.getenv("GOOGLE_API_KEY")
     ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
+    
+    # MEMGPT_API_KEY: Special handling for base64 keys ending with =
+    # load_dotenv() has a bug that truncates values ending with = even with quotes
+    # Workaround: manually parse from .env file
+    _memgpt_key = os.getenv("MEMGPT_API_KEY")
+    if _memgpt_key and len(_memgpt_key) < 107:  # Expected length is 107
+        # Try to read directly from .env file
+        try:
+            current_dir = Path(__file__).resolve().parent
+            project_root = current_dir.parent.parent
+            env_file = project_root / ".env"
+            if env_file.exists():
+                with open(env_file, 'r') as f:
+                    for line in f:
+                        if line.startswith('MEMGPT_API_KEY'):
+                            # Extract value after =, remove quotes and whitespace
+                            _memgpt_key = line.split('=', 1)[1].strip().strip('"').strip("'")
+                            break
+        except:
+            pass
+    MEMGPT_API_KEY: Optional[str] = _memgpt_key
+    
     ZEP_API_KEY: Optional[str] = os.getenv("ZEP_API_KEY")
     LANGCHAIN_API_KEY: Optional[str] = os.getenv("LANGCHAIN_API_KEY")
     

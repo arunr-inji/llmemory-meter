@@ -189,8 +189,7 @@ class ConfigManager:
         
         except Exception as e:
             print(f"❌ Error loading config from {file_path}: {e}")
-            print("🔧 Using default configuration instead")
-            return ConfigManager.create_default_config()
+            raise Exception(f"Failed to load configuration from {file_path}: {e}")
     
     @staticmethod
     def _dict_to_config(config_dict: Dict[str, Any]) -> LLMemoryMeterConfig:

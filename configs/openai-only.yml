@@ -1,0 +1,29 @@
+general:
+  concurrent: false
+  timeout: 30
+  max_retries: 1
+
+memory_tools:
+- name: openai_memory
+  enabled: true
+  api_key_env: OPENAI_API_KEY
+  model: gpt-4o-mini
+  settings:
+    temperature: 0.3
+    max_tokens: 300
+
+benchmarks:
+- name: Conversational AI Memory
+  enabled: true
+  settings: null
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: false
+  memory_quality: false
+
+output:
+  output_file: openai_results.json
+  verbose: true
