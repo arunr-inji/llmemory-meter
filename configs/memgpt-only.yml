@@ -9,9 +9,8 @@ memory_tools:
   api_key_env: MEMGPT_API_KEY
   model: gpt-4o-mini
   settings:
-    user_id: benchmark_user
     memgpt_config:
-      agent_name: benchmark_agent_with_openai
+      # agent_name auto-generated to prevent context accumulation
 
 benchmarks:
 - name: Conversational AI Memory

@@ -100,7 +100,10 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
                     for tool_name, tool_metrics in metrics.items():
                         success_rate = tool_metrics.get('success_rate', 0)
                         avg_latency = tool_metrics.get('avg_latency_ms', 0)
-                        print(f"   {tool_name}: {success_rate:.1f}% success, {avg_latency:.0f}ms avg")
+                        
+                        # Highlight failures
+                        status_icon = "✅" if success_rate == 100.0 else "⚠️"
+                        print(f"   {status_icon} {tool_name}: {success_rate:.1f}% success, {avg_latency:.0f}ms avg")
                 
             except Exception as e:
                 print(f"   ❌ Failed: {e}")

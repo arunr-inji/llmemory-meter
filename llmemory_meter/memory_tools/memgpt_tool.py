@@ -2,6 +2,8 @@
 
 from typing import Dict, Any, Optional
 import asyncio
+import time
+import random
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser.env import Config
 
@@ -23,7 +25,13 @@ class MemGPTTool(MemoryTool):
         if not Config.MEMGPT_API_KEY:
             raise ValueError("MEMGPT_API_KEY required for Letta Cloud")
         
-        self._user_id = self.config.get("user_id", "benchmark_user")
+        # Generate unique user_id for each benchmark run to prevent context accumulation
+        # If user_id is provided in config, use it; otherwise generate unique one
+        if self.config.get("user_id"):
+            self._user_id = self.config.get("user_id")
+        else:
+            self._user_id = f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
+        
         self._agent_id = None
         self._last_tokens = 0  # Track token usage from last API call
         
@@ -52,8 +60,13 @@ class MemGPTTool(MemoryTool):
             self.client = Letta(api_key=Config.MEMGPT_API_KEY)
             
             # Set up or find existing agent
-            memgpt_config = self.config.get("memgpt_config", {})
-            agent_name = memgpt_config.get("agent_name", f"benchmark_agent_{self._user_id}")
+            memgpt_config = self.config.get("memgpt_config") or {}
+            # Always generate unique agent name to prevent reusing agents from previous runs
+            if memgpt_config.get("agent_name"):
+                agent_name = memgpt_config.get("agent_name")
+            else:
+                # Use timestamp + random for uniqueness to prevent context accumulation
+                agent_name = f"benchmark_agent_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
             self._setup_agent(agent_name, memgpt_config)
                 
         except Exception as e:

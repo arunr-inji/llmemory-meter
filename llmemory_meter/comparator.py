@@ -143,7 +143,12 @@ class MemoryComparator:
         for workload in workloads:
             print(f"Running workload: {workload.name}")
             comparison = await self.compare_tools(workload, tools)
-            workload_comparisons[workload.name] = comparison
+            
+            # Convert WorkloadResult objects to dictionaries for proper JSON serialization
+            workload_comparisons[workload.name] = {
+                tool_name: result.to_dict() if hasattr(result, 'to_dict') else result
+                for tool_name, result in comparison.items()
+            }
             
             # Collect results for each tool
             for tool_name, result in comparison.items():
@@ -265,11 +270,18 @@ class MemoryComparator:
             print("-" * 40)
             
             for tool_name, metrics in results["overall_metrics"].items():
-                print(f"\n🔧 {tool_name.upper()}:")
+                success_rate = metrics['success_rate']
+                status_icon = "✅" if success_rate == 100.0 else "⚠️"
+                
+                print(f"\n🔧 {tool_name.upper()}: {status_icon}")
                 print(f"  • Avg Latency: {metrics['avg_latency_ms']}ms")
                 print(f"  • P95 Latency: {metrics['p95_latency_ms']}ms") 
-                print(f"  • Success Rate: {metrics['success_rate']}%")
+                print(f"  • Success Rate: {success_rate}%")
                 print(f"  • Avg Tokens/Query: {metrics['avg_tokens_per_query']}")
+                
+                # Warn if not 100% reliable
+                if success_rate < 100.0:
+                    print(f"  ⚠️  Note: Some operations failed (see detailed results)")
         
         if "comparison_summary" in results and results["comparison_summary"]:
             summary = results["comparison_summary"]

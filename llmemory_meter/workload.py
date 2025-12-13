@@ -113,5 +113,18 @@ class WorkloadResult:
             "total_tokens_used": self.total_tokens_used,
             "success_rate": self.success_rate,
             "num_steps": len(self.step_results),
+            "step_results": [
+                {
+                    "step_index": step.step_index,
+                    "action": step.action,
+                    "response": step.response[:200] if step.response else None,  # Truncate long responses
+                    "latency_ms": step.latency_ms,
+                    "tokens_used": step.tokens_used,
+                    "success": step.success,
+                    "error_message": step.error_message,
+                    "metadata": step.metadata
+                }
+                for step in self.step_results
+            ],
             "timestamp": self.timestamp.isoformat()
         }

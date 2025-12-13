@@ -33,9 +33,8 @@ memory_tools:
   api_key_env: MEMGPT_API_KEY
   model: gpt-4o-mini
   settings:
-    user_id: benchmark_user
     memgpt_config:
-      agent_name: benchmark_agent_comprehensive
+      # agent_name auto-generated per run to prevent context accumulation
 - name: claude_memory
   enabled: true
   api_key_env: ANTHROPIC_API_KEY
