@@ -17,10 +17,12 @@ class PerformanceMetrics:
     avg_tokens_per_query: float
     success_rate: float
     total_queries: int
+    avg_accuracy: float = None  # Average accuracy score (primary provider)
+    accuracy_by_provider: Dict[str, float] = None  # Accuracy by embedding provider
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert metrics to dictionary."""
-        return {
+        result = {
             "tool_name": self.tool_name,
             "avg_latency_ms": round(self.avg_latency_ms, 2),
             "p95_latency_ms": round(self.p95_latency_ms, 2),
@@ -30,6 +32,16 @@ class PerformanceMetrics:
             "success_rate": round(self.success_rate * 100, 1),  # Convert to percentage
             "total_queries": self.total_queries
         }
+        
+        # Add accuracy if available
+        if self.avg_accuracy is not None:
+            result["avg_accuracy"] = round(self.avg_accuracy, 3)
+        if self.accuracy_by_provider:
+            result["accuracy_by_provider"] = {
+                provider: round(score, 3) for provider, score in self.accuracy_by_provider.items()
+            }
+        
+        return result
 
 
 class MetricsCalculator:
@@ -46,6 +58,8 @@ class MetricsCalculator:
         all_tokens = []
         successful_queries = 0
         total_queries = 0
+        all_accuracy_scores = []
+        accuracy_by_provider = {}
         
         for result in results:
             for step_result in result.step_results:
@@ -55,11 +69,32 @@ class MetricsCalculator:
                 if step_result.success:
                     successful_queries += 1
                 total_queries += 1
+                
+                # Collect accuracy scores
+                if step_result.accuracy is not None:
+                    all_accuracy_scores.append(step_result.accuracy)
+                
+                # Collect accuracy by provider
+                if step_result.accuracy_by_provider:
+                    for provider, score in step_result.accuracy_by_provider.items():
+                        if score is not None:
+                            accuracy_by_provider.setdefault(provider, []).append(score)
         
         # Calculate percentiles
         sorted_latencies = sorted(all_latencies)
         p95_index = int(0.95 * len(sorted_latencies))
         p99_index = int(0.99 * len(sorted_latencies))
+        
+        # Calculate average accuracy
+        avg_accuracy = statistics.mean(all_accuracy_scores) if all_accuracy_scores else None
+        
+        # Calculate average accuracy by provider
+        avg_accuracy_by_provider = None
+        if accuracy_by_provider:
+            avg_accuracy_by_provider = {
+                provider: statistics.mean(scores)
+                for provider, scores in accuracy_by_provider.items()
+            }
         
         return PerformanceMetrics(
             tool_name=tool_name,
@@ -69,7 +104,9 @@ class MetricsCalculator:
             total_tokens=sum(all_tokens),
             avg_tokens_per_query=statistics.mean(all_tokens) if all_tokens else 0,
             success_rate=successful_queries / total_queries if total_queries > 0 else 0,
-            total_queries=total_queries
+            total_queries=total_queries,
+            avg_accuracy=avg_accuracy,
+            accuracy_by_provider=avg_accuracy_by_provider
         )
     
     @staticmethod
@@ -83,6 +120,7 @@ class MetricsCalculator:
             "latency_comparison": {},
             "token_comparison": {},
             "success_rate_comparison": {},
+            "accuracy_comparison": {},
             "rankings": {}
         }
         
@@ -118,6 +156,19 @@ class MetricsCalculator:
             "best": max(success_rates, key=success_rates.get)
         }
         
+        # Accuracy comparison
+        accuracy_scores = {m.tool_name: m.avg_accuracy for m in metrics_list if m.avg_accuracy is not None}
+        if accuracy_scores:
+            best_accuracy = max(accuracy_scores.values())
+            comparison["accuracy_comparison"] = {
+                "values": accuracy_scores,
+                "best": max(accuracy_scores, key=accuracy_scores.get),
+                "relative_performance": {
+                    name: f"{((acc / best_accuracy - 1) * 100):+.1f}%" 
+                    for name, acc in accuracy_scores.items()
+                }
+            }
+        
         # Overall rankings
         comparison["rankings"] = MetricsCalculator._calculate_rankings(metrics_list)
         
@@ -142,5 +193,14 @@ class MetricsCalculator:
         # Success rate ranking (higher is better)
         success_sorted = sorted(metrics_list, key=lambda m: m.success_rate, reverse=True)
         rankings["success_rate"] = [m.tool_name for m in success_sorted]
+        
+        # Accuracy ranking (higher is better, excluding None)
+        accuracy_sorted = sorted(
+            [m for m in metrics_list if m.avg_accuracy is not None],
+            key=lambda m: m.avg_accuracy,
+            reverse=True
+        )
+        if accuracy_sorted:
+            rankings["accuracy"] = [m.tool_name for m in accuracy_sorted]
         
         return rankings

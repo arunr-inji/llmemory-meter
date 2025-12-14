@@ -53,12 +53,17 @@ class MemoryComparator:
         step_results = []
         total_start_time = datetime.now()
         
+        # Phase 1: Run benchmark (pure performance measurement)
         for i, step in enumerate(workload.steps):
             step_result = await tool.execute_step(step, i)
             step_results.append(step_result)
         
         total_end_time = datetime.now()
         total_latency_ms = (total_end_time - total_start_time).total_seconds() * 1000
+        
+        # Phase 2: Evaluate accuracy post-hoc (doesn't affect latency/tokens)
+        if self.config.get('metrics', {}).get('accuracy', False):
+            step_results = self._evaluate_accuracy(step_results, workload.steps)
         
         # Calculate aggregated metrics
         successful_steps = sum(1 for r in step_results if r.success)
@@ -74,6 +79,61 @@ class MemoryComparator:
             success_rate=success_rate,
             timestamp=total_start_time
         )
+    
+    def _evaluate_accuracy(self, step_results: List, steps: List) -> List:
+        """Evaluate accuracy post-hoc (doesn't affect latency/tokens).
+        
+        Args:
+            step_results: List of StepResult objects
+            steps: List of WorkloadStep objects with ground truth
+            
+        Returns:
+            Updated step_results with accuracy scores populated
+        """
+        from llmemory_meter.accuracy_evaluator import AccuracyEvaluator
+        
+        # Get accuracy config
+        accuracy_config = self.config.get('accuracy', {})
+        providers = accuracy_config.get('providers', ['openai'])
+        
+        # Ensure providers is a list
+        if isinstance(providers, str):
+            providers = [providers]
+        
+        # Collect responses and ground truths
+        responses = [sr.response for sr in step_results]
+        ground_truths = [step.ground_truth for step in steps]
+        
+        # Initialize accuracy_by_provider dict for each step result
+        for sr in step_results:
+            sr.accuracy_by_provider = {}
+        
+        # Evaluate with each provider
+        for provider in providers:
+            try:
+                # Get provider-specific model if configured
+                provider_config = accuracy_config.get(provider, {})
+                model = provider_config.get('model') if isinstance(provider_config, dict) else None
+                
+                evaluator = AccuracyEvaluator(provider=provider, model=model)
+                accuracy_scores = evaluator.evaluate_batch(responses, ground_truths)
+                
+                # Store scores in accuracy_by_provider dict
+                for sr, score in zip(step_results, accuracy_scores):
+                    sr.accuracy_by_provider[provider] = score
+            except Exception as e:
+                print(f"Warning: Failed to evaluate accuracy with {provider}: {e}")
+                # Set None for all steps for this provider
+                for sr in step_results:
+                    sr.accuracy_by_provider[provider] = None
+        
+        # Set primary accuracy field to first provider's score
+        if providers:
+            primary_provider = providers[0]
+            for sr in step_results:
+                sr.accuracy = sr.accuracy_by_provider.get(primary_provider)
+        
+        return step_results
     
     async def compare_tools(self, workload: Workload, tools: Optional[List[str]] = None) -> Dict[str, Any]:
         """Compare multiple tools on the same workload."""
@@ -168,7 +228,7 @@ class MemoryComparator:
         metrics_list = list(overall_metrics.values())
         comparison_summary = MetricsCalculator.compare_metrics(metrics_list) if metrics_list else {}
         
-        return {
+        result = {
             "workload_results": workload_comparisons,
             "overall_metrics": {name: metrics.to_dict() for name, metrics in overall_metrics.items()},
             "comparison_summary": comparison_summary,
@@ -177,6 +237,146 @@ class MemoryComparator:
                 "tools_tested": tools,
                 "timestamp": datetime.now().isoformat()
             }
+        }
+        
+        # Add accuracy comparison if accuracy evaluation is enabled
+        if self.config.get('metrics', {}).get('accuracy', False):
+            # Collect all WorkloadResult objects for provider comparison
+            all_workload_results = {}
+            for tool_name, results_list in all_results.items():
+                if results_list:
+                    all_workload_results[tool_name] = results_list
+            
+            if all_workload_results:
+                provider_comparison = self._generate_provider_comparison(all_workload_results)
+                if provider_comparison:
+                    result["accuracy_comparison"] = provider_comparison
+        
+        return result
+    
+    def _generate_provider_comparison(self, all_results: Dict[str, List]) -> Dict:
+        """Generate comparative analysis of embedding providers.
+        
+        Args:
+            all_results: Dict mapping tool names to lists of WorkloadResult objects
+            
+        Returns:
+            Dict with provider comparison analysis including deltas and correlations
+        """
+        try:
+            from scipy.stats import spearmanr
+        except ImportError:
+            print("Warning: scipy not installed. Spearman correlation will not be calculated.")
+            spearmanr = None
+        
+        # Extract scores by provider for each tool
+        tool_scores = {}
+        for tool_name, results_list in all_results.items():
+            scores_by_provider = {}
+            
+            # Aggregate accuracy scores across all workloads
+            for workload_result in results_list:
+                for step_result in workload_result.step_results:
+                    if step_result.accuracy_by_provider:
+                        for provider, score in step_result.accuracy_by_provider.items():
+                            if score is not None:
+                                scores_by_provider.setdefault(provider, []).append(score)
+            
+            # Calculate averages
+            if scores_by_provider:
+                tool_scores[tool_name] = {
+                    provider: sum(scores) / len(scores)
+                    for provider, scores in scores_by_provider.items()
+                    if scores  # Only include if we have scores
+                }
+        
+        if not tool_scores:
+            return {}
+        
+        # Get list of providers (should be same across all tools)
+        providers_list = list(next(iter(tool_scores.values())).keys())
+        if len(providers_list) < 2:
+            return {}  # Need at least 2 providers for comparison
+        
+        # Calculate deltas and interpretation for each tool
+        by_tool_analysis = {}
+        deltas = []
+        
+        for tool_name, scores in tool_scores.items():
+            if len(scores) >= 2:
+                provider_scores = list(scores.values())
+                delta = max(provider_scores) - min(provider_scores)
+                deltas.append(delta)
+                
+                # Interpret delta using thresholds
+                if delta < 0.05:
+                    interpretation = "negligible"
+                elif delta < 0.10:
+                    interpretation = "small"
+                elif delta < 0.15:
+                    interpretation = "moderate"
+                else:
+                    interpretation = "large"
+                
+                by_tool_analysis[tool_name] = {
+                    **{k: round(v, 3) for k, v in scores.items()},
+                    "delta": round(delta, 3),
+                    "delta_interpretation": interpretation
+                }
+        
+        if not deltas:
+            return {}
+        
+        # Calculate rank correlation if we have exactly 2 providers
+        correlation = None
+        if len(providers_list) == 2 and spearmanr:
+            p1, p2 = providers_list
+            # Get scores for all tools that have both provider scores
+            tools_with_both = [t for t in tool_scores.keys() 
+                             if p1 in tool_scores[t] and p2 in tool_scores[t]]
+            
+            if len(tools_with_both) >= 3:  # Need at least 3 data points for correlation
+                scores_p1 = [tool_scores[t][p1] for t in tools_with_both]
+                scores_p2 = [tool_scores[t][p2] for t in tools_with_both]
+                try:
+                    correlation, _ = spearmanr(scores_p1, scores_p2)
+                except:
+                    correlation = None
+        
+        # Calculate overall consistency metrics
+        avg_delta = sum(deltas) / len(deltas)
+        max_delta = max(deltas)
+        
+        # Determine consistency level
+        if avg_delta < 0.05 and max_delta < 0.10 and (correlation is None or correlation > 0.90):
+            consistency = "excellent"
+            interpretation = "Provider choice has minimal impact on results"
+        elif avg_delta < 0.10 and max_delta < 0.15 and (correlation is None or correlation > 0.70):
+            consistency = "good"
+            interpretation = "Minor differences but rankings mostly consistent"
+        elif avg_delta < 0.15:
+            consistency = "moderate"
+            interpretation = "Some disagreement between providers, investigate further"
+        else:
+            consistency = "poor"
+            interpretation = "Significant disagreement between providers"
+        
+        return {
+            "summary": {
+                "provider_correlation": round(correlation, 3) if correlation is not None else None,
+                "avg_delta": round(avg_delta, 3),
+                "max_delta": round(max_delta, 3),
+                "ranking_consistent": correlation > 0.90 if correlation is not None else True,
+                "consistency_level": consistency,
+                "interpretation": interpretation
+            },
+            "thresholds": {
+                "negligible": 0.05,
+                "small": 0.10,
+                "moderate": 0.15,
+                "explanation": "Delta < 0.05 = negligible, 0.05-0.10 = small, 0.10-0.15 = moderate, > 0.15 = large"
+            },
+            "by_tool": by_tool_analysis
         }
     
     def create_simple_workload(self, name: str, memory_content: str, retrieval_query: str) -> Workload:
@@ -259,6 +459,61 @@ class MemoryComparator:
             json.dump(results, f, indent=2, default=str)
         print(f"Results saved to {filename}")
     
+    def _print_provider_comparison(self, comparison: Dict[str, Any]):
+        """Print provider comparison analysis."""
+        print(f"\n📊 Embedding Provider Comparison:")
+        print("-" * 40)
+        
+        if "summary" in comparison:
+            summary = comparison["summary"]
+            
+            # Correlation
+            if summary.get("provider_correlation") is not None:
+                corr = summary["provider_correlation"]
+                print(f"  • Spearman Correlation: {corr:.3f} ({'very high' if corr > 0.9 else 'high' if corr > 0.7 else 'moderate'} agreement)")
+            
+            # Deltas
+            avg_delta = summary.get("avg_delta", 0)
+            max_delta = summary.get("max_delta", 0)
+            print(f"  • Avg Delta: {avg_delta:.3f} ({avg_delta*100:.1f}%)")
+            print(f"  • Max Delta: {max_delta:.3f} ({max_delta*100:.1f}%)")
+            
+            # Consistency level
+            consistency = summary.get("consistency_level", "unknown")
+            consistency_icons = {
+                "excellent": "✅",
+                "good": "✓",
+                "moderate": "⚠️",
+                "poor": "❌"
+            }
+            icon = consistency_icons.get(consistency, "")
+            print(f"  • Consistency Level: {icon} {consistency.upper()}")
+            print(f"  • Interpretation: {summary.get('interpretation', 'N/A')}")
+        
+        # Threshold reference
+        if "thresholds" in comparison:
+            print(f"\n  Delta Thresholds:")
+            thresholds = comparison["thresholds"]
+            print(f"    < {thresholds.get('negligible', 0.05)} = Negligible ✅")
+            print(f"    {thresholds.get('negligible', 0.05)}-{thresholds.get('small', 0.10)} = Small")
+            print(f"    {thresholds.get('small', 0.10)}-{thresholds.get('moderate', 0.15)} = Moderate ⚠️")
+            print(f"    > {thresholds.get('moderate', 0.15)} = Large ❌")
+        
+        # Per-tool analysis
+        if "by_tool" in comparison and comparison["by_tool"]:
+            print(f"\n  Per-Tool Analysis:")
+            for tool_name, data in comparison["by_tool"].items():
+                delta = data.get("delta", 0)
+                interp = data.get("delta_interpretation", "unknown")
+                interp_icon = "✅" if interp == "negligible" else "⚠️" if interp in ["small", "moderate"] else "❌"
+                
+                # Get provider scores
+                provider_scores = {k: v for k, v in data.items() 
+                                 if k not in ["delta", "delta_interpretation"]}
+                provider_str = ", ".join([f"{p}={s:.3f}" for p, s in provider_scores.items()])
+                
+                print(f"    {tool_name}: {provider_str}, Δ={delta:.3f} {interp_icon} {interp}")
+    
     def print_summary(self, results: Dict[str, Any]):
         """Print a formatted summary of benchmark results."""
         print("\n" + "="*60)
@@ -277,6 +532,17 @@ class MemoryComparator:
                 print(f"  • Avg Latency: {metrics['avg_latency_ms']}ms")
                 print(f"  • P95 Latency: {metrics['p95_latency_ms']}ms") 
                 print(f"  • Success Rate: {success_rate}%")
+                
+                # Display accuracy if available
+                if 'avg_accuracy' in metrics and metrics['avg_accuracy'] is not None:
+                    accuracy_pct = metrics['avg_accuracy'] * 100
+                    print(f"  • Avg Accuracy: {accuracy_pct:.1f}%")
+                    
+                    # Show per-provider breakdown if available
+                    if 'accuracy_by_provider' in metrics and metrics['accuracy_by_provider']:
+                        provider_strs = [f"{p}: {s*100:.1f}%" for p, s in metrics['accuracy_by_provider'].items()]
+                        print(f"    - {' | '.join(provider_strs)}")
+                
                 print(f"  • Avg Tokens/Query: {metrics['avg_tokens_per_query']}")
                 
                 # Warn if not 100% reliable
@@ -294,7 +560,13 @@ class MemoryComparator:
                     print(f"⚡ Speed (Latency): {' > '.join(rankings['latency'])}")
                 if "success_rate" in rankings:
                     print(f"✅ Reliability: {' > '.join(rankings['success_rate'])}")
+                if "accuracy" in rankings:
+                    print(f"🎯 Accuracy: {' > '.join(rankings['accuracy'])}")
                 if "token_efficiency" in rankings:
                     print(f"💰 Token Efficiency: {' > '.join(rankings['token_efficiency'])}")
+        
+        # Display provider comparison if accuracy evaluation is enabled
+        if "accuracy_comparison" in results and results["accuracy_comparison"]:
+            self._print_provider_comparison(results["accuracy_comparison"])
         
         print("\n" + "="*60)

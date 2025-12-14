@@ -12,6 +12,7 @@ class WorkloadStep:
     content: str
     expected_response: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    ground_truth: Optional[str] = None  # Expected answer for accuracy evaluation
 
 
 @dataclass
@@ -73,6 +74,8 @@ class StepResult:
     success: bool = True
     error_message: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    accuracy: Optional[float] = None  # Primary accuracy score (from first provider)
+    accuracy_by_provider: Optional[Dict[str, float]] = None  # All provider scores
 
 
 @dataclass
@@ -122,7 +125,9 @@ class WorkloadResult:
                     "tokens_used": step.tokens_used,
                     "success": step.success,
                     "error_message": step.error_message,
-                    "metadata": step.metadata
+                    "metadata": step.metadata,
+                    "accuracy": step.accuracy,
+                    "accuracy_by_provider": step.accuracy_by_provider
                 }
                 for step in self.step_results
             ],
