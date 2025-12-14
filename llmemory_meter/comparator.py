@@ -401,7 +401,7 @@ class MemoryComparator:
             tools = self.available_tools
         
         # Get the benchmark suite
-        all_suites = StandardBenchmarks.get_all_suites()
+        all_suites = StandardBenchmarks.get_all_suites(self.config)
         suite = None
         for s in all_suites:
             if s.name == suite_name:
@@ -429,7 +429,7 @@ class MemoryComparator:
         if tools is None:
             tools = self.available_tools
         
-        all_suites = StandardBenchmarks.get_all_suites()
+        all_suites = StandardBenchmarks.get_all_suites(self.config)
         all_results = {}
         
         print(f"🚀 Running all {len(all_suites)} benchmark suites...")

@@ -70,6 +70,9 @@ benchmarks:
 - name: Domain-Specific Applications
   enabled: true
   settings: null
+  # Random seed for stress test positions (default: 42)
+  # Set to null for truly random positions each run
+  stress_test_random_seed: 42
 
 metrics:
   latency: true

@@ -9,6 +9,9 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from llmemory_meter.workload import Workload, WorkloadStep
 
+# Default random seed for stress test positions (can be overridden in config)
+DEFAULT_STRESS_TEST_RANDOM_SEED = 42
+
 
 @dataclass
 class BenchmarkSuite:
@@ -25,15 +28,19 @@ class StandardBenchmarks:
     """Factory class for creating industry-standard benchmark suites."""
     
     @staticmethod
-    def get_all_suites() -> List[BenchmarkSuite]:
-        """Get all available benchmark suites."""
+    def get_all_suites(config: Optional[Dict[str, Any]] = None) -> List[BenchmarkSuite]:
+        """Get all available benchmark suites.
+        
+        Args:
+            config: Optional configuration dict containing benchmark settings
+        """
         return [
             StandardBenchmarks.conversational_ai_suite(),
             StandardBenchmarks.long_context_suite(),
             StandardBenchmarks.persona_consistency_suite(),
-            StandardBenchmarks.technical_performance_suite(),
-            StandardBenchmarks.domain_specific_suite(),
-            StandardBenchmarks.memory_stress_suite()
+            StandardBenchmarks.technical_performance_suite(config),
+            StandardBenchmarks.domain_specific_suite()
+            # memory_stress_suite() omitted - stress test now in technical_performance_suite()
         ]
     
     @staticmethod
@@ -72,26 +79,31 @@ class StandardBenchmarks:
                 WorkloadStep(
                     action="chat",
                     content="I went hiking with Max yesterday in the Cascades. The weather was perfect!",
+                    ground_truth="hiking Max Cascades perfect weather",
                     metadata={"session": 1, "type": "experience_sharing"}
                 ),
                 WorkloadStep(
                     action="retrieve",
                     content="What do you know about my pet?",
+                    ground_truth="dog golden retriever Max",
                     metadata={"session": 2, "type": "memory_recall", "expected": "golden retriever named Max"}
                 ),
                 WorkloadStep(
                     action="chat",
                     content="I'm thinking of moving to a new city for work. What should I consider?",
+                    ground_truth="software engineer Seattle 28 woman work moving",
                     metadata={"session": 2, "type": "advice_seeking"}
                 ),
                 WorkloadStep(
                     action="retrieve",
                     content="What's my current profession and location?",
+                    ground_truth="software engineer Seattle",
                     metadata={"session": 3, "type": "biographical_recall", "expected": "software engineer from Seattle"}
                 ),
                 WorkloadStep(
                     action="chat",
                     content="Remember when I mentioned hiking in the Cascades? I want to go back there.",
+                    ground_truth="hiking Cascades",
                     metadata={"session": 3, "type": "experience_reference"}
                 )
             ]
@@ -111,21 +123,25 @@ class StandardBenchmarks:
                 WorkloadStep(
                     action="chat",
                     content="What should I do this weekend?",
+                    ground_truth="quiet reading books home",
                     metadata={"type": "recommendation_request", "expected_style": "quiet, book-related activities"}
                 ),
                 WorkloadStep(
                     action="chat",
                     content="My friends want me to go to a concert. What do you think?",
+                    ground_truth="introverted dislike loud music crowded",
                     metadata={"type": "social_advice", "expected_consideration": "introversion, dislike of loud music"}
                 ),
                 WorkloadStep(
                     action="retrieve",
                     content="How many books have I read?",
+                    ground_truth="over 500 books",
                     metadata={"type": "fact_recall", "expected": "over 500 books"}
                 ),
                 WorkloadStep(
                     action="chat",
                     content="Can you recommend a good book for someone like me?",
+                    ground_truth="introverted librarian book lover reading",
                     metadata={"type": "personalized_recommendation", "context": "librarian, book lover"}
                 )
             ]
@@ -172,16 +188,19 @@ class StandardBenchmarks:
                 WorkloadStep(
                     action="retrieve",
                     content="What time period did the Renaissance span?",
+                    ground_truth="14th 17th century Renaissance",
                     metadata={"type": "temporal_recall", "source_part": 1}
                 ),
                 WorkloadStep(
                     action="retrieve",
                     content="Who invented the printing press and when?",
+                    ground_truth="Johannes Gutenberg around 1440 printing press",
                     metadata={"type": "factual_recall", "source_part": 3}
                 ),
                 WorkloadStep(
                     action="chat",
                     content="How did Leonardo da Vinci and the printing press contribute to Renaissance innovation?",
+                    ground_truth="Leonardo da Vinci polymath greatest minds human history innovation printing press affordable books increased literacy rates rapid dissemination ideas Europe Renaissance",
                     metadata={"type": "synthesis", "requires_parts": [2, 3]}
                 )
             ]
@@ -206,11 +225,13 @@ class StandardBenchmarks:
                 WorkloadStep(
                     action="retrieve",
                     content="What is the special code mentioned in the information?",
+                    ground_truth="ALPHA-7749-BETA",
                     metadata={"type": "needle_retrieval", "expected": "ALPHA-7749-BETA"}
                 ),
                 WorkloadStep(
                     action="retrieve",
                     content="What's the weather like today?",
+                    ground_truth="sunny 75 degrees weather",
                     metadata={"type": "context_recall"}
                 )
             ]
@@ -243,23 +264,21 @@ class StandardBenchmarks:
                 ),
                 WorkloadStep(
                     action="chat",
-                    content="A patient asks about chest pain symptoms. How should I respond?",
+                    content="What is my area of specialization?",
+                    ground_truth="interventional cardiology cardiologist",
                     metadata={"type": "professional_response", "expected_expertise": "cardiology"}
                 ),
                 WorkloadStep(
                     action="retrieve",
                     content="How many cardiac catheterizations have I performed?",
+                    ground_truth="over 2000 cardiac catheterizations",
                     metadata={"type": "experience_recall", "expected": "over 2,000"}
                 ),
                 WorkloadStep(
                     action="chat",
                     content="Someone asks about my training background. What should I tell them?",
+                    ground_truth="Johns Hopkins residency Mayo Clinic fellowship cardiology",
                     metadata={"type": "credential_sharing", "expected_content": "Johns Hopkins, Mayo Clinic"}
-                ),
-                WorkloadStep(
-                    action="chat",
-                    content="Should I give advice about a dermatology condition?",
-                    metadata={"type": "scope_awareness", "expected_behavior": "refer to specialist"}
                 )
             ]
         )
@@ -275,24 +294,107 @@ class StandardBenchmarks:
         )
     
     @staticmethod
-    def technical_performance_suite() -> BenchmarkSuite:
-        """Technical performance benchmarks for memory system evaluation."""
+    def technical_performance_suite(config: Optional[Dict[str, Any]] = None) -> BenchmarkSuite:
+        """Technical performance benchmarks for memory system evaluation.
+        
+        Args:
+            config: Optional configuration dict containing benchmark settings
+        """
+        import random
+        
         workloads = []
         
-        # High-frequency operations
+        # Get random seed from config or use default
+        if config and 'benchmarks' in config and 'stress_test_random_seed' in config['benchmarks']:
+            random_seed = config['benchmarks']['stress_test_random_seed']
+            
+            # Validate seed (None is allowed for truly random)
+            if random_seed is not None:
+                if not isinstance(random_seed, int):
+                    print(f"⚠️  WARNING: stress_test_random_seed must be an integer or null, got {type(random_seed).__name__}: {random_seed}")
+                    print(f"    Falling back to default seed: {DEFAULT_STRESS_TEST_RANDOM_SEED}")
+                    random_seed = DEFAULT_STRESS_TEST_RANDOM_SEED
+                elif random_seed < 0:
+                    print(f"⚠️  WARNING: stress_test_random_seed must be non-negative, got {random_seed}")
+                    print(f"    Falling back to default seed: {DEFAULT_STRESS_TEST_RANDOM_SEED}")
+                    random_seed = DEFAULT_STRESS_TEST_RANDOM_SEED
+        else:
+            random_seed = DEFAULT_STRESS_TEST_RANDOM_SEED
+        
+        # Memory load and retention test with unpredictable data
+        memory_items = [
+            ("Transaction #4721 - $847.23 wire transfer to account ending 9142", "Tokyo branch processed"),
+            ("Patient record 8293 - allergy shellfish, blood type O+", "Emergency contact Sarah Lee"),
+            ("Inventory SKU-MB-4455 - 23 units blue medium shipped", "Warehouse B aisle 7"),
+            ("Support ticket #1829 - printer jam, solution replaced roller", "Customer Acme Corp"),
+            ("Meeting notes 03/15 - Q2 budget approved, hired 3 engineers", "Deadline March 30"),
+            ("Contract #9821 - annual renewal $45K, expires June", "Legal review pending"),
+            ("Lab result ID-7734 - glucose 92 mg/dL normal range", "Dr Martinez ordered"),
+            ("Flight booking PNR-KL8765 - Seattle to London May 12", "Seat 14A confirmed"),
+            ("Insurance claim #3391 - water damage $2100 approved", "Adjuster Bob Wilson"),
+            ("Software license KEY-9182 - expires December 2025", "20 user seats active"),
+            ("Recipe batch #147 - reduced salt by 15%, customer feedback positive", "Chef Maria approved"),
+            ("Equipment maintenance - HVAC unit 3 filter replaced", "Next service September"),
+            ("Supplier invoice #6623 - $890 net 30 terms", "Payment due April 15"),
+            ("Training completion - safety course 40 employees passed", "Certificates issued"),
+            ("Parking permit #P-8821 - expires next month", "Spot C-14 assigned"),
+            ("Network issue ticket #4492 - DNS resolved, closed", "Technician James"),
+            ("Book order ISBN-9234 - 15 copies backordered", "Expected delivery May 5"),
+            ("Donor record #5512 - contributed $500 annual fund", "Thank you sent"),
+            ("Experiment trial T-881 - success rate 78%", "Results published"),
+            ("Vehicle inspection #VIN-4493 - passed emissions test", "Valid until 2026"),
+            ("Survey response ID-9943 - satisfaction score 8/10", "Feedback about speed"),
+            ("Membership #M-7721 - gold tier renewed annually", "Benefits active"),
+            ("Complaint case #2847 - noise issue resolved", "Manager followup done"),
+            ("Grant proposal #G-1156 - $50K funding approved", "Project starts July"),
+            ("Security badge #8834 - access level 3 assigned", "Photo updated"),
+            ("Wine inventory Lot-442 - 48 bottles Merlot 2019", "Cellar room 2"),
+            ("Audit finding #A-998 - minor discrepancy noted $45", "Corrected immediately"),
+            ("Conference registration #CR-5521 - booth 12 reserved", "Setup July 8"),
+            ("Patent application #PA-7755 - pending review", "Attorney Smith handling"),
+            ("Scholarship award #S-3398 - $5000 semester grant", "Recipient Jane Doe"),
+            ("Quality check batch #QC-881 - defect rate 0.3%", "Within tolerance"),
+            ("Territory assignment - Northwest region sales", "Contact Mike Chen"),
+            ("Prescription #RX-9943 - refills 2 remaining", "Pharmacy notified"),
+            ("Lease agreement #L-4456 - 24 months commercial space", "Rent $3200 monthly"),
+            ("Translation project #TR-6632 - Spanish 8000 words", "Deadline Friday"),
+            ("Backup job #BK-7789 - completed 2.4TB data", "Verified successful"),
+            ("Retirement account #RA-5521 - contribution $800 monthly", "Vested 60%"),
+            ("Event ticket #E-9921 - concert seats row F", "Guest John Smith"),
+            ("Import shipment #IS-4483 - customs cleared", "Delivery Tuesday"),
+            ("Volunteer hours - recorded 25 hours March", "Coordinator thanked"),
+            ("Equipment rental #ER-6655 - projector 3 days", "Deposit refunded"),
+            ("Reference check - candidate scored strong", "Recommended by 3 managers"),
+            ("Utility bill account #U-7782 - $156 autopay enabled", "Due 20th monthly"),
+            ("Archive folder F-9921 - digitized 450 pages", "Storage location B3"),
+            ("Certification exam #CE-8834 - passed score 89%", "Valid 3 years"),
+            ("Route optimization - saved 12% fuel costs", "Driver training scheduled"),
+            ("Newsletter campaign #NC-5543 - open rate 34%", "Sent 5000 emails"),
+            ("Warranty claim #WC-7729 - replacement shipped", "Tracking number provided"),
+            ("Tax document ID-1156 - W2 form available", "Download portal active"),
+            ("Focus group session #FG-9982 - 8 participants recruited", "Scheduled Tuesday 2pm")
+        ]
+        
+        # Use seeded random for deterministic but unpredictable test positions
+        # Seed can be configured in YAML: benchmarks.stress_test_random_seed (default: 42)
+        # Set to null/None in YAML for truly random positions each run
+        random.seed(random_seed)
+        test_positions = sorted(random.sample(range(50), 6))
+        
         stress_workload = Workload(
-            name="Memory System Stress Test",
-            description="High-frequency memory operations to test system limits",
+            name="Memory Load & Retention Test",
+            description="Tests throughput, capacity, and retention under load with 50 diverse entries",
             steps=[
                 WorkloadStep(
                     action="store",
-                    content=f"Data chunk {i}: {' '.join([f'item_{j}' for j in range(10)])}"
-                ) for i in range(20)
+                    content=f"Memory entry {i}: {memory_items[i][0]}. Context: {memory_items[i][1]}"
+                ) for i in range(50)
             ] + [
                 WorkloadStep(
                     action="retrieve",
-                    content=f"What was in data chunk {i}?"
-                ) for i in range(0, 20, 5)
+                    content=f"What do you remember about memory entry {i}?",
+                    ground_truth=f"memory entry {i} {memory_items[i][0]} {memory_items[i][1]}"
+                ) for i in test_positions
             ]
         )
         workloads.append(stress_workload)
@@ -303,7 +405,7 @@ class StandardBenchmarks:
             category="technical",
             workloads=workloads,
             reference="AdaptMemBench, AISBench methodologies",
-            metrics=["latency", "throughput", "memory_efficiency", "error_rate"]
+            metrics=["latency", "throughput", "memory_efficiency", "error_rate", "capacity_degradation"]
         )
     
     @staticmethod
@@ -329,11 +431,13 @@ class StandardBenchmarks:
                 WorkloadStep(
                     action="chat",
                     content="Customer John Smith is calling back. What do I need to know?",
+                    ground_truth="John Smith account 12345 delayed order laptop frustrated March 15 weather delay new delivery date March 25 offered $20 credit",
                     metadata={"type": "context_retrieval", "expected_info": "previous issue and resolution"}
                 ),
                 WorkloadStep(
                     action="retrieve",
                     content="What compensation was offered to John Smith?",
+                    ground_truth="$20 credit compensation",
                     metadata={"type": "specific_recall", "expected": "$20 credit"}
                 )
             ]
@@ -351,28 +455,16 @@ class StandardBenchmarks:
     
     @staticmethod
     def memory_stress_suite() -> BenchmarkSuite:
-        """Memory stress testing benchmark suite."""
+        """Memory stress testing benchmark suite.
+        
+        Note: The main stress/capacity test is now in technical_performance_suite()
+        as "Memory Load & Retention Test". This suite is kept for potential future
+        stress-specific workloads.
+        """
         workloads = []
         
-        # Memory capacity test
-        capacity_workload = Workload(
-            name="Memory Capacity Test",
-            description="Tests memory system capacity and retention under load",
-            steps=[
-                WorkloadStep(
-                    action="store",
-                    content=f"Memory item {i}: This is a test entry containing information about item number {i}. It includes details like timestamp {i*100}, category type-{i%5}, and status active-{i%3}.",
-                    metadata={"item_id": i, "category": i%5, "status": i%3}
-                ) for i in range(50)
-            ] + [
-                WorkloadStep(
-                    action="retrieve",
-                    content=f"What do you know about memory item {i}?",
-                    metadata={"type": "capacity_test", "item_id": i}
-                ) for i in [0, 10, 25, 35, 49]  # Test various positions
-            ]
-        )
-        workloads.append(capacity_workload)
+        # Future stress test workloads can be added here
+        # Currently consolidated into Technical Performance suite
         
         return BenchmarkSuite(
             name="Memory Stress Testing",
