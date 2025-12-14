@@ -219,8 +219,15 @@ class MemGPTTool(MemoryTool):
                 assistant_msgs = [msg for msg in result.messages 
                                 if hasattr(msg, 'message_type') and 
                                 'assistant' in msg.message_type.lower()]
-                if assistant_msgs and hasattr(assistant_msgs[-1], 'text'):
-                    return assistant_msgs[-1].text
+                
+                # Extract content from last assistant message
+                if assistant_msgs:
+                    last_msg = assistant_msgs[-1]
+                    # Check for 'content' field (Letta uses 'content', not 'text')
+                    if hasattr(last_msg, 'content'):
+                        return last_msg.content
+                    elif hasattr(last_msg, 'text'):
+                        return last_msg.text
             
             return "Received response from Letta agent."
         except Exception as e:
@@ -292,3 +299,22 @@ class MemGPTTool(MemoryTool):
                 error_message=str(e),
                 tokens_used=self._last_tokens
             )
+    
+    async def clear_memory(self, session_id: Optional[str] = None) -> str:
+        """Clear memory by creating a new agent (workload isolation).
+        
+        MemGPT stores conversation history in agent context, so we create a new agent
+        for each workload to ensure complete isolation.
+        """
+        try:
+            # Generate new user_id and agent for workload isolation
+            self._user_id = f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
+            agent_name = f"benchmark_agent_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
+            
+            # Create new agent
+            memgpt_config = self.config.get("memgpt_config") or {}
+            self._setup_agent(agent_name, memgpt_config)
+            
+            return f"Memory cleared (new agent: {agent_name})"
+        except Exception as e:
+            return f"Error reinitializing MemGPT agent: {e}"

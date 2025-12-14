@@ -34,6 +34,13 @@ metrics:
   accuracy: true
   memory_quality: true
 
+accuracy:
+  providers: [openai, local]
+  openai:
+    model: text-embedding-3-small
+  local:
+    model: all-mpnet-base-v2
+
 output:
   output_file: mem0_results.json
   verbose: true

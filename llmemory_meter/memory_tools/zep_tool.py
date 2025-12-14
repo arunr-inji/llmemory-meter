@@ -123,23 +123,38 @@ class ZepTool(MemoryTool):
             # Use graph.add for longer content
             MAX_MESSAGE_LENGTH = 2400  # Leave some buffer
             
+            task_id = None
+            episode_uuid = None
+            message_uuid = None
+            
             if len(content) < MAX_MESSAGE_LENGTH:
                 # Short message - use thread.add_messages
                 message = Message(
                     role="user",
                     content=content
                 )
-                await asyncio.get_event_loop().run_in_executor(
+                result = await asyncio.get_event_loop().run_in_executor(
                     None,
                     lambda: self.client.thread.add_messages(
                         thread_id=self.session_id,
                         messages=[message]
                     )
                 )
+                print(f"🔍 DEBUG - thread.add_messages result: {result}")
+                print(f"   Has task_id: {hasattr(result, 'task_id')}, value: {getattr(result, 'task_id', None)}")
+                print(f"   Has message_uuids: {hasattr(result, 'message_uuids')}, value: {getattr(result, 'message_uuids', None)}")
+                
+                # Get message_uuids for polling (task_id is None for single messages)
+                if hasattr(result, 'message_uuids') and result.message_uuids:
+                    # Use the first message UUID to poll  
+                    message_uuid = result.message_uuids[0]
+                    print(f"✅ Will poll using message_uuid: {message_uuid}")
+                else:
+                    print(f"⚠️ No message_uuids in response!")
             else:
                 # Long content - use graph.add (no size limit)
                 message_data = self._truncate_for_graph(f"User: {content}")
-                await asyncio.get_event_loop().run_in_executor(
+                episode = await asyncio.get_event_loop().run_in_executor(
                     None,
                     lambda: self.client.graph.add(
                         user_id=self.user_id,
@@ -147,11 +162,21 @@ class ZepTool(MemoryTool):
                         data=message_data
                     )
                 )
+                print(f"🔍 DEBUG - graph.add result: {episode}")
+                print(f"   Type: {type(episode)}")
+                print(f"   Has uuid_: {hasattr(episode, 'uuid_')}")
+                if hasattr(episode, 'uuid_'):
+                    print(f"   uuid_ value: {episode.uuid_}")
+                
+                # Get episode UUID for polling
+                if hasattr(episode, 'uuid_') and episode.uuid_:
+                    episode_uuid = episode.uuid_
+                    print(f"✅ Captured episode_uuid: {episode_uuid}")
 
-            # IMPORTANT: Wait for Zep to process the message and build knowledge graph
-            # Zep processes messages asynchronously (5-10 seconds per message)
-            # Without this delay, retrieve operations will return empty results
-            await asyncio.sleep(8)  # Wait 8 seconds for graph processing
+            # IMPORTANT: Poll for Zep to finish processing the message
+            # Zep processes messages asynchronously (typically 5-10 seconds per message)
+            # Poll until processing completes (max 30 seconds timeout)
+            await self._wait_for_processing(task_id, episode_uuid, timeout=30, message_uuid=message_uuid)
 
             response = f"Successfully stored memory: {content[:50]}..."
             
@@ -176,7 +201,31 @@ class ZepTool(MemoryTool):
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve information from Zep memory."""
         try:
-            # Get user context from thread (relevant memories)
+            # Use graph search for better fact retrieval
+            graph_search_response = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.client.graph.search(
+                    user_id=self.user_id,
+                    query=query,
+                    limit=5
+                )
+            )
+            
+            # Extract facts from graph search results
+            if graph_search_response and hasattr(graph_search_response, 'edges') and graph_search_response.edges:
+                facts = []
+                for edge in graph_search_response.edges[:5]:
+                    if hasattr(edge, 'fact') and edge.fact:
+                        facts.append(edge.fact)
+                
+                if facts:
+                    response = f"Retrieved from Zep: {'; '.join(facts)}"
+                    input_tokens = self._estimate_tokens(query)
+                    output_tokens = self._estimate_tokens(response)
+                    self._last_tokens = input_tokens + output_tokens
+                    return response
+            
+            # Fallback to thread context if graph search returns nothing
             context_response = await asyncio.get_event_loop().run_in_executor(
                 None,
                 lambda: self.client.thread.get_user_context(
@@ -186,26 +235,29 @@ class ZepTool(MemoryTool):
 
             # Extract context from response
             if context_response:
-                # Try to get context string
-                if hasattr(context_response, 'context') and context_response.context:
-                    context_text = context_response.context
-                    response = f"Retrieved from Zep: {context_text}"
-                    # Count full response: This reflects real cost when passed to an LLM
-                    # Users pay for the entire context Zep returns (including formatting)
-                    input_tokens = self._estimate_tokens(query)
-                    output_tokens = self._estimate_tokens(response)
-                    self._last_tokens = input_tokens + output_tokens
-                    return response
-                
-                # Fallback to facts if context not available
+                # PREFER facts over context (context often has metadata, facts have actual memories)
                 if hasattr(context_response, 'facts') and context_response.facts:
-                    relevant_memories = [fact.fact for fact in context_response.facts[:3]]
+                    relevant_memories = [fact.fact for fact in context_response.facts[:5]]
                     if relevant_memories:
                         response = f"Retrieved from Zep: {'; '.join(relevant_memories)}"
+                        # Count full context for tokens (users pay for entire context Zep returns)
+                        full_context = context_response.context if hasattr(context_response, 'context') else response
                         input_tokens = self._estimate_tokens(query)
-                        output_tokens = self._estimate_tokens(response)
+                        output_tokens = self._estimate_tokens(full_context)
                         self._last_tokens = input_tokens + output_tokens
                         return response
+                
+                # Fallback to context if facts not available
+                if hasattr(context_response, 'context') and context_response.context:
+                    context_text = context_response.context
+                    # Extract just the facts for cleaner responses (better for accuracy)
+                    facts = self._extract_facts_from_context(context_text)
+                    response = f"Retrieved from Zep: {facts}"
+                    # Count full original response for tokens
+                    input_tokens = self._estimate_tokens(query)
+                    output_tokens = self._estimate_tokens(context_text)
+                    self._last_tokens = input_tokens + output_tokens
+                    return response
 
             # Estimate tokens even if no memories found
             response = "No relevant memories found in Zep."
@@ -337,6 +389,162 @@ class ZepTool(MemoryTool):
             
             raise Exception(f"Zep API error in chat: {error_type}: {error_str[:200]}")
 
+    def _extract_facts_from_context(self, context_text: str) -> str:
+        """Extract just the facts from Zep's verbose context format.
+        
+        Zep returns context with template headers like:
+        'FACTS and ENTITIES represent relevant context...'
+        
+        This method extracts just the actual facts for cleaner responses.
+        """
+        if not context_text:
+            return ""
+        
+        # Split by lines and filter out template/header lines
+        lines = context_text.split('\n')
+        facts = []
+        
+        for line in lines:
+            line = line.strip()
+            # Skip empty lines, headers, XML tags, and formatting lines
+            if not line:
+                continue
+            if line.startswith('#'):
+                continue
+            if line.startswith('<') and line.endswith('>'):
+                continue  # Skip XML tags like <FACTS>, </FACTS>, <ENTITIES>
+            if 'FACTS and ENTITIES' in line:
+                continue
+            if 'represent relevant context' in line:
+                continue
+            if 'format:' in line:
+                continue
+            if 'Date range:' in line and line.endswith('-'):
+                continue
+            if line == '-' or line == '|':
+                continue  # Skip separator lines
+            
+            # This is likely an actual fact
+            facts.append(line)
+        
+        return '; '.join(facts) if facts else context_text
+    
+    async def _wait_for_processing(self, task_id: Optional[str], episode_uuid: Optional[str], timeout: int = 30, message_uuid: Optional[str] = None):
+        """Poll Zep until graph processing completes and facts are searchable.
+        
+        Args:
+            task_id: Task ID from thread.add_messages (for batch processing)
+            episode_uuid: Episode UUID from graph.add (for single episode)
+            timeout: Maximum seconds to wait (default 30)
+        """
+        print(f"🔍 DEBUG - Polling started: task_id={task_id}, episode_uuid={episode_uuid}, message_uuid={message_uuid}")
+        
+        if not task_id and not episode_uuid and not message_uuid:
+            # No polling info available, use fallback wait
+            print(f"⚠️ No task_id, episode_uuid, or message_uuid - using fallback 8s wait")
+            await asyncio.sleep(8)
+            return
+        
+        start_time = time.time()
+        
+        try:
+            # Option C: For single messages, skip broken polling and use fixed wait
+            FIXED_WAIT_SINGLE_MESSAGE = 15  # Fixed wait for single messages
+            
+            if message_uuid:
+                print(f"⏱️ Using fixed {FIXED_WAIT_SINGLE_MESSAGE}s wait for single message (Option C)")
+                print(f"   Reason: 'processed' field unreliable for thread.add_messages()")
+                await asyncio.sleep(FIXED_WAIT_SINGLE_MESSAGE)
+                elapsed = FIXED_WAIT_SINGLE_MESSAGE
+            else:
+                # Phase 1: Poll for task_id or episode_uuid (these work reliably)
+                print(f"🔍 Phase 1: Polling for processing completion...")
+                poll_count = 0
+                while (time.time() - start_time) < timeout:
+                    poll_count += 1
+                    
+                    if task_id:
+                        # Poll task status for thread.add_messages_batch
+                        task = await asyncio.get_event_loop().run_in_executor(
+                            None,
+                            lambda: self.client.task.get(task_id=task_id)
+                        )
+                        print(f"  Poll {poll_count}: Task status = {getattr(task, 'status', 'N/A')}")
+                        if hasattr(task, 'status'):
+                            if task.status == "completed":
+                                print(f"✅ Phase 1 complete after {poll_count} polls ({time.time() - start_time:.1f}s)")
+                                break
+                            elif task.status == "failed":
+                                print(f"⚠️ Zep task failed: {getattr(task, 'error', 'Unknown error')}")
+                                return
+                    
+                    elif episode_uuid:
+                        # Poll episode status for graph.add
+                        episode = await asyncio.get_event_loop().run_in_executor(
+                            None,
+                            lambda: self.client.graph.episode.get(uuid_=episode_uuid)
+                        )
+                        processed = getattr(episode, 'processed', False)
+                        print(f"  Poll {poll_count}: Episode processed = {processed}")
+                        if hasattr(episode, 'processed') and episode.processed:
+                            print(f"✅ Phase 1 complete after {poll_count} polls ({time.time() - start_time:.1f}s)")
+                            break
+                    
+                    # Wait 1 second before next poll
+                    await asyncio.sleep(1)
+                
+                elapsed = time.time() - start_time
+                if elapsed >= timeout:
+                    print(f"⚠️ Phase 1 timeout reached ({timeout}s)")
+            
+            # Phase 2: Wait for facts to be searchable (indexing delay)
+            # Even after "processing complete", search index needs time to update
+            # Poll graph search until we get results or timeout
+            remaining_timeout = max(10, timeout - elapsed)  # At least 10s for Phase 2
+            indexing_start = time.time()
+            
+            print(f"🔍 Phase 2: Verifying facts are searchable (timeout: {remaining_timeout:.1f}s)...")
+            index_poll_count = 0
+            
+            while (time.time() - indexing_start) < remaining_timeout:
+                index_poll_count += 1
+                try:
+                    # Do a simple graph search to check if facts are available
+                    search_result = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: self.client.graph.search(
+                            user_id=self.user_id,
+                            query="user",  # Generic query to check for any facts
+                            limit=1
+                        )
+                    )
+                    edge_count = len(search_result.edges) if (search_result and hasattr(search_result, 'edges') and search_result.edges) else 0
+                    print(f"  Index poll {index_poll_count}: Found {edge_count} edges")
+                    
+                    if search_result and hasattr(search_result, 'edges') and search_result.edges:
+                        # Facts are now searchable!
+                        print(f"✅ Phase 2 complete after {index_poll_count} polls ({time.time() - indexing_start:.1f}s)")
+                        print(f"✅ Total wait time: {time.time() - start_time:.1f}s")
+                        return
+                except Exception as e:
+                    print(f"  Index poll {index_poll_count}: Error - {type(e).__name__}: {str(e)[:50]}")
+                
+                await asyncio.sleep(1)
+            
+            # Indexing timeout - continue anyway
+            print(f"⚠️ Phase 2 timeout after {index_poll_count} polls ({time.time() - indexing_start:.1f}s)")
+            print(f"⚠️ Total wait time: {time.time() - start_time:.1f}s")
+            if (time.time() - start_time) >= timeout:
+                print(f"⚠️ Overall Zep timeout reached ({timeout}s)")
+            
+        except Exception as e:
+            # Polling failed, fall back to static wait
+            print(f"⚠️ Zep polling error: {type(e).__name__}: {str(e)[:200]}")
+            import traceback
+            traceback.print_exc()
+            print(f"Falling back to 8s wait")
+            await asyncio.sleep(8)
+    
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token count using tiktoken if available, fallback to heuristic."""
         if not text:
@@ -389,17 +597,25 @@ class ZepTool(MemoryTool):
             )
 
     async def clear_memory(self, session_id: Optional[str] = None) -> str:
-        """Clear memory for a session."""
-        target_session = session_id or self.session_id
+        """Clear memory by creating a new user and thread (workload isolation).
+        
+        Zep stores knowledge graph at USER level, so we create a new user for each workload
+        to ensure complete isolation without the complexity of deleting/recreating threads.
+        """
         try:
-            # In v3, use thread.delete instead of memory.delete
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self.client.thread.delete(thread_id=target_session)
-            )
-            return f"Cleared memory for thread: {target_session}"
+            # Generate new user_id for workload isolation
+            self.user_id = f"benchmark_user_{int(time.time() * 1000)}"
+            self.session_id = f"zep_{int(time.time())}"
+            
+            # Ensure new user exists
+            self._ensure_user_exists()
+            
+            # Create new thread
+            self._ensure_thread_exists()
+            
+            return f"Memory cleared (new user: {self.user_id})"
         except Exception as e:
-            return f"Error clearing Zep thread: {e}"
+            return f"Error reinitializing Zep: {e}"
 
     def get_memory_stats(self) -> Dict[str, Any]:
         """Get memory statistics for the current session."""

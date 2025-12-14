@@ -48,6 +48,7 @@ class LLMemoryMeterConfig:
     metrics: MetricsConfig
     output: Dict[str, Any]
     general: Dict[str, Any]
+    accuracy: Optional[Dict[str, Any]] = None  # Accuracy evaluation configuration
 
 
 class ConfigManager:
@@ -208,12 +209,16 @@ class ConfigManager:
         metrics_dict = config_dict.get('metrics', {})
         metrics = MetricsConfig(**metrics_dict)
         
+        # Get accuracy configuration
+        accuracy_config = config_dict.get('accuracy', None)
+        
         return LLMemoryMeterConfig(
             memory_tools=memory_tools,
             benchmarks=benchmarks,
             metrics=metrics,
             output=config_dict.get('output', {}),
-            general=config_dict.get('general', {})
+            general=config_dict.get('general', {}),
+            accuracy=accuracy_config
         )
     
     @staticmethod

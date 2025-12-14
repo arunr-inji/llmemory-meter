@@ -35,6 +35,14 @@ class MemoryTool(ABC):
         """Have a conversation using memory context."""
         pass
     
+    async def clear_memory(self, session_id: Optional[str] = None) -> str:
+        """Clear memory context. Optional method for tools that need isolation between workloads.
+        
+        Default implementation does nothing. Tools with persistent context (like Zep, MemGPT)
+        should override this to clear their user/agent state between workloads.
+        """
+        return "No memory clearing needed for this tool"
+    
     async def execute_step(self, step: WorkloadStep, step_index: int) -> StepResult:
         """Execute a single workload step and measure performance."""
         start_time = time.time()

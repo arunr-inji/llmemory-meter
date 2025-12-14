@@ -21,6 +21,8 @@ class MemoryComparator:
         self._tool_instances: Dict[str, MemoryTool] = {}
         # Get concurrent_tools setting from config
         self.concurrent_tools = self.config.get('concurrent_tools', True)
+        # Track if this is the first workload (skip clear_memory for first workload)
+        self._workload_count = 0
     
     def _get_tool_instance(self, tool_name: str) -> MemoryTool:
         """Get or create a tool instance."""
@@ -142,6 +144,20 @@ class MemoryComparator:
         
         if not tools:
             raise ValueError("No tools available. Please check your API key configuration.")
+        
+        # Clear memory for all tools before starting new workload (but skip first workload)
+        # This ensures workload isolation (prevents fact accumulation across workloads)
+        if self._workload_count > 0:  # Only clear for 2nd+ workloads
+            for tool_name in tools:
+                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep"]:
+                    try:
+                        tool = self._get_tool_instance(tool_name)
+                        await tool.clear_memory()
+                    except Exception as e:
+                        # Silently ignore errors (some tools may not need clearing)
+                        pass
+        
+        self._workload_count += 1  # Increment after clearing decision
         
         results = {}
         
@@ -533,15 +549,10 @@ class MemoryComparator:
                 print(f"  • P95 Latency: {metrics['p95_latency_ms']}ms") 
                 print(f"  • Success Rate: {success_rate}%")
                 
-                # Display accuracy if available
-                if 'avg_accuracy' in metrics and metrics['avg_accuracy'] is not None:
-                    accuracy_pct = metrics['avg_accuracy'] * 100
-                    print(f"  • Avg Accuracy: {accuracy_pct:.1f}%")
-                    
-                    # Show per-provider breakdown if available
-                    if 'accuracy_by_provider' in metrics and metrics['accuracy_by_provider']:
-                        provider_strs = [f"{p}: {s*100:.1f}%" for p, s in metrics['accuracy_by_provider'].items()]
-                        print(f"    - {' | '.join(provider_strs)}")
+                # Display accuracy per-provider if available (skip overall avg to avoid confusion)
+                if 'accuracy_by_provider' in metrics and metrics['accuracy_by_provider']:
+                    provider_strs = [f"{p}: {s*100:.1f}%" for p, s in metrics['accuracy_by_provider'].items()]
+                    print(f"  • Accuracy: {' | '.join(provider_strs)}")
                 
                 print(f"  • Avg Tokens/Query: {metrics['avg_tokens_per_query']}")
                 

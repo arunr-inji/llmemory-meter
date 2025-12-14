@@ -20,8 +20,15 @@ metrics:
   latency: true
   success_rate: true
   token_usage: true
-  accuracy: false
+  accuracy: true
   memory_quality: false
+
+accuracy:
+  providers: [openai, local]
+  openai:
+    model: text-embedding-3-small
+  local:
+    model: all-mpnet-base-v2
 
 output:
   output_file: zep_results.json
