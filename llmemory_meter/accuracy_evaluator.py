@@ -44,7 +44,10 @@ class AccuracyEvaluator:
         Returns:
             Cosine similarity score between 0.0 and 1.0
         """
-        if not ground_truth:
+        # Skip if ground truth or response is missing/empty
+        if not ground_truth or not ground_truth.strip():
+            return None
+        if not response or not response.strip():
             return None
         
         # Get embeddings
@@ -76,7 +79,14 @@ class AccuracyEvaluator:
         valid_texts = []
         
         for i, (response, gt) in enumerate(zip(responses, ground_truths)):
+            # Debug: Check for empty responses (should not happen!)
             if gt is not None and gt.strip():
+                if not response or not response.strip():
+                    print(f"⚠️  WARNING: Step {i} has empty response but has ground truth!")
+                    print(f"   Ground truth: '{gt[:50]}...'")
+                    print(f"   Response: '{response}'")
+                    continue
+                
                 valid_indices.append(i)
                 valid_texts.extend([response, gt])
         

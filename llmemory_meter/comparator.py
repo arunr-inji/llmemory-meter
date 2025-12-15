@@ -82,6 +82,59 @@ class MemoryComparator:
             timestamp=total_start_time
         )
     
+    def _strip_formatting_prefix(self, response: str) -> str:
+        """Strip framework-added formatting prefixes for fair accuracy comparison.
+        
+        Removes tool-specific prefixes like:
+        - "Retrieved from Zep: "
+        - "Retrieved from Letta for query: "
+        - "OpenAI Memory response: "
+        - "Based on context: Retrieved from..."
+        - Mem0 score metadata: "[Score: 0.XXX]"
+        
+        Args:
+            response: Raw response string from tool
+            
+        Returns:
+            Response with formatting prefix and metadata stripped
+        """
+        import re
+        
+        # Patterns to strip (in order of priority)
+        patterns = [
+            r'^Mem0 chat response to .+?\(with \d+ memories\):\s*',  # Mem0 chat wrapper
+            r'^Based on context:\s*Retrieved from .+?:\s*',  # Nested prefix (Zep chat)
+            r'^Retrieved from .+? for query:\s*[^:]+$',  # MemGPT with query only (no content after)
+            r'^Retrieved from .+? for [\'"][^\'"]+[\'"]:',  # OpenAI with quoted query
+            r'^Retrieved from .+?:\s*',  # Simple "Retrieved from X:"
+            r'^.+? Memory response:\s*',  # "OpenAI Memory response:"
+            r'^Stored in .+?:\s*',  # Store operation responses
+            r'^Received response from .+?\.',  # MemGPT fallback
+        ]
+        
+        cleaned = response
+        for pattern in patterns:
+            cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
+            if cleaned != response:  # Found a match, stop
+                break
+        
+        # Additional cleanup: Strip Mem0 metadata and boilerplate
+        # Remove "[Score: 0.XXX] " patterns
+        cleaned = re.sub(r'\[Score:\s*[\d.]+\]\s*', '', cleaned)
+        
+        # Remove Mem0 boilerplate phrases
+        cleaned = re.sub(r'^Based on your memories,?\s*I can help you with this request\.\s*', '', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r'^Relevant memories:\s*', '', cleaned, flags=re.IGNORECASE)
+        
+        # Clean up pipe separators from multi-result responses
+        # Take first (highest-scored) fact only for fair comparison across embedding models
+        # This matches industry best practices (semantic search, RAG benchmarks)
+        # and ensures both OpenAI and local embeddings evaluate the same content
+        if '|' in cleaned:
+            cleaned = cleaned.split('|')[0].strip()
+        
+        return cleaned.strip()
+    
     def _evaluate_accuracy(self, step_results: List, steps: List) -> List:
         """Evaluate accuracy post-hoc (doesn't affect latency/tokens).
         
@@ -102,8 +155,8 @@ class MemoryComparator:
         if isinstance(providers, str):
             providers = [providers]
         
-        # Collect responses and ground truths
-        responses = [sr.response for sr in step_results]
+        # Collect responses and ground truths, stripping formatting for fair comparison
+        responses = [self._strip_formatting_prefix(sr.response) for sr in step_results]
         ground_truths = [step.ground_truth for step in steps]
         
         # Initialize accuracy_by_provider dict for each step result

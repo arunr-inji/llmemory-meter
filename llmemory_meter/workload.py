@@ -120,7 +120,7 @@ class WorkloadResult:
                 {
                     "step_index": step.step_index,
                     "action": step.action,
-                    "response": step.response[:200] if step.response else None,  # Truncate long responses
+                    "response": step.response,  # Full response (needed for accurate semantic comparison)
                     "latency_ms": step.latency_ms,
                     "tokens_used": step.tokens_used,
                     "success": step.success,

@@ -70,7 +70,7 @@ class OpenAIMemoryTool(MemoryTool):
             # Track token usage
             self._last_tokens = response.usage.total_tokens if response.usage else 0
             
-            return f"Stored in OpenAI Memory: {content[:50]}... (Summary: {summary[:30]}...)"
+            return f"Stored in OpenAI Memory: {content} (Summary: {summary})"
         except Exception as e:
             raise Exception(f"OpenAI store failed: {e}")
     
@@ -187,3 +187,12 @@ class OpenAIMemoryTool(MemoryTool):
                 success=False,
                 error_message=str(e)
             )
+    
+    async def clear_memory(self, session_id: Optional[str] = None) -> str:
+        """Clear memory by resetting storage (workload isolation)."""
+        try:
+            self.stored_memories = []
+            self.conversation_history = []
+            return "Memory cleared (storage reset)"
+        except Exception as e:
+            return f"Error clearing OpenAI Memory: {e}"

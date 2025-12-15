@@ -83,7 +83,7 @@ class ClaudeMemoryTool(MemoryTool):
             else:
                 self._last_tokens = 0
             
-            return f"Stored in Claude Memory: {content[:50]}..."
+            return f"Stored in Claude Memory: {content}"
         except Exception as e:
             raise Exception(f"Claude Memory store failed: {e}")
     
@@ -112,7 +112,7 @@ class ClaudeMemoryTool(MemoryTool):
             
             if response.content and len(response.content) > 0:
                 response_text = response.content[0].text
-                return f"Retrieved from Claude Memory for '{query}': {response_text[:200]}..."
+                return f"Retrieved from Claude Memory for '{query}': {response_text}"
             
             return f"No relevant memories found in Claude Memory for query: '{query}'"
         except Exception as e:
@@ -154,7 +154,7 @@ class ClaudeMemoryTool(MemoryTool):
                     "content": response_text
                 })
                 
-                return f"Claude Memory chat response to '{message}': {response_text[:200]}..."
+                return f"Claude Memory chat response to '{message}': {response_text}"
             
             return f"Claude Memory chat response to '{message}': [No response received]"
         except Exception as e:

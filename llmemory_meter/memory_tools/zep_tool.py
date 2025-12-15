@@ -140,17 +140,10 @@ class ZepTool(MemoryTool):
                         messages=[message]
                     )
                 )
-                print(f"🔍 DEBUG - thread.add_messages result: {result}")
-                print(f"   Has task_id: {hasattr(result, 'task_id')}, value: {getattr(result, 'task_id', None)}")
-                print(f"   Has message_uuids: {hasattr(result, 'message_uuids')}, value: {getattr(result, 'message_uuids', None)}")
                 
                 # Get message_uuids for polling (task_id is None for single messages)
                 if hasattr(result, 'message_uuids') and result.message_uuids:
-                    # Use the first message UUID to poll  
                     message_uuid = result.message_uuids[0]
-                    print(f"✅ Will poll using message_uuid: {message_uuid}")
-                else:
-                    print(f"⚠️ No message_uuids in response!")
             else:
                 # Long content - use graph.add (no size limit)
                 message_data = self._truncate_for_graph(f"User: {content}")
@@ -162,23 +155,17 @@ class ZepTool(MemoryTool):
                         data=message_data
                     )
                 )
-                print(f"🔍 DEBUG - graph.add result: {episode}")
-                print(f"   Type: {type(episode)}")
-                print(f"   Has uuid_: {hasattr(episode, 'uuid_')}")
-                if hasattr(episode, 'uuid_'):
-                    print(f"   uuid_ value: {episode.uuid_}")
                 
                 # Get episode UUID for polling
                 if hasattr(episode, 'uuid_') and episode.uuid_:
                     episode_uuid = episode.uuid_
-                    print(f"✅ Captured episode_uuid: {episode_uuid}")
 
             # IMPORTANT: Poll for Zep to finish processing the message
             # Zep processes messages asynchronously (typically 5-10 seconds per message)
             # Poll until processing completes (max 30 seconds timeout)
             await self._wait_for_processing(task_id, episode_uuid, timeout=30, message_uuid=message_uuid)
 
-            response = f"Successfully stored memory: {content[:50]}..."
+            response = f"Successfully stored memory: {content}"
             
             # Estimate tokens: input (content) + output (processing + response)
             input_tokens = self._estimate_tokens(content)
@@ -437,11 +424,8 @@ class ZepTool(MemoryTool):
             episode_uuid: Episode UUID from graph.add (for single episode)
             timeout: Maximum seconds to wait (default 30)
         """
-        print(f"🔍 DEBUG - Polling started: task_id={task_id}, episode_uuid={episode_uuid}, message_uuid={message_uuid}")
-        
         if not task_id and not episode_uuid and not message_uuid:
             # No polling info available, use fallback wait
-            print(f"⚠️ No task_id, episode_uuid, or message_uuid - using fallback 8s wait")
             await asyncio.sleep(8)
             return
         
@@ -452,13 +436,11 @@ class ZepTool(MemoryTool):
             FIXED_WAIT_SINGLE_MESSAGE = 15  # Fixed wait for single messages
             
             if message_uuid:
-                print(f"⏱️ Using fixed {FIXED_WAIT_SINGLE_MESSAGE}s wait for single message (Option C)")
-                print(f"   Reason: 'processed' field unreliable for thread.add_messages()")
+                print(f"⏱️ Waiting {FIXED_WAIT_SINGLE_MESSAGE}s for Zep processing...")
                 await asyncio.sleep(FIXED_WAIT_SINGLE_MESSAGE)
                 elapsed = FIXED_WAIT_SINGLE_MESSAGE
             else:
                 # Phase 1: Poll for task_id or episode_uuid (these work reliably)
-                print(f"🔍 Phase 1: Polling for processing completion...")
                 poll_count = 0
                 while (time.time() - start_time) < timeout:
                     poll_count += 1
@@ -469,13 +451,10 @@ class ZepTool(MemoryTool):
                             None,
                             lambda: self.client.task.get(task_id=task_id)
                         )
-                        print(f"  Poll {poll_count}: Task status = {getattr(task, 'status', 'N/A')}")
                         if hasattr(task, 'status'):
                             if task.status == "completed":
-                                print(f"✅ Phase 1 complete after {poll_count} polls ({time.time() - start_time:.1f}s)")
                                 break
                             elif task.status == "failed":
-                                print(f"⚠️ Zep task failed: {getattr(task, 'error', 'Unknown error')}")
                                 return
                     
                     elif episode_uuid:
@@ -484,26 +463,19 @@ class ZepTool(MemoryTool):
                             None,
                             lambda: self.client.graph.episode.get(uuid_=episode_uuid)
                         )
-                        processed = getattr(episode, 'processed', False)
-                        print(f"  Poll {poll_count}: Episode processed = {processed}")
                         if hasattr(episode, 'processed') and episode.processed:
-                            print(f"✅ Phase 1 complete after {poll_count} polls ({time.time() - start_time:.1f}s)")
                             break
                     
                     # Wait 1 second before next poll
                     await asyncio.sleep(1)
                 
                 elapsed = time.time() - start_time
-                if elapsed >= timeout:
-                    print(f"⚠️ Phase 1 timeout reached ({timeout}s)")
             
             # Phase 2: Wait for facts to be searchable (indexing delay)
             # Even after "processing complete", search index needs time to update
             # Poll graph search until we get results or timeout
             remaining_timeout = max(10, timeout - elapsed)  # At least 10s for Phase 2
             indexing_start = time.time()
-            
-            print(f"🔍 Phase 2: Verifying facts are searchable (timeout: {remaining_timeout:.1f}s)...")
             index_poll_count = 0
             
             while (time.time() - indexing_start) < remaining_timeout:
@@ -518,31 +490,20 @@ class ZepTool(MemoryTool):
                             limit=1
                         )
                     )
-                    edge_count = len(search_result.edges) if (search_result and hasattr(search_result, 'edges') and search_result.edges) else 0
-                    print(f"  Index poll {index_poll_count}: Found {edge_count} edges")
                     
                     if search_result and hasattr(search_result, 'edges') and search_result.edges:
                         # Facts are now searchable!
-                        print(f"✅ Phase 2 complete after {index_poll_count} polls ({time.time() - indexing_start:.1f}s)")
-                        print(f"✅ Total wait time: {time.time() - start_time:.1f}s")
+                        print(f"✅ Facts indexed and ready ({time.time() - start_time:.1f}s total)")
                         return
                 except Exception as e:
-                    print(f"  Index poll {index_poll_count}: Error - {type(e).__name__}: {str(e)[:50]}")
+                    pass  # Silently continue polling
                 
                 await asyncio.sleep(1)
             
-            # Indexing timeout - continue anyway
-            print(f"⚠️ Phase 2 timeout after {index_poll_count} polls ({time.time() - indexing_start:.1f}s)")
-            print(f"⚠️ Total wait time: {time.time() - start_time:.1f}s")
-            if (time.time() - start_time) >= timeout:
-                print(f"⚠️ Overall Zep timeout reached ({timeout}s)")
+            # Indexing timeout - continue anyway (facts may still be processing)
             
         except Exception as e:
             # Polling failed, fall back to static wait
-            print(f"⚠️ Zep polling error: {type(e).__name__}: {str(e)[:200]}")
-            import traceback
-            traceback.print_exc()
-            print(f"Falling back to 8s wait")
             await asyncio.sleep(8)
     
     def _estimate_tokens(self, text: str) -> int:

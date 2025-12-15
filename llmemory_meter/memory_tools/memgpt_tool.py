@@ -127,7 +127,7 @@ class MemGPTTool(MemoryTool):
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, self._sync_send_message, content)
             
-            return f"Stored in Letta: {content[:50]}..."
+            return f"Stored in Letta: {content}"
         except Exception as e:
             raise Exception(f"Error storing memory: {e}")
     
@@ -171,9 +171,9 @@ class MemGPTTool(MemoryTool):
                 assistant_msgs = [msg for msg in result.messages 
                                 if hasattr(msg, 'message_type') and 
                                 'assistant' in msg.message_type.lower()]
-                if assistant_msgs and hasattr(assistant_msgs[-1], 'text'):
-                    response_text = assistant_msgs[-1].text
-                    return f"Retrieved from Letta: {response_text[:200]}..."
+                if assistant_msgs and hasattr(assistant_msgs[-1], 'content'):
+                    response_text = assistant_msgs[-1].content
+                    return f"Retrieved from Letta: {response_text}"  # No truncation
             
             return f"Retrieved from Letta for query: {query}"
         except Exception as e:

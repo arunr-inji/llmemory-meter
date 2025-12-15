@@ -31,7 +31,10 @@ class Mem0Tool(MemoryTool):
             raise ValueError("OPENAI_API_KEY required for Mem0 (underlying LLM)")
         
         self.api_key = Config.MEM0_API_KEY
-        self._user_id = self.config.get("user_id", "benchmark_user")
+        # Generate unique user_id to prevent cross-benchmark contamination (similar to MemGPT/Zep)
+        import time
+        import random
+        self._user_id = self.config.get("user_id", f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}")
         self._last_tokens = 0  # Track token usage
         
         # Get LLM provider from config (default to openai)
@@ -132,7 +135,7 @@ class Mem0Tool(MemoryTool):
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, self._sync_add, content, metadata)
             memory_id = result.get('id', 'unknown') if isinstance(result, dict) else str(result)
-            response = f"Stored in Mem0 (ID: {memory_id}): {content[:50]}..."
+            response = f"Stored in Mem0 (ID: {memory_id}): {content}"
             
             # Estimate tokens: input (content) + output (processing + response)
             input_tokens = self._estimate_tokens(content)
@@ -219,7 +222,7 @@ class Mem0Tool(MemoryTool):
                         memory_texts.append(memory_text)
                 context = "Relevant memories: " + " | ".join(memory_texts)
             
-            response = f"Mem0 chat response to '{message}' (with {len(memories)} memories): Based on your memories, I can help you with this request. {context[:200]}..."
+            response = f"Mem0 chat response to '{message}' (with {len(memories)} memories): Based on your memories, I can help you with this request. {context}"
             
             # Estimate tokens: input (message + context) + output (response)
             input_text = message + " " + context
@@ -289,3 +292,17 @@ class Mem0Tool(MemoryTool):
                 success=False,
                 error_message=str(e)
             )
+    
+    async def clear_memory(self, session_id: Optional[str] = None) -> str:
+        """Clear memory by creating a new user_id (workload isolation).
+        
+        Mem0 stores memories in Qdrant vector DB indexed by user_id.
+        Creating a new user_id ensures complete isolation between workloads.
+        """
+        try:
+            # Generate new unique user_id
+            import time
+            self._user_id = f"benchmark_user_{int(time.time() * 1000)}"
+            return f"Memory cleared (new user: {self._user_id})"
+        except Exception as e:
+            return f"Error clearing Mem0: {e}"
