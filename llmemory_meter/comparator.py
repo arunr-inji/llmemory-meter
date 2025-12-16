@@ -60,7 +60,7 @@ class MemoryComparator:
             try:
                 # Add timeout per step to prevent indefinite hangs (especially for Zep)
                 # 5 minutes = 3.2x the max ever observed (92s) with generous buffer
-                # Prevents 27+ hour deadlocks while allowing legitimate slow operations
+                # Prevents deadlocks while allowing legitimate slow operations
                 STEP_TIMEOUT = 300.0  # 5 minutes
                 step_result = await asyncio.wait_for(
                     tool.execute_step(step, i),

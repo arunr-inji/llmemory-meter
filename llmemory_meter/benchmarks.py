@@ -305,8 +305,8 @@ class StandardBenchmarks:
         workloads = []
         
         # Get random seed from config or use default
-        if config and 'benchmarks' in config and 'stress_test_random_seed' in config['benchmarks']:
-            random_seed = config['benchmarks']['stress_test_random_seed']
+        if config and 'general' in config and 'stress_test_random_seed' in config['general']:
+            random_seed = config['general']['stress_test_random_seed']
             
             # Validate seed (None is allowed for truly random)
             if random_seed is not None:
@@ -376,7 +376,7 @@ class StandardBenchmarks:
         ]
         
         # Use seeded random for deterministic but unpredictable test positions
-        # Seed can be configured in YAML: benchmarks.stress_test_random_seed (default: 42)
+        # Seed can be configured in YAML: general.stress_test_random_seed (default: 42)
         # Set to null/None in YAML for truly random positions each run
         random.seed(random_seed)
         test_positions = sorted(random.sample(range(50), 6))
