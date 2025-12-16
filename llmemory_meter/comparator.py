@@ -6,7 +6,7 @@ from datetime import datetime
 import json
 
 from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool, MemGPTTool, ClaudeMemoryTool, ZepTool
-from llmemory_meter.workload import Workload, WorkloadResult
+from llmemory_meter.workload import Workload, WorkloadResult, StepResult
 from llmemory_meter.metrics import MetricsCalculator
 from llmemory_meter.config_parser import Config
 from llmemory_meter.benchmarks import StandardBenchmarks, BenchmarkRunner
@@ -57,7 +57,27 @@ class MemoryComparator:
         
         # Phase 1: Run benchmark (pure performance measurement)
         for i, step in enumerate(workload.steps):
-            step_result = await tool.execute_step(step, i)
+            try:
+                # Add timeout per step to prevent indefinite hangs (especially for Zep)
+                # 5 minutes = 3.2x the max ever observed (92s) with generous buffer
+                # Prevents 27+ hour deadlocks while allowing legitimate slow operations
+                STEP_TIMEOUT = 300.0  # 5 minutes
+                step_result = await asyncio.wait_for(
+                    tool.execute_step(step, i),
+                    timeout=STEP_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                # Step timed out - mark as failed
+                print(f"⏱️ Timeout: Step {i} ({step.action}) exceeded {STEP_TIMEOUT/60:.0f} minutes - marking as failed")
+                step_result = StepResult(
+                    step_index=i,
+                    action=step.action,
+                    response="",
+                    latency_ms=STEP_TIMEOUT * 1000,
+                    tokens_used=0,
+                    success=False,
+                    error_message=f"Operation timed out after {STEP_TIMEOUT/60:.0f} minutes"
+                )
             step_results.append(step_result)
         
         total_end_time = datetime.now()
