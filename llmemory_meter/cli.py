@@ -66,6 +66,12 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
     print(f"\n📊 Benchmarks to run: {len(enabled_benchmarks)}")
     for benchmark in enabled_benchmarks:
         print(f"   • {benchmark}")
+
+    # Print accuracy configuration if enabled
+    if config.metrics.accuracy and config.accuracy:
+        print(f"\n🎯 Accuracy evaluation enabled:")
+        print(f"   • Provider: {config.accuracy.provider}")
+        print(f"   • Model: {config.accuracy.model or 'default'}")
     
     # Initialize comparator with config
     print(f"\n🚀 Initializing memory tools...")

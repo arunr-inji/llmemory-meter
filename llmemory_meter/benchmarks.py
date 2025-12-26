@@ -177,7 +177,7 @@ class StandardBenchmarks:
                 ),
                 WorkloadStep(
                     action="store", 
-                    content="Document Part 2: Leonardo da Vinci (1452-1519) was an Italian polymath whose areas of interest included invention, drawing, painting, sculpture, architecture, science, music, mathematics, engineering, literature, anatomy, geology, astronomy, botany, paleontology, and cartography. He is widely considered one of the greatest minds in human history.",
+                    content="Document Part 2: Leonardo da Vinci (1452-1519) was an Italian polymath whose areas of interest included invention, drawing, painting, sculpture, architecture, science, music, mathematics, engineering, literature, anatomy, geology, astronomy, botany, paleontology, and cartography. He is widely considered one of the greatest minds in human history. His work helped define the High Renaissance ideal of the “universal man” who unites art, science, and engineering in a single creative vision",
                     metadata={"document_part": 2, "topic": "leonardo_da_vinci"}
                 ),
                 WorkloadStep(
@@ -200,7 +200,7 @@ class StandardBenchmarks:
                 WorkloadStep(
                     action="chat",
                     content="How did Leonardo da Vinci and the printing press contribute to Renaissance innovation?",
-                    ground_truth="Leonardo da Vinci polymath greatest minds human history innovation printing press affordable books increased literacy rates rapid dissemination ideas Europe Renaissance",
+                    ground_truth="Leonardo da Vinci's ideal of the 'universal man' created a pursuit of innovation by unifying multiple disciplines. This combined with printing press which made books affordable, increased literacy rates and enabled rapid dissemination of ideas leading to the Europe Renaissance",
                     metadata={"type": "synthesis", "requires_parts": [2, 3]}
                 )
             ]

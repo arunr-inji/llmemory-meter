@@ -85,7 +85,7 @@ class MemoryComparator:
         
         # Phase 2: Evaluate accuracy post-hoc (doesn't affect latency/tokens)
         if self.config.get('metrics', {}).get('accuracy', False):
-            step_results = self._evaluate_accuracy(step_results, workload.steps)
+            step_results = self._evaluate_accuracy(step_results, workload.steps, tool_name)
         
         # Calculate aggregated metrics
         successful_steps = sum(1 for r in step_results if r.success)
@@ -123,6 +123,7 @@ class MemoryComparator:
         # Patterns to strip (in order of priority)
         patterns = [
             r'^Mem0 chat response to .+?\(with \d+ memories\):\s*',  # Mem0 chat wrapper
+            r'^No memories found in Mem0 for query:.*',  # Mem0 retrieve wrapper
             r'^Based on context:\s*Retrieved from .+?:\s*',  # Nested prefix (Zep chat)
             r'^Retrieved from .+? for query:\s*[^:]+$',  # MemGPT with query only (no content after)
             r'^Retrieved from .+? for [\'"][^\'"]+[\'"]:',  # OpenAI with quoted query
@@ -155,26 +156,24 @@ class MemoryComparator:
         
         return cleaned.strip()
     
-    def _evaluate_accuracy(self, step_results: List, steps: List) -> List:
+    def _evaluate_accuracy(self, step_results: List, steps: List, tool_name: str) -> List:
         """Evaluate accuracy post-hoc (doesn't affect latency/tokens).
         
         Args:
             step_results: List of StepResult objects
             steps: List of WorkloadStep objects with ground truth
+            tool_name: The name of the tool being evaluated.
             
         Returns:
             Updated step_results with accuracy scores populated
         """
         from llmemory_meter.accuracy_evaluator import AccuracyEvaluator
         
-        # Get accuracy config
-        accuracy_config = self.config.get('accuracy', {})
-        providers = accuracy_config.get('providers', ['openai'])
-        
-        # Ensure providers is a list
-        if isinstance(providers, str):
-            providers = [providers]
-        
+        # Get accuracy config (now a dataclass)
+        accuracy_config = self.config.get('accuracy')
+        if not accuracy_config:
+            return step_results
+
         # Collect responses and ground truths, stripping formatting for fair comparison
         responses = [self._strip_formatting_prefix(sr.response) for sr in step_results]
         ground_truths = [step.ground_truth for step in steps]
@@ -182,31 +181,24 @@ class MemoryComparator:
         # Initialize accuracy_by_provider dict for each step result
         for sr in step_results:
             sr.accuracy_by_provider = {}
-        
-        # Evaluate with each provider
-        for provider in providers:
-            try:
-                # Get provider-specific model if configured
-                provider_config = accuracy_config.get(provider, {})
-                model = provider_config.get('model') if isinstance(provider_config, dict) else None
-                
-                evaluator = AccuracyEvaluator(provider=provider, model=model)
-                accuracy_scores = evaluator.evaluate_batch(responses, ground_truths)
-                
-                # Store scores in accuracy_by_provider dict
-                for sr, score in zip(step_results, accuracy_scores):
-                    sr.accuracy_by_provider[provider] = score
-            except Exception as e:
-                print(f"Warning: Failed to evaluate accuracy with {provider}: {e}")
-                # Set None for all steps for this provider
-                for sr in step_results:
-                    sr.accuracy_by_provider[provider] = None
-        
-        # Set primary accuracy field to first provider's score
-        if providers:
-            primary_provider = providers[0]
+
+        provider = accuracy_config.provider
+        model = accuracy_config.model
+
+        try:
+            evaluator = AccuracyEvaluator(provider=provider, model=model)
+            accuracy_scores = evaluator.evaluate_batch(responses, ground_truths, tool_name=tool_name)
+            
+            # Store scores in accuracy_by_provider dict
+            for sr, score in zip(step_results, accuracy_scores):
+                sr.accuracy_by_provider[provider] = score
+                sr.accuracy = score
+        except Exception as e:
+            print(f"Warning: Failed to evaluate accuracy with {provider}: {e}")
+            # Set None for all steps for this provider
             for sr in step_results:
-                sr.accuracy = sr.accuracy_by_provider.get(primary_provider)
+                sr.accuracy_by_provider[provider] = None
+                sr.accuracy = None
         
         return step_results
     

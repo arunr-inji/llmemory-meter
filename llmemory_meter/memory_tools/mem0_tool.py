@@ -5,6 +5,7 @@ Provides integration with Mem0 AI memory system.
 """
 
 import asyncio
+import uuid
 from typing import Dict, Any, Optional
 
 from llmemory_meter.memory_tools.base import MemoryTool
@@ -98,10 +99,16 @@ class Mem0Tool(MemoryTool):
             vector_store_config = self.config.get("vector_store")
             if vector_store_config:
                 if vector_store_config.get("provider") == "qdrant":
+                    from qdrant_client import QdrantClient
+
+                    collection_id = str(uuid.uuid4())
+                    client = QdrantClient("localhost", port=6333)
+                    client.delete_collection(collection_name="llmemory_benchmarks+"+collection_id)
+
                     self.mem0_config["vector_store"] = {
                         "provider": "qdrant",
                         "config": {
-                            "collection_name": vector_store_config.get("collection_name", "llmemory_benchmarks"),
+                            "collection_name": vector_store_config.get("collection_name", "llmemory_benchmarks+"+collection_id),
                             "host": vector_store_config.get("host", "localhost"),
                             "port": vector_store_config.get("port", 6333),
                         }
@@ -205,7 +212,7 @@ class Mem0Tool(MemoryTool):
             import asyncio
             loop = asyncio.get_event_loop()
             search_results = await loop.run_in_executor(None, self._sync_search, message, metadata)
-            
+
             # Handle different response formats
             memories = []
             if isinstance(search_results, dict) and 'results' in search_results:

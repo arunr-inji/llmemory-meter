@@ -31,6 +31,13 @@ class BenchmarkConfig:
 
 
 @dataclass
+class AccuracyConfig:
+    """Configuration for accuracy evaluation."""
+    provider: str = "openai"
+    model: Optional[str] = None
+
+
+@dataclass
 class MetricsConfig:
     """Configuration for metrics collection."""
     latency: bool = True
@@ -48,7 +55,7 @@ class LLMemoryMeterConfig:
     metrics: MetricsConfig
     output: Dict[str, Any]
     general: Dict[str, Any]
-    accuracy: Optional[Dict[str, Any]] = None  # Accuracy evaluation configuration
+    accuracy: Optional[AccuracyConfig] = None  # Accuracy evaluation configuration
 
 
 class ConfigManager:
@@ -210,7 +217,8 @@ class ConfigManager:
         metrics = MetricsConfig(**metrics_dict)
         
         # Get accuracy configuration
-        accuracy_config = config_dict.get('accuracy', None)
+        accuracy_dict = config_dict.get('accuracy', None)
+        accuracy_config = AccuracyConfig(**accuracy_dict) if accuracy_dict else None
         
         return LLMemoryMeterConfig(
             memory_tools=memory_tools,

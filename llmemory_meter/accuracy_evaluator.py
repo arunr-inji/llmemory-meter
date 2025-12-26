@@ -58,7 +58,8 @@ class AccuracyEvaluator:
     
     def evaluate_batch(self, 
                       responses: List[str], 
-                      ground_truths: List[str]) -> List[Optional[float]]:
+                      ground_truths: List[str],
+                      tool_name: str) -> List[Optional[float]]:
         """Evaluate accuracy for a batch of responses (efficient).
         
         This is much more efficient than calling evaluate_single() multiple times
@@ -67,6 +68,7 @@ class AccuracyEvaluator:
         Args:
             responses: List of tool responses
             ground_truths: List of expected answers (can contain None values)
+            tool_name: The name of the tool being evaluated.
             
         Returns:
             List of accuracy scores (None for steps without ground truth)
@@ -82,7 +84,7 @@ class AccuracyEvaluator:
             # Debug: Check for empty responses (should not happen!)
             if gt is not None and gt.strip():
                 if not response or not response.strip():
-                    print(f"⚠️  WARNING: Step {i} has empty response but has ground truth!")
+                    print(f"⚠️  WARNING: Step {i} for tool '{tool_name}' has empty response but has ground truth!")
                     print(f"   Ground truth: '{gt[:50]}...'")
                     print(f"   Response: '{response}'")
                     continue
