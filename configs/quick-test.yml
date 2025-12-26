@@ -62,7 +62,7 @@ metrics:
   latency: true
   success_rate: true
   token_usage: true
-  accuracy: false  # Skip for speed
+  accuracy: true
   memory_quality: false  # Skip for speed
 
 output:
@@ -76,3 +76,7 @@ general:
   max_retries: 1  # Fewer retries
   concurrent_tools: false  # Sequential for stability
   debug: true  # Show what's happening
+
+accuracy:
+  provider: local
+  model: all-MiniLM-L6-v2

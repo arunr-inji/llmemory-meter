@@ -46,7 +46,7 @@ metrics:
   latency: true
   success_rate: true
   token_usage: true
-  accuracy: false
+  accuracy: true
   memory_quality: false
 output:
   save_results: true
@@ -58,3 +58,6 @@ general:
   max_retries: 2
   concurrent_tools: false
   debug: false
+accuracy:
+  provider: openai
+  model: text-embedding-3-small
