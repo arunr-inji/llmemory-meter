@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 import asyncio
 import time
 import random
+from concurrent.futures import ThreadPoolExecutor
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser.env import Config
 
@@ -34,6 +35,9 @@ class MemGPTTool(MemoryTool):
         
         self._agent_id = None
         self._last_tokens = 0  # Track token usage from last API call
+        
+        # Create dedicated thread pool executor to avoid shared pool exhaustion
+        self._executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="memgpt_")
         
         # Initialize Letta client
         self._initialize_letta_client()
@@ -125,7 +129,7 @@ class MemGPTTool(MemoryTool):
         try:
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, self._sync_send_message, content)
+            result = await loop.run_in_executor(self._executor, self._sync_send_message, content)
             
             return f"Stored in Letta: {content}"
         except Exception as e:
@@ -163,7 +167,7 @@ class MemGPTTool(MemoryTool):
         try:
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, self._sync_query_memory, query)
+            result = await loop.run_in_executor(self._executor, self._sync_query_memory, query)
             
             # Extract response text from messages
             if hasattr(result, 'messages') and result.messages:
@@ -211,7 +215,7 @@ class MemGPTTool(MemoryTool):
         try:
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, self._sync_chat, message)
+            result = await loop.run_in_executor(self._executor, self._sync_chat, message)
             
             # Extract response from result
             if hasattr(result, 'messages') and result.messages:

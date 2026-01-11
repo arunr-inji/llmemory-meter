@@ -6,6 +6,7 @@ Provides integration with Mem0 AI memory system.
 
 import asyncio
 from typing import Dict, Any, Optional
+from concurrent.futures import ThreadPoolExecutor
 
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser import Config
@@ -36,6 +37,9 @@ class Mem0Tool(MemoryTool):
         import random
         self._user_id = self.config.get("user_id", f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}")
         self._last_tokens = 0  # Track token usage
+        
+        # Create dedicated thread pool executor to avoid shared pool exhaustion
+        self._executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="mem0_")
         
         # Get LLM provider from config (default to openai)
         self.llm_provider = self.config.get("llm_provider", "openai")
@@ -133,7 +137,7 @@ class Mem0Tool(MemoryTool):
             # Run in a thread-safe manner by using run_in_executor
             import asyncio
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, self._sync_add, content, metadata)
+            result = await loop.run_in_executor(self._executor, self._sync_add, content, metadata)
             memory_id = result.get('id', 'unknown') if isinstance(result, dict) else str(result)
             response = f"Stored in Mem0 (ID: {memory_id}): {content}"
             
@@ -166,7 +170,7 @@ class Mem0Tool(MemoryTool):
             # Run in a thread-safe manner by using run_in_executor
             import asyncio
             loop = asyncio.get_event_loop()
-            results = await loop.run_in_executor(None, self._sync_search, query, metadata)
+            results = await loop.run_in_executor(self._executor, self._sync_search, query, metadata)
 
             # Handle different response formats
             if isinstance(results, dict):
@@ -204,7 +208,7 @@ class Mem0Tool(MemoryTool):
             # Use thread-safe search
             import asyncio
             loop = asyncio.get_event_loop()
-            search_results = await loop.run_in_executor(None, self._sync_search, message, metadata)
+            search_results = await loop.run_in_executor(self._executor, self._sync_search, message, metadata)
             
             # Handle different response formats
             memories = []

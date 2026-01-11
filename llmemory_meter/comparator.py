@@ -51,12 +51,20 @@ class MemoryComparator:
     
     async def run_workload_on_tool(self, workload: Workload, tool_name: str) -> WorkloadResult:
         """Run a workload on a specific memory tool."""
+        print(f"  → {tool_name} starting...")
         tool = self._get_tool_instance(tool_name)
         step_results = []
         total_start_time = datetime.now()
         
         # Phase 1: Run benchmark (pure performance measurement)
         for i, step in enumerate(workload.steps):
+            # Progress print every 10 steps
+            if i > 0 and i % 10 == 0:
+                from datetime import timezone, timedelta
+                pst = timezone(timedelta(hours=-8))
+                timestamp = datetime.now(pst).strftime("%H:%M:%S")
+                print(f"    [{tool_name}] Progress: {i}/{len(workload.steps)} steps @ {timestamp} PST")
+            
             try:
                 # Add timeout per step to prevent indefinite hangs (especially for Zep)
                 # 5 minutes = 3.2x the max ever observed (92s) with generous buffer
@@ -91,6 +99,8 @@ class MemoryComparator:
         successful_steps = sum(1 for r in step_results if r.success)
         success_rate = successful_steps / len(step_results) if step_results else 0
         total_tokens = sum(r.tokens_used or 0 for r in step_results)
+        
+        print(f"  ✓ {tool_name} completed ({len(step_results)} steps, {total_latency_ms:.0f}ms)")
         
         return WorkloadResult(
             tool_name=tool_name,

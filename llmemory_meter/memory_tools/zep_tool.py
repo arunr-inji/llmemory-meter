@@ -9,6 +9,7 @@ import os
 from typing import Dict, Any, Optional, List
 import asyncio
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 try:
     from zep_cloud.client import Zep
@@ -48,11 +49,12 @@ class ZepTool(MemoryTool):
         if not self.api_key:
             raise ValueError("ZEP_API_KEY is required in config or environment variables")
 
-        # Initialize client with timeout
+        # Initialize client with aggressive timeout to prevent hangs
         # Note: Zep SDK uses httpx internally, which respects timeout parameter
+        # Reduced from 120s to 30s to handle backend load better
         self.client = Zep(
             api_key=self.api_key,
-            timeout=120.0  # 2 minute timeout for API calls
+            timeout=30.0  # 30 second timeout for API calls (prevents hangs under load)
         )
 
         # Session management
@@ -64,6 +66,10 @@ class ZepTool(MemoryTool):
         
         # Token tracking
         self._last_tokens = 0
+
+        # Create dedicated thread pool executor for Zep operations
+        # This prevents thread pool exhaustion when multiple tools share event loop
+        self._executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="zep_")
 
         # Initialize user and thread
         self._ensure_user_exists()
@@ -136,15 +142,16 @@ class ZepTool(MemoryTool):
                     content=content
                 )
                 # Wrap with timeout to prevent indefinite hangs
+                # Note: SDK-level timeout (30s) + asyncio timeout (45s) = defense in depth
                 result = await asyncio.wait_for(
                     asyncio.get_event_loop().run_in_executor(
-                        None,
+                        self._executor,  # Use dedicated executor
                         lambda: self.client.thread.add_messages(
                             thread_id=self.session_id,
                             messages=[message]
                         )
                     ),
-                    timeout=60.0  # 60s timeout for API call
+                    timeout=35.0  # 35s asyncio timeout (SDK has 30s + 5s buffer)
                 )
                 
                 # Get message_uuids for polling (task_id is None for single messages)
@@ -154,16 +161,17 @@ class ZepTool(MemoryTool):
                 # Long content - use graph.add (no size limit)
                 message_data = self._truncate_for_graph(f"User: {content}")
                 # Wrap with timeout to prevent indefinite hangs
+                # Note: SDK-level timeout (30s) + asyncio timeout (45s) = defense in depth
                 episode = await asyncio.wait_for(
                     asyncio.get_event_loop().run_in_executor(
-                        None,
+                        self._executor,  # Use dedicated executor
                         lambda: self.client.graph.add(
                             user_id=self.user_id,
                             type="message",
                             data=message_data
                         )
                     ),
-                    timeout=60.0  # 60s timeout for API call
+                    timeout=35.0  # 35s asyncio timeout (SDK has 30s + 5s buffer)
                 )
                 
                 # Get episode UUID for polling
@@ -185,8 +193,9 @@ class ZepTool(MemoryTool):
             return response
 
         except asyncio.TimeoutError:
-            print(f"⏱️ Zep store operation timed out after 60s")
-            raise Exception(f"Zep API timeout in store operation")
+            print(f"⏱️ Zep store operation timed out (SDK: 30s, asyncio: 45s)")
+            print(f"   This suggests Zep backend is overloaded or unresponsive")
+            raise Exception(f"Zep API timeout in store operation (backend may be overloaded)")
         except Exception as e:
             # Log the actual error with full details
             error_type = type(e).__name__
@@ -202,16 +211,17 @@ class ZepTool(MemoryTool):
         """Retrieve information from Zep memory."""
         try:
             # Use graph search for better fact retrieval (with timeout)
+            # SDK timeout: 30s, asyncio timeout: 35s
             graph_search_response = await asyncio.wait_for(
                 asyncio.get_event_loop().run_in_executor(
-                    None,
+                    self._executor,
                     lambda: self.client.graph.search(
                         user_id=self.user_id,
                         query=query,
                         limit=5
                     )
                 ),
-                timeout=30.0  # 30s timeout for retrieval
+                timeout=35.0  # 35s asyncio timeout (SDK has 30s)
             )
             
             # Extract facts from graph search results
@@ -229,14 +239,15 @@ class ZepTool(MemoryTool):
                     return response
             
             # Fallback to thread context if graph search returns nothing (with timeout)
+            # SDK timeout: 30s, asyncio timeout: 35s
             context_response = await asyncio.wait_for(
                 asyncio.get_event_loop().run_in_executor(
-                    None,
+                    self._executor,
                     lambda: self.client.thread.get_user_context(
                         thread_id=self.session_id
                     )
                 ),
-                timeout=30.0  # 30s timeout for context retrieval
+                timeout=35.0  # 35s asyncio timeout (SDK has 30s)
             )
 
             # Extract context from response
@@ -315,7 +326,7 @@ class ZepTool(MemoryTool):
                     content=message
                 )
                 await asyncio.get_event_loop().run_in_executor(
-                    None,
+                    self._executor,
                     lambda: self.client.thread.add_messages(
                         thread_id=self.session_id,
                         messages=[user_message]
@@ -325,7 +336,7 @@ class ZepTool(MemoryTool):
                 # Long message - use graph.add (no size limit)
                 message_data = self._truncate_for_graph(f"User: {message}")
                 await asyncio.get_event_loop().run_in_executor(
-                    None,
+                    self._executor,
                     lambda: self.client.graph.add(
                         user_id=self.user_id,
                         type="message",
@@ -356,7 +367,7 @@ class ZepTool(MemoryTool):
                     content=response
                 )
                 await asyncio.get_event_loop().run_in_executor(
-                    None,
+                    self._executor,
                     lambda: self.client.thread.add_messages(
                         thread_id=self.session_id,
                         messages=[assistant_message]
@@ -366,7 +377,7 @@ class ZepTool(MemoryTool):
                 # Long response - use graph.add (no size limit)
                 response_data = self._truncate_for_graph(f"Assistant: {response}")
                 await asyncio.get_event_loop().run_in_executor(
-                    None,
+                    self._executor,
                     lambda: self.client.graph.add(
                         user_id=self.user_id,
                         type="message",
@@ -470,7 +481,7 @@ class ZepTool(MemoryTool):
                     if task_id:
                         # Poll task status for thread.add_messages_batch
                         task = await asyncio.get_event_loop().run_in_executor(
-                            None,
+                            self._executor,
                             lambda: self.client.task.get(task_id=task_id)
                         )
                         if hasattr(task, 'status'):
@@ -482,7 +493,7 @@ class ZepTool(MemoryTool):
                     elif episode_uuid:
                         # Poll episode status for graph.add
                         episode = await asyncio.get_event_loop().run_in_executor(
-                            None,
+                            self._executor,
                             lambda: self.client.graph.episode.get(uuid_=episode_uuid)
                         )
                         if hasattr(episode, 'processed') and episode.processed:
@@ -504,8 +515,9 @@ class ZepTool(MemoryTool):
                 index_poll_count += 1
                 try:
                     # Do a simple graph search to check if facts are available
+                    # Let SDK timeout (30s) handle slow/stuck calls naturally
                     search_result = await asyncio.get_event_loop().run_in_executor(
-                        None,
+                        self._executor,
                         lambda: self.client.graph.search(
                             user_id=self.user_id,
                             query="user",  # Generic query to check for any facts
@@ -518,7 +530,7 @@ class ZepTool(MemoryTool):
                         print(f"✅ Facts indexed and ready ({time.time() - start_time:.1f}s total)")
                         return
                 except Exception as e:
-                    pass  # Silently continue polling
+                    pass  # Silently continue polling on any error
                 
                 await asyncio.sleep(1)
             
@@ -584,11 +596,31 @@ class ZepTool(MemoryTool):
         
         Zep stores knowledge graph at USER level, so we create a new user for each workload
         to ensure complete isolation without the complexity of deleting/recreating threads.
+        
+        IMPORTANT: Also recreates the Zep client to prevent connection pool exhaustion
+        and ensure fresh HTTP connections after heavy workloads.
         """
         try:
             # Generate new user_id for workload isolation
             self.user_id = f"benchmark_user_{int(time.time() * 1000)}"
             self.session_id = f"zep_{int(time.time())}"
+            
+            # CRITICAL FIX 1: Shutdown old executor and create new one
+            # After multiple workloads, the dedicated thread pool can accumulate
+            # stale threads. Recreating ensures fresh thread pool.
+            print(f"🔄 Recreating Zep executor and client...")
+            if hasattr(self, '_executor'):
+                self._executor.shutdown(wait=False)  # Don't wait for threads
+            self._executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="zep_")
+            
+            # CRITICAL FIX 2: Recreate client with fresh connection pool
+            # After heavy workloads (e.g., Technical Performance with 50 stores),
+            # the httpx connection pool can get exhausted/stuck, causing hangs
+            # even with SDK timeouts. Recreating ensures fresh connections.
+            self.client = Zep(
+                api_key=self.api_key,
+                timeout=30.0  # 30 second timeout for API calls
+            )
             
             # Ensure new user exists
             self._ensure_user_exists()
@@ -596,7 +628,7 @@ class ZepTool(MemoryTool):
             # Create new thread
             self._ensure_thread_exists()
             
-            return f"Memory cleared (new user: {self.user_id})"
+            return f"Memory cleared (new user: {self.user_id}, fresh executor & client)"
         except Exception as e:
             return f"Error reinitializing Zep: {e}"
 

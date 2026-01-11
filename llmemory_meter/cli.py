@@ -114,10 +114,18 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
                     for tool_name, tool_metrics in metrics.items():
                         success_rate = tool_metrics.get('success_rate', 0)
                         avg_latency = tool_metrics.get('avg_latency_ms', 0)
+                        avg_accuracy = tool_metrics.get('avg_accuracy')
                         
-                        # Highlight failures
+                        # Build output string
                         status_icon = "✅" if success_rate == 100.0 else "⚠️"
-                        print(f"   {status_icon} {tool_name}: {success_rate:.1f}% success, {avg_latency:.0f}ms avg")
+                        output = f"   {status_icon} {tool_name}: {success_rate:.1f}% success, {avg_latency:.0f}ms avg"
+                        
+                        # Add accuracy if available
+                        if avg_accuracy is not None:
+                            # Show accuracy as percentage (0.0-1.0 → 0-100%)
+                            output += f", {avg_accuracy*100:.1f}% accuracy"
+                        
+                        print(output)
                 
             except Exception as e:
                 print(f"   ❌ Failed: {e}")

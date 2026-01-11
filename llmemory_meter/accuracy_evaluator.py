@@ -43,12 +43,16 @@ class AccuracyEvaluator:
             
         Returns:
             Cosine similarity score between 0.0 and 1.0
+            Returns None if no ground truth (store steps)
+            Returns 0.0 if empty response with ground truth (failure)
         """
-        # Skip if ground truth or response is missing/empty
+        # Skip if no ground truth (store steps don't have expected answers)
         if not ground_truth or not ground_truth.strip():
             return None
+        
+        # Empty response when answer is expected = FAILURE
         if not response or not response.strip():
-            return None
+            return 0.0
         
         # Get embeddings
         embeddings = self.embedder.get_embeddings_batch([response, ground_truth])
@@ -78,28 +82,32 @@ class AccuracyEvaluator:
         valid_indices = []
         valid_texts = []
         
+        # Initialize scores with None (for steps without ground truth)
+        scores = [None] * len(responses)
+        
         for i, (response, gt) in enumerate(zip(responses, ground_truths)):
-            # Debug: Check for empty responses (should not happen!)
+            # Only evaluate steps with ground truth (retrieve/chat steps)
             if gt is not None and gt.strip():
+                # Empty response when answer is expected = FAILURE (score 0.0)
                 if not response or not response.strip():
                     print(f"⚠️  WARNING: Step {i} has empty response but has ground truth!")
                     print(f"   Ground truth: '{gt[:50]}...'")
                     print(f"   Response: '{response}'")
+                    print(f"   Scoring as 0.0 (failure to retrieve/respond)")
+                    scores[i] = 0.0  # Failure score instead of None
                     continue
                 
                 valid_indices.append(i)
                 valid_texts.extend([response, gt])
         
-        # If no valid pairs, return all None
+        # If no valid pairs to embed, return scores (with 0.0 for empty responses)
         if not valid_texts:
-            return [None] * len(responses)
+            return scores
         
         # Batch embed everything at once (efficient!)
         embeddings = self.embedder.get_embeddings_batch(valid_texts)
         
-        # Calculate similarities
-        scores = [None] * len(responses)
-        
+        # Calculate similarities for non-empty responses
         for j, idx in enumerate(valid_indices):
             response_emb = embeddings[j * 2]
             gt_emb = embeddings[j * 2 + 1]
