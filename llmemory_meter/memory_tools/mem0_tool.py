@@ -32,10 +32,6 @@ class Mem0Tool(MemoryTool):
             raise ValueError("OPENAI_API_KEY required for Mem0 (underlying LLM)")
         
         self.api_key = Config.MEM0_API_KEY
-        # Always generate unique user_id to prevent cross-benchmark contamination
-        import time
-        import random
-        self._user_id = f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
         self._last_tokens = 0  # Track token usage
         
         # Create dedicated thread pool executor to avoid shared pool exhaustion
@@ -155,14 +151,14 @@ class Mem0Tool(MemoryTool):
         # Create a new Mem0 instance for this thread to avoid SQLite conflicts
         from mem0 import Memory
         fresh_memory = Memory.from_config(self.mem0_config)
-        return fresh_memory.add(content, user_id=self._user_id, metadata=metadata)
+        return fresh_memory.add(content, user_id=self.user_id, metadata=metadata)
     
     def _sync_search(self, query: str, metadata: Optional[Dict[str, Any]] = None):
         """Synchronous wrapper for Mem0 search operation with fresh instance."""
         # Create a new Mem0 instance for this thread to avoid SQLite conflicts
         from mem0 import Memory
         fresh_memory = Memory.from_config(self.mem0_config)
-        return fresh_memory.search(query, user_id=self._user_id, limit=3)
+        return fresh_memory.search(query, user_id=self.user_id, limit=3)
     
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve memory from Mem0."""
@@ -305,8 +301,7 @@ class Mem0Tool(MemoryTool):
         """
         try:
             # Generate new unique user_id
-            import time
-            self._user_id = f"benchmark_user_{int(time.time() * 1000)}"
-            return f"Memory cleared (new user: {self._user_id})"
+            self.user_id = self._generate_user_id()
+            return f"Memory cleared (new user: {self.user_id})"
         except Exception as e:
             return f"Error clearing Mem0: {e}"
