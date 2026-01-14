@@ -66,13 +66,13 @@ LLMemoryMeter offers **tiered configurations** for different use cases:
 1. **Set up Python environment** (optional but recommended):
 ```bash
 # Create virtual environment
-python3 -m venv venv
+python3 -m venv .venv
 
 # Activate virtual environment
 # On macOS/Linux:
-source venv/bin/activate
+source .venv/bin/activate
 # On Windows:
-# venv\Scripts\activate
+# .venv\Scripts\activate
 
 # To deactivate when done:
 # deactivate
