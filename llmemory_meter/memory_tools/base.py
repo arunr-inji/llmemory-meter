@@ -24,7 +24,7 @@ class MemoryTool(ABC):
 
     def _reset_instance_id(self) -> str:
         """Regenerate instance/user ids for workload isolation."""
-        self._instance_id = uuid.uuid4().hex
+        self._instance_id = uuid.uuid1().hex
         # Generate a unique user_id for workload isolation.
         self.user_id = f"benchmark_user_{self._instance_id}"
         return self.user_id
