@@ -59,11 +59,8 @@ class MemGPTTool(MemoryTool):
             # Set up or find existing agent
             memgpt_config = self.config.get("memgpt_config") or {}
             # Always generate unique agent name to prevent reusing agents from previous runs
-            if memgpt_config.get("agent_name"):
-                agent_name = memgpt_config.get("agent_name")
-            else:
-                # Tie the agent name to the generated user_id for isolation
-                agent_name = f"benchmark_agent_{self.user_id}"
+            # Keep the agent name short while tying it to the instance id
+            agent_name = f"benchmark_agent_{self._instance_id}"
             self._setup_agent(agent_name, memgpt_config)
                 
         except Exception as e:
@@ -305,13 +302,9 @@ class MemGPTTool(MemoryTool):
         """
         try:
             # Generate new user_id and agent for workload isolation
-            self.user_id = self._generate_user_id()
-            agent_name = f"benchmark_agent_{self.user_id}"
+            self._reset_instance_id()
+            self._initialize_letta_client()
             
-            # Create new agent
-            memgpt_config = self.config.get("memgpt_config") or {}
-            self._setup_agent(agent_name, memgpt_config)
-            
-            return f"Memory cleared (new agent: {agent_name})"
+            return f"Memory cleared (new agent: {self.agent_name})"
         except Exception as e:
             return f"Error reinitializing MemGPT agent: {e}"
