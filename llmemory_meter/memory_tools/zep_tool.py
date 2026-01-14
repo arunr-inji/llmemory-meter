@@ -599,8 +599,8 @@ class ZepTool(MemoryTool):
         """
         try:
             # Generate new user_id for workload isolation
-            self._reset_instance_id()
-            self.session_id = f"zep_{int(time.time())}"
+            self._reset_session()
+            self.session_id = self._session_id
             
             # CRITICAL FIX 1: Shutdown old executor and create new one
             # After multiple workloads, the dedicated thread pool can accumulate
