@@ -26,12 +26,8 @@ class MemGPTTool(MemoryTool):
         if not Config.MEMGPT_API_KEY:
             raise ValueError("MEMGPT_API_KEY required for Letta Cloud")
         
-        # Generate unique user_id for each benchmark run to prevent context accumulation
-        # If user_id is provided in config, use it; otherwise generate unique one
-        if self.config.get("user_id"):
-            self._user_id = self.config.get("user_id")
-        else:
-            self._user_id = f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
+        # Always generate unique user_id for each benchmark run to prevent context accumulation
+        self._user_id = f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
         
         self._agent_id = None
         self._last_tokens = 0  # Track token usage from last API call

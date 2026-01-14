@@ -32,10 +32,10 @@ class Mem0Tool(MemoryTool):
             raise ValueError("OPENAI_API_KEY required for Mem0 (underlying LLM)")
         
         self.api_key = Config.MEM0_API_KEY
-        # Generate unique user_id to prevent cross-benchmark contamination (similar to MemGPT/Zep)
+        # Always generate unique user_id to prevent cross-benchmark contamination
         import time
         import random
-        self._user_id = self.config.get("user_id", f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}")
+        self._user_id = f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
         self._last_tokens = 0  # Track token usage
         
         # Create dedicated thread pool executor to avoid shared pool exhaustion

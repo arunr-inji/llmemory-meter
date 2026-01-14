@@ -8,7 +8,6 @@ memory_tools:
   api_key_env: MEM0_API_KEY
   model: gpt-4o-mini
   settings:
-    user_id: test_user
     llm_provider: openai
     llm_api_key_env: OPENAI_API_KEY
     llm_config:
@@ -32,7 +31,6 @@ memory_tools:
   api_key_env: ANTHROPIC_API_KEY
   model: claude-3-5-haiku-20241022
   settings:
-    user_id: test_user
     claude_config:
       model: claude-3-5-haiku-20241022
       temperature: 0.2
