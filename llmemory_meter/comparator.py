@@ -238,8 +238,7 @@ class MemoryComparator:
                         tool = self._get_tool_instance(tool_name)
                         await tool.clear_memory()
                     except Exception as e:
-                        # Silently ignore errors (some tools may not need clearing)
-                        pass
+                        print(f"❌ Error clearing memory for {tool_name}: {e}")
         
         self._workload_count += 1  # Increment after clearing decision
         
@@ -434,7 +433,8 @@ class MemoryComparator:
                 scores_p2 = [tool_scores[t][p2] for t in tools_with_both]
                 try:
                     correlation, _ = spearmanr(scores_p1, scores_p2)
-                except:
+                except Exception as e:
+                    print(f"⚠️ Spearman correlation failed: {type(e).__name__}: {e}")
                     correlation = None
         
         # Calculate overall consistency metrics

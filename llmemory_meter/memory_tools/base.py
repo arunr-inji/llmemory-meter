@@ -5,7 +5,9 @@ Defines the interface that all memory tools must implement.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable
+import asyncio
+from functools import partial
 import time
 import uuid
 import tiktoken
@@ -19,6 +21,7 @@ class MemoryTool(ABC):
     def __init__(self, name: str, config: Optional[Dict[str, Any]] = None):
         self.name = name
         self.config = config or {}
+        self._last_tokens = 0
         self._reset_session()
 
     def _reset_session(self) -> None:
@@ -26,6 +29,12 @@ class MemoryTool(ABC):
         self._session_id = f"{self.name}_{uuid.uuid1().hex}"
         # Generate a unique user_id for workload isolation.
         self.user_id = f"benchmark_user_{self._session_id}"
+
+    async def _run_in_executor(self, func: Callable, *args, **kwargs):
+        """Run blocking code in the tool's executor (or default executor)."""
+        loop = asyncio.get_event_loop()
+        executor = getattr(self, "_executor", None)
+        return await loop.run_in_executor(executor, partial(func, *args, **kwargs))
 
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token count using tiktoken if available, fallback to heuristic."""
@@ -38,7 +47,6 @@ class MemoryTool(ABC):
             # Fail loudly if token estimation is misconfigured or tiktoken errors.
             print(f"❌ Token estimation failed: {e}")
             raise
-        return len(text) // 4
 
     @abstractmethod
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
@@ -95,7 +103,7 @@ class MemoryTool(ABC):
             return StepResult(
                 step_index=step_index,
                 action=step.action,
-                response=f"Error: {str(e)}",
+                response="",
                 latency_ms=latency_ms,
                 tokens_used=0,
                 success=False,

@@ -1,7 +1,6 @@
 """MemGPT/Letta memory tool implementation using Letta Python client."""
 
 from typing import Dict, Any, Optional
-import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser import Config
@@ -87,8 +86,8 @@ class MemGPTTool(MemoryTool):
                     print(f"Warning: Using first available agent: {self._agent_id}")
                 else:
                     raise Exception(f"Could not set up Letta agent: {e}")
-            except:
-                raise Exception(f"Could not set up Letta agent: {e}")
+            except Exception as fallback_error:
+                raise Exception(f"Could not set up Letta agent: {fallback_error}") from fallback_error
 
     def _agent_name(self) -> str:
         """Generate a short, unique agent name for the current instance."""
@@ -98,8 +97,7 @@ class MemGPTTool(MemoryTool):
         """Store memory in Letta by sending a message to the agent."""
         try:
             # Run in executor to avoid blocking
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(self._executor, self._sync_send_message, content)
+            result = await self._run_in_executor(self._sync_send_message, content)
             
             return f"Stored in Letta: {content}"
         except Exception as e:
@@ -136,8 +134,7 @@ class MemGPTTool(MemoryTool):
         """Retrieve memory from Letta by querying the agent."""
         try:
             # Run in executor to avoid blocking
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(self._executor, self._sync_query_memory, query)
+            result = await self._run_in_executor(self._sync_query_memory, query)
             
             # Extract response text from messages
             if hasattr(result, 'messages') and result.messages:
@@ -184,8 +181,7 @@ class MemGPTTool(MemoryTool):
         """Chat with Letta agent using its memory context."""
         try:
             # Run in executor to avoid blocking
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(self._executor, self._sync_chat, message)
+            result = await self._run_in_executor(self._sync_chat, message)
             
             # Extract response from result
             if hasattr(result, 'messages') and result.messages:

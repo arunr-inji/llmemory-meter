@@ -122,8 +122,7 @@ class ZepTool(MemoryTool):
                 # Wrap with timeout to prevent indefinite hangs
                 # Note: SDK-level timeout (30s) + asyncio timeout (45s) = defense in depth
                 result = await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
-                        self._executor,  # Use dedicated executor
+                    self._run_in_executor(
                         lambda: self.client.thread.add_messages(
                             thread_id=self.session_id,
                             messages=[message]
@@ -141,8 +140,7 @@ class ZepTool(MemoryTool):
                 # Wrap with timeout to prevent indefinite hangs
                 # Note: SDK-level timeout (30s) + asyncio timeout (45s) = defense in depth
                 episode = await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
-                        self._executor,  # Use dedicated executor
+                    self._run_in_executor(
                         lambda: self.client.graph.add(
                             user_id=self.user_id,
                             type="message",
@@ -191,8 +189,7 @@ class ZepTool(MemoryTool):
             # Use graph search for better fact retrieval (with timeout)
             # SDK timeout: 30s, asyncio timeout: 35s
             graph_search_response = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(
-                    self._executor,
+                self._run_in_executor(
                     lambda: self.client.graph.search(
                         user_id=self.user_id,
                         query=query,
@@ -219,8 +216,7 @@ class ZepTool(MemoryTool):
             # Fallback to thread context if graph search returns nothing (with timeout)
             # SDK timeout: 30s, asyncio timeout: 35s
             context_response = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(
-                    self._executor,
+                self._run_in_executor(
                     lambda: self.client.thread.get_user_context(
                         thread_id=self.session_id
                     )
@@ -303,8 +299,7 @@ class ZepTool(MemoryTool):
                     role="user",
                     content=message
                 )
-                await asyncio.get_event_loop().run_in_executor(
-                    self._executor,
+                await self._run_in_executor(
                     lambda: self.client.thread.add_messages(
                         thread_id=self.session_id,
                         messages=[user_message]
@@ -313,8 +308,7 @@ class ZepTool(MemoryTool):
             else:
                 # Long message - use graph.add (no size limit)
                 message_data = self._truncate_for_graph(f"User: {message}")
-                await asyncio.get_event_loop().run_in_executor(
-                    self._executor,
+                await self._run_in_executor(
                     lambda: self.client.graph.add(
                         user_id=self.user_id,
                         type="message",
@@ -344,8 +338,7 @@ class ZepTool(MemoryTool):
                     role="assistant",
                     content=response
                 )
-                await asyncio.get_event_loop().run_in_executor(
-                    self._executor,
+                await self._run_in_executor(
                     lambda: self.client.thread.add_messages(
                         thread_id=self.session_id,
                         messages=[assistant_message]
@@ -354,8 +347,7 @@ class ZepTool(MemoryTool):
             else:
                 # Long response - use graph.add (no size limit)
                 response_data = self._truncate_for_graph(f"Assistant: {response}")
-                await asyncio.get_event_loop().run_in_executor(
-                    self._executor,
+                await self._run_in_executor(
                     lambda: self.client.graph.add(
                         user_id=self.user_id,
                         type="message",
@@ -458,8 +450,7 @@ class ZepTool(MemoryTool):
                     
                     if task_id:
                         # Poll task status for thread.add_messages_batch
-                        task = await asyncio.get_event_loop().run_in_executor(
-                            self._executor,
+                        task = await self._run_in_executor(
                             lambda: self.client.task.get(task_id=task_id)
                         )
                         if hasattr(task, 'status'):
@@ -470,8 +461,7 @@ class ZepTool(MemoryTool):
                     
                     elif episode_uuid:
                         # Poll episode status for graph.add
-                        episode = await asyncio.get_event_loop().run_in_executor(
-                            self._executor,
+                        episode = await self._run_in_executor(
                             lambda: self.client.graph.episode.get(uuid_=episode_uuid)
                         )
                         if hasattr(episode, 'processed') and episode.processed:
@@ -494,8 +484,7 @@ class ZepTool(MemoryTool):
                 try:
                     # Do a simple graph search to check if facts are available
                     # Let SDK timeout (30s) handle slow/stuck calls naturally
-                    search_result = await asyncio.get_event_loop().run_in_executor(
-                        self._executor,
+                    search_result = await self._run_in_executor(
                         lambda: self.client.graph.search(
                             user_id=self.user_id,
                             query="user",  # Generic query to check for any facts
@@ -508,7 +497,7 @@ class ZepTool(MemoryTool):
                         print(f"✅ Facts indexed and ready ({time.time() - start_time:.1f}s total)")
                         return
                 except Exception as e:
-                    pass  # Silently continue polling on any error
+                    print(f"⚠️ Zep indexing poll error: {type(e).__name__}: {e}")
                 
                 await asyncio.sleep(1)
             
@@ -516,6 +505,7 @@ class ZepTool(MemoryTool):
             
         except Exception as e:
             # Polling failed, fall back to static wait
+            print(f"⚠️ Zep processing poll failed: {type(e).__name__}: {e}")
             await asyncio.sleep(8)
     
     async def clear_memory(self, session_id: Optional[str] = None) -> str:
@@ -571,8 +561,8 @@ class ZepTool(MemoryTool):
                     "has_summary": hasattr(thread_info, 'summary') and thread_info.summary is not None,
                     "last_updated": datetime.now().isoformat()
                 }
-        except:
-            pass
+        except Exception as e:
+            print(f"⚠️ Failed to read Zep memory stats: {type(e).__name__}: {e}")
 
         return {
             "session_id": self.session_id,

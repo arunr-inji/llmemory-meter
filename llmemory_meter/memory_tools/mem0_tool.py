@@ -119,9 +119,7 @@ class Mem0Tool(MemoryTool):
         """Store memory in Mem0."""
         try:
             # Run in a thread-safe manner by using run_in_executor
-            import asyncio
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(self._executor, self._sync_add, content, metadata)
+            result = await self._run_in_executor(self._sync_add, content, metadata)
             memory_id = result.get('id', 'unknown') if isinstance(result, dict) else str(result)
             response = f"Stored in Mem0 (ID: {memory_id}): {content}"
             
@@ -152,9 +150,7 @@ class Mem0Tool(MemoryTool):
         """Retrieve memory from Mem0."""
         try:
             # Run in a thread-safe manner by using run_in_executor
-            import asyncio
-            loop = asyncio.get_event_loop()
-            results = await loop.run_in_executor(self._executor, self._sync_search, query, metadata)
+            results = await self._run_in_executor(self._sync_search, query, metadata)
 
             # Handle different response formats
             if isinstance(results, dict):
@@ -190,9 +186,7 @@ class Mem0Tool(MemoryTool):
         """Chat with Mem0 memory context."""
         try:
             # Use thread-safe search
-            import asyncio
-            loop = asyncio.get_event_loop()
-            search_results = await loop.run_in_executor(self._executor, self._sync_search, message, metadata)
+            search_results = await self._run_in_executor(self._sync_search, message, metadata)
             
             # Handle different response formats
             memories = []

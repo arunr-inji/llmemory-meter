@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 
+_DEBUG_ENABLED = os.getenv("DEBUG", "false").lower() == "true"
+
 # Find .env file starting from this module's directory and going up
 try:
     # Start from this file's directory and go up to find .env
@@ -17,9 +19,10 @@ try:
     else:
         # Try to find .env by searching upwards
         load_dotenv(verbose=False)
-except (PermissionError, FileNotFoundError, OSError):
+except (PermissionError, FileNotFoundError, OSError) as e:
     # If .env file can't be loaded, continue with system environment variables
-    pass
+    if _DEBUG_ENABLED:
+        print(f"⚠️ Could not load .env file: {e}")
 
 
 class Config:
@@ -48,8 +51,9 @@ class Config:
                             # Extract value after =, remove quotes and whitespace
                             _memgpt_key = line.split('=', 1)[1].strip().strip('"').strip("'")
                             break
-        except:
-            pass
+        except Exception as e:
+            if _DEBUG_ENABLED:
+                print(f"⚠️ Could not read MEMGPT_API_KEY from .env: {e}")
     MEMGPT_API_KEY: Optional[str] = _memgpt_key
     
     ZEP_API_KEY: Optional[str] = os.getenv("ZEP_API_KEY")
