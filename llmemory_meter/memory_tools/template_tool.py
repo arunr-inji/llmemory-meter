@@ -36,9 +36,6 @@ class TemplateTool(MemoryTool):
             # import your_memory_tool
             # self.client = your_memory_tool.Client(api_key=self.api_key)
             print("✅ Template client initialized")
-        except ImportError:
-            print("⚠️  template package not installed - using mock implementation")
-            self._use_mock = True
         except Exception as e:
             print(f"⚠️  Failed to initialize Template: {e} - using mock implementation")
             self._use_mock = True

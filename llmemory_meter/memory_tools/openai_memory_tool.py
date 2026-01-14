@@ -5,6 +5,7 @@ Provides integration with OpenAI's memory capabilities.
 """
 
 import time
+import openai
 from typing import Dict, Any, Optional
 
 from llmemory_meter.memory_tools.base import MemoryTool
@@ -32,12 +33,9 @@ class OpenAIMemoryTool(MemoryTool):
     def _initialize_openai_client(self):
         """Initialize the OpenAI client."""
         try:
-            import openai
             self.client = openai.AsyncOpenAI(api_key=self.api_key)
             self.model = self.config.get("model", "gpt-4o-mini")
             print("✅ OpenAI client initialized")
-        except ImportError:
-            raise ImportError("openai package not installed. Install with: pip install openai")
         except Exception as e:
             raise Exception(f"Failed to initialize OpenAI: {e}")
     

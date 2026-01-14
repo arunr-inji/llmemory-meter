@@ -7,6 +7,7 @@ Provides integration with Mem0 AI memory system.
 from typing import Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
 
+from mem0 import Memory
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser import Config
 
@@ -46,8 +47,6 @@ class Mem0Tool(MemoryTool):
     def _initialize_mem0_client(self):
         """Initialize the Mem0 client with proper configuration."""
         try:
-            from mem0 import Memory
-            
             # Get LLM configuration from settings
             llm_config = self.config.get("llm_config", {})
             
@@ -113,9 +112,6 @@ class Mem0Tool(MemoryTool):
                 # Mem0 initialized successfully
             except Exception as e:
                 raise Exception(f"Failed to initialize Mem0: {e}")
-            
-        except ImportError:
-            raise ImportError("mem0ai package not installed. Install with: pip install mem0ai")
         except Exception as e:
             raise Exception(f"Failed to initialize Mem0: {e}")
     

@@ -1,6 +1,7 @@
 """OpenAI embeddings provider."""
 
 from typing import List
+from openai import OpenAI
 from llmemory_meter.embeddings import EmbeddingProvider
 
 
@@ -19,13 +20,6 @@ class OpenAIEmbeddings(EmbeddingProvider):
                 - text-embedding-3-large (highest quality)
                 - text-embedding-ada-002 (legacy)
         """
-        try:
-            from openai import OpenAI
-        except ImportError:
-            raise ImportError(
-                "OpenAI package not installed. Install with: pip install openai"
-            )
-        
         self.client = OpenAI()
         self.model = model
     
@@ -91,4 +85,3 @@ class OpenAIEmbeddings(EmbeddingProvider):
             for i, text in enumerate(validated_texts[:3]):
                 print(f"      [{i}] type={type(text)}, len={len(text) if text else 0}, preview='{str(text)[:50]}'")
             raise
-

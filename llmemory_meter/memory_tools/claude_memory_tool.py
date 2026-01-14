@@ -1,6 +1,7 @@
 """Claude Memory API tool implementation."""
 
 from typing import Dict, Any, Optional
+import anthropic
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser import Config
 
@@ -22,8 +23,6 @@ class ClaudeMemoryTool(MemoryTool):
     def _initialize_claude_client(self):
         """Initialize the Claude client with proper configuration."""
         try:
-            import anthropic
-            
             # Get Claude configuration
             claude_config = self.config.get("claude_config", {})
             # Initialize Anthropic client
@@ -40,8 +39,6 @@ class ClaudeMemoryTool(MemoryTool):
             self._conversation_history = []
             self._last_tokens = 0  # Track token usage from last API call
             
-        except ImportError:
-            raise ImportError("anthropic package not installed. Install with: pip install anthropic")
         except Exception as e:
             raise Exception(f"Failed to initialize Claude: {e}")
     

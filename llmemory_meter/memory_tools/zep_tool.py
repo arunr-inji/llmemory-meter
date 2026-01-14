@@ -11,14 +11,8 @@ import asyncio
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
-try:
-    from zep_cloud.client import Zep
-    from zep_cloud.types import Message
-    ZEP_AVAILABLE = True
-except ImportError:
-    ZEP_AVAILABLE = False
-    Zep = None
-    Message = None
+from zep_cloud.client import Zep
+from zep_cloud.types import Message
 
 from llmemory_meter.memory_tools.base import MemoryTool
 import time
@@ -29,11 +23,6 @@ class ZepTool(MemoryTool):
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__("zep", config)
-
-        if not ZEP_AVAILABLE:
-            raise ImportError(
-                "Zep Cloud SDK not found. Install with: pip install zep-cloud"
-            )
 
         # Get configuration
         self.api_key = config.get("api_key") or os.getenv("ZEP_API_KEY")

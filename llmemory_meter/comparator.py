@@ -4,6 +4,7 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
+from scipy.stats import spearmanr
 
 from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool, MemGPTTool, ClaudeMemoryTool, ZepTool
 from llmemory_meter.workload import Workload, WorkloadResult, StepResult
@@ -362,12 +363,6 @@ class MemoryComparator:
         Returns:
             Dict with provider comparison analysis including deltas and correlations
         """
-        try:
-            from scipy.stats import spearmanr
-        except ImportError:
-            print("Warning: scipy not installed. Spearman correlation will not be calculated.")
-            spearmanr = None
-        
         # Extract scores by provider for each tool
         tool_scores = {}
         for tool_name, results_list in all_results.items():
@@ -428,7 +423,7 @@ class MemoryComparator:
         
         # Calculate rank correlation if we have exactly 2 providers
         correlation = None
-        if len(providers_list) == 2 and spearmanr:
+        if len(providers_list) == 2:
             p1, p2 = providers_list
             # Get scores for all tools that have both provider scores
             tools_with_both = [t for t in tool_scores.keys() 

@@ -1,6 +1,7 @@
 """Local sentence-transformers embeddings provider."""
 
 from typing import List
+from sentence_transformers import SentenceTransformer
 from llmemory_meter.embeddings import EmbeddingProvider
 
 
@@ -20,14 +21,6 @@ class LocalEmbeddings(EmbeddingProvider):
                 - all-MiniLM-L6-v2 (fastest, 384 dims, 22M params)
                 - all-MiniLM-L12-v2 (balanced, 384 dims, 33M params)
         """
-        try:
-            from sentence_transformers import SentenceTransformer
-        except ImportError:
-            raise ImportError(
-                "sentence-transformers package not installed. "
-                "Install with: pip install sentence-transformers"
-            )
-        
         self.model = SentenceTransformer(model)
         self.model_name = model
     
@@ -62,4 +55,3 @@ class LocalEmbeddings(EmbeddingProvider):
         )
         
         return embeddings.tolist()
-
