@@ -4,19 +4,11 @@ Mem0 Memory Tool Implementation
 Provides integration with Mem0 AI memory system.
 """
 
-import asyncio
 from typing import Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
 
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser import Config
-
-# Try to import tiktoken for token estimation
-try:
-    import tiktoken
-    _has_tiktoken = True
-except ImportError:
-    _has_tiktoken = False
 
 
 class Mem0Tool(MemoryTool):
@@ -233,65 +225,6 @@ class Mem0Tool(MemoryTool):
             return response
         except Exception as e:
             raise Exception(f"Mem0 chat failed: {e}")
-    
-    def _estimate_tokens(self, text: str) -> int:
-        """Estimate token count for Mem0 operations."""
-        if not text:
-            return 0
-        if _has_tiktoken:
-            try:
-                encoding = tiktoken.get_encoding("cl100k_base")  # GPT-4 tokenizer
-                return len(encoding.encode(text))
-            except:
-                pass
-        # Fallback: rough estimate (1 token ≈ 4 characters)
-        return len(text) // 4
-    
-    async def execute_step(self, step, step_index: int):
-        """Override to track token usage."""
-        from llmemory_meter.workload import StepResult
-        import time
-        
-        start_time = time.time()
-        self._last_tokens = 0  # Reset before each call
-        
-        try:
-            if step.action == "store":
-                response = await self.store_memory(step.content, step.metadata)
-                # Estimate tokens for store operation
-                self._last_tokens = self._estimate_tokens(step.content)
-            elif step.action == "retrieve":
-                response = await self.retrieve_memory(step.content, step.metadata)
-                # Estimate tokens for retrieve operation
-                self._last_tokens = self._estimate_tokens(step.content)
-            elif step.action == "chat":
-                response = await self.chat(step.content, step.metadata)
-                # Tokens already tracked in chat method
-            else:
-                raise ValueError(f"Unknown action: {step.action}")
-            
-            latency_ms = (time.time() - start_time) * 1000
-            
-            return StepResult(
-                step_index=step_index,
-                action=step.action,
-                response=response,
-                latency_ms=latency_ms,
-                tokens_used=self._last_tokens,
-                success=True
-            )
-            
-        except Exception as e:
-            latency_ms = (time.time() - start_time) * 1000
-            return StepResult(
-                step_index=step_index,
-                action=step.action,
-                response="",
-                latency_ms=latency_ms,
-                tokens_used=0,
-                success=False,
-                error_message=str(e)
-            )
     
     async def clear_memory(self, session_id: Optional[str] = None) -> str:
         """Clear memory by creating a new user_id (workload isolation).

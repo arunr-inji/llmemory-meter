@@ -151,3 +151,4 @@ benchmark_results.json
 
 .env.backup*
 results_backup/
+AGENTS.md

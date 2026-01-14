@@ -8,7 +8,11 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 import time
 import uuid
-from datetime import datetime
+try:
+    import tiktoken
+    _has_tiktoken = True
+except ImportError:
+    _has_tiktoken = False
 
 from llmemory_meter.workload import WorkloadStep, StepResult
 
@@ -26,7 +30,19 @@ class MemoryTool(ABC):
         self._session_id = f"{self.name}_{uuid.uuid1().hex}"
         # Generate a unique user_id for workload isolation.
         self.user_id = f"benchmark_user_{self._session_id}"
-    
+
+    def _estimate_tokens(self, text: str) -> int:
+        """Estimate token count using tiktoken if available, fallback to heuristic."""
+        if not text:
+            return 0
+        if _has_tiktoken:
+            try:
+                encoding = tiktoken.get_encoding("cl100k_base")
+                return len(encoding.encode(text))
+            except Exception:
+                pass
+        return len(text) // 4
+
     @abstractmethod
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store information in memory."""
@@ -53,7 +69,8 @@ class MemoryTool(ABC):
     async def execute_step(self, step: WorkloadStep, step_index: int) -> StepResult:
         """Execute a single workload step and measure performance."""
         start_time = time.time()
-        tokens_used = 0
+        if hasattr(self, "_last_tokens"):
+            self._last_tokens = 0
         
         try:
             if step.action == "store":
@@ -72,7 +89,7 @@ class MemoryTool(ABC):
                 action=step.action,
                 response=response,
                 latency_ms=latency_ms,
-                tokens_used=tokens_used,
+                tokens_used=getattr(self, "_last_tokens", 0),
                 success=True
             )
             
@@ -81,7 +98,7 @@ class MemoryTool(ABC):
             return StepResult(
                 step_index=step_index,
                 action=step.action,
-                response="",
+                response=f"Error: {str(e)}",
                 latency_ms=latency_ms,
                 tokens_used=0,
                 success=False,

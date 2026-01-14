@@ -4,14 +4,7 @@ from typing import Dict, Any, Optional
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from llmemory_meter.memory_tools.base import MemoryTool
-from llmemory_meter.config_parser.env import Config
-
-# Try to import tiktoken for token estimation
-try:
-    import tiktoken
-    _has_tiktoken = True
-except ImportError:
-    _has_tiktoken = False
+from llmemory_meter.config_parser import Config
 
 
 class MemGPTTool(MemoryTool):
@@ -33,19 +26,6 @@ class MemGPTTool(MemoryTool):
         # Initialize Letta client
         self._initialize_letta_client()
     
-    def _estimate_tokens(self, text: str) -> int:
-        """Estimate token count if API doesn't provide it."""
-        if not text:
-            return 0
-        if _has_tiktoken:
-            try:
-                encoding = tiktoken.get_encoding("cl100k_base")  # GPT-4 tokenizer
-                return len(encoding.encode(text))
-            except:
-                pass
-        # Fallback: rough estimate (1 token ≈ 4 characters)
-        return len(text) // 4
-    
     def _initialize_letta_client(self):
         """Initialize Letta client and set up agent."""
         try:
@@ -65,7 +45,7 @@ class MemGPTTool(MemoryTool):
     def _setup_agent(self, agent_name: str, memgpt_config: Dict[str, Any]):
         """Set up or find Letta agent."""
         try:
-            from llmemory_meter.config_parser.env import Config as EnvConfig
+            from llmemory_meter.config_parser import Config as EnvConfig
             
             # List existing agents
             agents = list(self.client.agents.list())
@@ -77,7 +57,7 @@ class MemGPTTool(MemoryTool):
                 self._agent_id = existing_agent.id
             else:
                 # Create new agent with OpenAI credentials
-                from llmemory_meter.config_parser.env import Config as EnvConfig
+                from llmemory_meter.config_parser import Config as EnvConfig
                 
                 # Build LLM config with OpenAI API key
                 llm_config = {
@@ -253,46 +233,6 @@ class MemGPTTool(MemoryTool):
             # Fallback: estimate tokens from message
             self._last_tokens = self._estimate_tokens(message)
             raise Exception(f"Letta API error in chat: {e}")
-    
-    async def execute_step(self, step, step_index: int):
-        """Override to track token usage from API responses."""
-        from llmemory_meter.workload import StepResult
-        import time
-        
-        start_time = time.time()
-        self._last_tokens = 0  # Reset before each call
-        
-        try:
-            if step.action == "store":
-                response = await self.store_memory(step.content, step.metadata)
-            elif step.action == "retrieve":
-                response = await self.retrieve_memory(step.content, step.metadata)
-            elif step.action == "chat":
-                response = await self.chat(step.content, step.metadata)
-            else:
-                raise ValueError(f"Unknown action: {step.action}")
-            
-            latency_ms = (time.time() - start_time) * 1000
-            
-            return StepResult(
-                step_index=step_index,
-                action=step.action,
-                response=response,
-                latency_ms=latency_ms,
-                success=True,
-                tokens_used=self._last_tokens
-            )
-        except Exception as e:
-            latency_ms = (time.time() - start_time) * 1000
-            return StepResult(
-                step_index=step_index,
-                action=step.action,
-                response=f"Error: {str(e)}",
-                latency_ms=latency_ms,
-                success=False,
-                error_message=str(e),
-                tokens_used=self._last_tokens
-            )
     
     async def clear_memory(self, session_id: Optional[str] = None) -> str:
         """Clear memory by creating a new agent (workload isolation).

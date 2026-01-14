@@ -4,7 +4,6 @@ OpenAI Memory Tool Implementation
 Provides integration with OpenAI's memory capabilities.
 """
 
-import asyncio
 import time
 from typing import Dict, Any, Optional
 
@@ -147,46 +146,6 @@ class OpenAIMemoryTool(MemoryTool):
             return f"OpenAI Memory response: {answer}"
         except Exception as e:
             raise Exception(f"OpenAI chat failed: {e}")
-    
-    async def execute_step(self, step, step_index: int):
-        """Override to track token usage from API responses."""
-        from llmemory_meter.workload import StepResult
-        
-        start_time = time.time()
-        self._last_tokens = 0  # Reset before each call
-        
-        try:
-            if step.action == "store":
-                response = await self.store_memory(step.content, step.metadata)
-            elif step.action == "retrieve":
-                response = await self.retrieve_memory(step.content, step.metadata)
-            elif step.action == "chat":
-                response = await self.chat(step.content, step.metadata)
-            else:
-                raise ValueError(f"Unknown action: {step.action}")
-            
-            latency_ms = (time.time() - start_time) * 1000
-            
-            return StepResult(
-                step_index=step_index,
-                action=step.action,
-                response=response,
-                latency_ms=latency_ms,
-                tokens_used=self._last_tokens,  # Use tracked tokens
-                success=True
-            )
-            
-        except Exception as e:
-            latency_ms = (time.time() - start_time) * 1000
-            return StepResult(
-                step_index=step_index,
-                action=step.action,
-                response="",
-                latency_ms=latency_ms,
-                tokens_used=0,
-                success=False,
-                error_message=str(e)
-            )
     
     async def clear_memory(self, session_id: Optional[str] = None) -> str:
         """Clear memory by resetting storage (workload isolation)."""
