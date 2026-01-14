@@ -8,11 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 import time
 import uuid
-try:
-    import tiktoken
-    _has_tiktoken = True
-except ImportError:
-    _has_tiktoken = False
+import tiktoken
 
 from llmemory_meter.workload import WorkloadStep, StepResult
 
@@ -35,12 +31,13 @@ class MemoryTool(ABC):
         """Estimate token count using tiktoken if available, fallback to heuristic."""
         if not text:
             return 0
-        if _has_tiktoken:
-            try:
-                encoding = tiktoken.get_encoding("cl100k_base")
-                return len(encoding.encode(text))
-            except Exception:
-                pass
+        try:
+            encoding = tiktoken.get_encoding("cl100k_base")
+            return len(encoding.encode(text))
+        except Exception as e:
+            # Fail loudly if token estimation is misconfigured or tiktoken errors.
+            print(f"❌ Token estimation failed: {e}")
+            raise
         return len(text) // 4
 
     @abstractmethod
