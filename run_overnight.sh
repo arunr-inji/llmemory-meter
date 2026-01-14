@@ -2,9 +2,11 @@
 # Overnight Benchmark Runner
 # Usage: ./run_overnight.sh [config_file]
 
-# Load environment variables (for Telegram notifications, etc.)
-if [ -f ~/.zshrc ]; then
-    source ~/.zshrc
+# Load environment variables from .env file (for API keys, Telegram notifications, etc.)
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
 fi
 
 set -e
@@ -50,7 +52,7 @@ echo -e "${YELLOW}📊 Results will be saved automatically${NC}"
 echo ""
 
 # Run benchmark with output to both terminal and log file
-python3 -m llmemory_meter.cli run --config "$CONFIG_FILE" 2>&1 | tee "$LOG_FILE"
+.venv/bin/python -m llmemory_meter.cli run --config "$CONFIG_FILE" 2>&1 | tee "$LOG_FILE"
 
 EXIT_CODE=$?
 
