@@ -301,7 +301,7 @@ class Mem0Tool(MemoryTool):
         """
         try:
             # Generate new unique user_id
-            self._reset_instance_id()
+            self._reset_session()
             return f"Memory cleared (new user: {self.user_id})"
         except Exception as e:
             return f"Error clearing Mem0: {e}"

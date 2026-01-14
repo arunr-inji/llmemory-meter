@@ -112,7 +112,7 @@ class MemGPTTool(MemoryTool):
 
     def _agent_name(self) -> str:
         """Generate a short, unique agent name for the current instance."""
-        return f"benchmark_agent_{self._instance_id}"
+        return f"benchmark_agent_{self._session_id}"
     
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store memory in Letta by sending a message to the agent."""
@@ -306,10 +306,12 @@ class MemGPTTool(MemoryTool):
                 try:
                     self.client.agents.delete(self._agent_id)
                 except Exception as e:
-                    return f"Error deleting MemGPT agent: {e}"
+                    # Fail loudly if we cannot delete the agent to avoid stale context.
+                    print(f"⚠️ Error deleting MemGPT agent: {e}")
+                    raise
 
             # Generate new user_id and agent for workload isolation
-            self._reset_instance_id()
+            self._reset_session()
             agent_name = self._agent_name()
             memgpt_config = self.config.get("memgpt_config") or {}
             self._setup_agent(agent_name, memgpt_config)
