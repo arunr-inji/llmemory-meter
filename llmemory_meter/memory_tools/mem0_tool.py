@@ -111,9 +111,9 @@ class Mem0Tool(MemoryTool):
                 self.memory = Memory.from_config(self.mem0_config)
                 # Mem0 initialized successfully
             except Exception as e:
-                raise Exception(f"Failed to initialize Mem0: {e}")
+                raise Exception(f"Failed to initialize Mem0: {e}") from e
         except Exception as e:
-            raise Exception(f"Failed to initialize Mem0: {e}")
+            raise Exception(f"Failed to initialize Mem0: {e}") from e
     
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store memory in Mem0."""
@@ -130,7 +130,7 @@ class Mem0Tool(MemoryTool):
             
             return response
         except Exception as e:
-            raise Exception(f"Mem0 store failed: {e}")
+            raise Exception(f"Mem0 store failed: {e}") from e
     
     def _sync_add(self, content: str, metadata: Optional[Dict[str, Any]] = None):
         """Synchronous wrapper for Mem0 add operation with fresh instance."""
@@ -180,7 +180,7 @@ class Mem0Tool(MemoryTool):
             self._last_tokens = input_tokens + output_tokens
             return response
         except Exception as e:
-            raise Exception(f"Mem0 retrieve failed: {e}")
+            raise Exception(f"Mem0 retrieve failed: {e}") from e
     
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Chat with Mem0 memory context."""
@@ -214,7 +214,7 @@ class Mem0Tool(MemoryTool):
             
             return response
         except Exception as e:
-            raise Exception(f"Mem0 chat failed: {e}")
+            raise Exception(f"Mem0 chat failed: {e}") from e
     
     async def clear_memory(self, session_id: Optional[str] = None) -> str:
         """Clear memory by creating a new user_id (workload isolation).

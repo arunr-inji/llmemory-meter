@@ -40,7 +40,7 @@ class ClaudeMemoryTool(MemoryTool):
             self._last_tokens = 0  # Track token usage from last API call
             
         except Exception as e:
-            raise Exception(f"Failed to initialize Claude: {e}")
+            raise Exception(f"Failed to initialize Claude: {e}") from e
     
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store memory by adding to conversation context."""
@@ -79,7 +79,7 @@ class ClaudeMemoryTool(MemoryTool):
             
             return f"Stored in Claude Memory: {content}"
         except Exception as e:
-            raise Exception(f"Claude Memory store failed: {e}")
+            raise Exception(f"Claude Memory store failed: {e}") from e
     
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve memory from Claude by asking about stored information."""
@@ -110,7 +110,7 @@ class ClaudeMemoryTool(MemoryTool):
             
             return f"No relevant memories found in Claude Memory for query: '{query}'"
         except Exception as e:
-            raise Exception(f"Claude Memory retrieve failed: {e}")
+            raise Exception(f"Claude Memory retrieve failed: {e}") from e
     
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Chat with Claude using memory context."""
@@ -152,5 +152,5 @@ class ClaudeMemoryTool(MemoryTool):
             
             return f"Claude Memory chat response to '{message}': [No response received]"
         except Exception as e:
-            raise Exception(f"Claude Memory chat failed: {e}")
+            raise Exception(f"Claude Memory chat failed: {e}") from e
     

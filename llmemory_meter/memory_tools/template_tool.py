@@ -59,7 +59,7 @@ class TemplateTool(MemoryTool):
             return f"Stored in Template: {content[:50]}..."
             
         except Exception as e:
-            raise Exception(f"Template store failed: {e}")
+            raise Exception(f"Template store failed: {e}") from e
     
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve memory from your tool."""
@@ -81,7 +81,7 @@ class TemplateTool(MemoryTool):
             return f"Retrieved from Template for '{query}': [placeholder response]"
             
         except Exception as e:
-            raise Exception(f"Template retrieve failed: {e}")
+            raise Exception(f"Template retrieve failed: {e}") from e
     
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Chat with your tool using memory context."""
@@ -99,7 +99,7 @@ class TemplateTool(MemoryTool):
             return f"Template response to '{message}': [placeholder response with memory context]"
             
         except Exception as e:
-            raise Exception(f"Template chat failed: {e}")
+            raise Exception(f"Template chat failed: {e}") from e
 
 
 # Example implementations for common memory tools:

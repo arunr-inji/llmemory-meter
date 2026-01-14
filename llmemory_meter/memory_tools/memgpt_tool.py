@@ -42,7 +42,7 @@ class MemGPTTool(MemoryTool):
             self._setup_agent(agent_name, memgpt_config)
                 
         except Exception as e:
-            raise Exception(f"Failed to initialize Letta: {e}")
+            raise Exception(f"Failed to initialize Letta: {e}") from e
     
     def _setup_agent(self, agent_name: str, memgpt_config: Dict[str, Any]):
         """Set up or find Letta agent."""
@@ -104,7 +104,7 @@ class MemGPTTool(MemoryTool):
             
             return f"Stored in Letta: {content}"
         except Exception as e:
-            raise Exception(f"Error storing memory: {e}")
+            raise Exception(f"Error storing memory: {e}") from e
     
     def _sync_send_message(self, content: str):
         """Synchronous wrapper for Letta message sending."""
@@ -131,7 +131,7 @@ class MemGPTTool(MemoryTool):
         except Exception as e:
             # Fallback: estimate tokens from content
             self._last_tokens = self._estimate_tokens(content)
-            raise Exception(f"Letta API error in store: {e}")
+            raise Exception(f"Letta API error in store: {e}") from e
     
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve memory from Letta by querying the agent."""
@@ -151,7 +151,7 @@ class MemGPTTool(MemoryTool):
             
             return f"Retrieved from Letta for query: {query}"
         except Exception as e:
-            raise Exception(f"Error retrieving memory: {e}")
+            raise Exception(f"Error retrieving memory: {e}") from e
     
     def _sync_query_memory(self, query: str):
         """Synchronous wrapper for Letta memory querying."""
@@ -178,7 +178,7 @@ class MemGPTTool(MemoryTool):
         except Exception as e:
             # Fallback: estimate tokens from query
             self._last_tokens = self._estimate_tokens(query)
-            raise Exception(f"Letta API error in retrieve: {e}")
+            raise Exception(f"Letta API error in retrieve: {e}") from e
     
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Chat with Letta agent using its memory context."""
@@ -204,7 +204,7 @@ class MemGPTTool(MemoryTool):
             
             return "Received response from Letta agent."
         except Exception as e:
-            raise Exception(f"Error in chat: {e}")
+            raise Exception(f"Error in chat: {e}") from e
     
     def _sync_chat(self, message: str):
         """Synchronous wrapper for Letta chat."""
@@ -231,7 +231,7 @@ class MemGPTTool(MemoryTool):
         except Exception as e:
             # Fallback: estimate tokens from message
             self._last_tokens = self._estimate_tokens(message)
-            raise Exception(f"Letta API error in chat: {e}")
+            raise Exception(f"Letta API error in chat: {e}") from e
     
     async def clear_memory(self, session_id: Optional[str] = None) -> str:
         """Clear memory by creating a new agent (workload isolation).

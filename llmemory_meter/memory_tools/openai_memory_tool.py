@@ -40,7 +40,7 @@ class OpenAIMemoryTool(MemoryTool):
             self.model = self.config.get("model", "gpt-4o-mini")
             logger.info("OpenAI client initialized")
         except Exception as e:
-            raise Exception(f"Failed to initialize OpenAI: {e}")
+            raise Exception(f"Failed to initialize OpenAI: {e}") from e
     
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store memory using OpenAI (simulated with in-memory storage)."""
@@ -72,7 +72,7 @@ class OpenAIMemoryTool(MemoryTool):
             
             return f"Stored in OpenAI Memory: {content} (Summary: {summary})"
         except Exception as e:
-            raise Exception(f"OpenAI store failed: {e}")
+            raise Exception(f"OpenAI store failed: {e}") from e
     
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve memory using OpenAI."""
@@ -103,7 +103,7 @@ class OpenAIMemoryTool(MemoryTool):
             
             return f"Retrieved from OpenAI Memory for '{query}': {answer}"
         except Exception as e:
-            raise Exception(f"OpenAI retrieve failed: {e}")
+            raise Exception(f"OpenAI retrieve failed: {e}") from e
     
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Chat with OpenAI memory context."""
@@ -146,7 +146,7 @@ class OpenAIMemoryTool(MemoryTool):
             
             return f"OpenAI Memory response: {answer}"
         except Exception as e:
-            raise Exception(f"OpenAI chat failed: {e}")
+            raise Exception(f"OpenAI chat failed: {e}") from e
     
     async def clear_memory(self, session_id: Optional[str] = None) -> str:
         """Clear memory by resetting storage (workload isolation)."""

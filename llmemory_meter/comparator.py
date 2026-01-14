@@ -46,7 +46,7 @@ class MemoryComparator:
                 raise e
             except Exception as e:
                 # Wrap other initialization errors
-                raise Exception(f"Failed to initialize {tool_name}: {e}")
+                raise Exception(f"Failed to initialize {tool_name}: {e}") from e
         
         return self._tool_instances[tool_name]
     

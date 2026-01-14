@@ -184,7 +184,7 @@ class ZepTool(MemoryTool):
                 logger.error("Body: %s", e.body)
             if hasattr(e, 'status_code'):
                 logger.error("Status: %s", e.status_code)
-            raise Exception(f"Zep API error in store: {error_type}: {str(e)[:200]}")
+            raise Exception(f"Zep API error in store: {error_type}: {str(e)[:200]}") from e
 
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve information from Zep memory."""
@@ -283,7 +283,7 @@ class ZepTool(MemoryTool):
                 logger.error("Body: %s", e.body)
             if hasattr(e, 'status_code'):
                 logger.error("Status: %s", e.status_code)
-            raise Exception(f"Zep API error in retrieve: {error_type}: {error_str[:200]}")
+            raise Exception(f"Zep API error in retrieve: {error_type}: {error_str[:200]}") from e
 
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Have a conversation using Zep memory context."""
@@ -380,7 +380,7 @@ class ZepTool(MemoryTool):
             if hasattr(e, 'message'):
                 logger.error("Message: %s", e.message)
             
-            raise Exception(f"Zep API error in chat: {error_type}: {error_str[:200]}")
+            raise Exception(f"Zep API error in chat: {error_type}: {error_str[:200]}") from e
 
     def _extract_facts_from_context(self, context_text: str) -> str:
         """Extract just the facts from Zep's verbose context format.

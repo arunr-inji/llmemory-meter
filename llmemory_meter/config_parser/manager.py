@@ -189,7 +189,7 @@ class ConfigManager:
         
         except Exception as e:
             logger.error("Error loading config from %s: %s", file_path, e)
-            raise Exception(f"Failed to load configuration from {file_path}: {e}")
+            raise Exception(f"Failed to load configuration from {file_path}: {e}") from e
     
     @staticmethod
     def _dict_to_config(config_dict: Dict[str, Any]) -> LLMemoryMeterConfig:
