@@ -10,7 +10,7 @@ Usage:
 """
 
 import asyncio
-from llmemory_meter import MemoryComparator, StandardBenchmarks
+from llmemory_meter import MemoryComparator
 
 
 async def main():

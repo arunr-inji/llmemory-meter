@@ -7,9 +7,7 @@ Handles YAML-based configuration for memory tools, benchmarks, and metrics.
 import os
 import yaml
 from typing import Dict, Any, List, Optional
-from pathlib import Path
 from dataclasses import dataclass, asdict
-from llmemory_meter.config_parser.env import Config as EnvConfig
 
 
 @dataclass
@@ -57,7 +55,6 @@ class ConfigManager:
     @classmethod
     def get_default_config_file(cls) -> str:
         """Get default config file from environment or fallback to starter.yml."""
-        import os
         return os.getenv("LLMEMORY_DEFAULT_CONFIG", "configs/starter.yml")
     
     # Set default config file

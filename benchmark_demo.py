@@ -7,7 +7,7 @@ This demo bypasses API key requirements to show how benchmarks work.
 
 import asyncio
 import os
-from llmemory_meter import MemoryComparator, StandardBenchmarks
+from llmemory_meter import MemoryComparator
 
 
 async def main():
