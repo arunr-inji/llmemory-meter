@@ -74,7 +74,6 @@ class ConfigManager:
                     api_key_env="MEM0_API_KEY",
                     model="gpt-4o-mini",
                     settings={
-                        "user_id": "benchmark_user",
                         "llm_provider": "openai",
                         "llm_api_key_env": "OPENAI_API_KEY",
                         "vector_store": {
@@ -100,8 +99,7 @@ class ConfigManager:
                     enabled=True,
                     api_key_env="ZEP_API_KEY",
                     settings={
-                        "api_url": "https://api.getzep.com",
-                        "user_id": "benchmark_user"
+                        "api_url": "https://api.getzep.com"
                     }
                 )
             ],

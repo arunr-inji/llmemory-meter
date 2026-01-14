@@ -4,7 +4,6 @@ memory_tools:
   api_key_env: MEM0_API_KEY
   model: gpt-4o-mini
   settings:
-    user_id: benchmark_user
     llm_provider: openai
     llm_api_key_env: OPENAI_API_KEY
     llm_config:
