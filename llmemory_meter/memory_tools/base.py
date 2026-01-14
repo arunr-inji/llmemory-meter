@@ -7,7 +7,7 @@ Defines the interface that all memory tools must implement.
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 import time
-import random
+import uuid
 from datetime import datetime
 
 from llmemory_meter.workload import WorkloadStep, StepResult
@@ -20,11 +20,14 @@ class MemoryTool(ABC):
         self.name = name
         self.config = config or {}
         self._session_id = f"{name}_{int(time.time())}"
-        self.user_id = self._generate_user_id()
+        self._reset_instance_id()
 
-    def _generate_user_id(self) -> str:
-        """Generate a unique user_id for workload isolation."""
-        return f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
+    def _reset_instance_id(self) -> str:
+        """Regenerate instance/user ids for workload isolation."""
+        self._instance_id = uuid.uuid4().hex
+        # Generate a unique user_id for workload isolation.
+        self.user_id = f"benchmark_user_{self._instance_id}"
+        return self.user_id
     
     @abstractmethod
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:

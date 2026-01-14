@@ -599,7 +599,7 @@ class ZepTool(MemoryTool):
         """
         try:
             # Generate new user_id for workload isolation
-            self.user_id = self._generate_user_id()
+            self._reset_instance_id()
             self.session_id = f"zep_{int(time.time())}"
             
             # CRITICAL FIX 1: Shutdown old executor and create new one
