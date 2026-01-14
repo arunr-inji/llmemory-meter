@@ -26,9 +26,6 @@ class MemGPTTool(MemoryTool):
         if not Config.MEMGPT_API_KEY:
             raise ValueError("MEMGPT_API_KEY required for Letta Cloud")
         
-        # Always generate unique user_id for each benchmark run to prevent context accumulation
-        self._user_id = f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
-        
         self._agent_id = None
         self._last_tokens = 0  # Track token usage from last API call
         
@@ -65,8 +62,8 @@ class MemGPTTool(MemoryTool):
             if memgpt_config.get("agent_name"):
                 agent_name = memgpt_config.get("agent_name")
             else:
-                # Use timestamp + random for uniqueness to prevent context accumulation
-                agent_name = f"benchmark_agent_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
+                # Tie the agent name to the generated user_id for isolation
+                agent_name = f"benchmark_agent_{self.user_id}"
             self._setup_agent(agent_name, memgpt_config)
                 
         except Exception as e:
@@ -308,8 +305,8 @@ class MemGPTTool(MemoryTool):
         """
         try:
             # Generate new user_id and agent for workload isolation
-            self._user_id = f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
-            agent_name = f"benchmark_agent_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
+            self.user_id = self._generate_user_id()
+            agent_name = f"benchmark_agent_{self.user_id}"
             
             # Create new agent
             memgpt_config = self.config.get("memgpt_config") or {}
