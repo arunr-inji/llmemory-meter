@@ -2,8 +2,6 @@
 
 from typing import Dict, Any, Optional
 import asyncio
-import time
-import random
 from concurrent.futures import ThreadPoolExecutor
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser.env import Config
@@ -305,6 +303,6 @@ class MemGPTTool(MemoryTool):
             self._reset_instance_id()
             self._initialize_letta_client()
             
-            return f"Memory cleared (new agent: {self.agent_name})"
+            return f"Memory cleared (new agent: {self._agent_id})"
         except Exception as e:
             return f"Error reinitializing MemGPT agent: {e}"
