@@ -56,9 +56,7 @@ class MemGPTTool(MemoryTool):
             
             # Set up or find existing agent
             memgpt_config = self.config.get("memgpt_config") or {}
-            # Always generate unique agent name to prevent reusing agents from previous runs
-            # Keep the agent name short while tying it to the instance id
-            agent_name = f"benchmark_agent_{self._instance_id}"
+            agent_name = self._agent_name()
             self._setup_agent(agent_name, memgpt_config)
                 
         except Exception as e:
@@ -111,6 +109,10 @@ class MemGPTTool(MemoryTool):
                     raise Exception(f"Could not set up Letta agent: {e}")
             except:
                 raise Exception(f"Could not set up Letta agent: {e}")
+
+    def _agent_name(self) -> str:
+        """Generate a short, unique agent name for the current instance."""
+        return f"benchmark_agent_{self._instance_id}"
     
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store memory in Letta by sending a message to the agent."""
@@ -308,7 +310,7 @@ class MemGPTTool(MemoryTool):
 
             # Generate new user_id and agent for workload isolation
             self._reset_instance_id()
-            agent_name = f"benchmark_agent_{self._instance_id}"
+            agent_name = self._agent_name()
             memgpt_config = self.config.get("memgpt_config") or {}
             self._setup_agent(agent_name, memgpt_config)
             
