@@ -3,6 +3,10 @@
 from typing import List, Optional
 import numpy as np
 
+from llmemory_meter.logging_utils import get_logger
+
+logger = get_logger(__name__)
+
 
 class AccuracyEvaluator:
     """Evaluates accuracy using semantic similarity between responses and ground truth.
@@ -90,10 +94,12 @@ class AccuracyEvaluator:
             if gt is not None and gt.strip():
                 # Empty response when answer is expected = FAILURE (score 0.0)
                 if not response or not response.strip():
-                    print(f"⚠️  WARNING: Step {i} has empty response but has ground truth!")
-                    print(f"   Ground truth: '{gt[:50]}...'")
-                    print(f"   Response: '{response}'")
-                    print(f"   Scoring as 0.0 (failure to retrieve/respond)")
+                    logger.warning(
+                        "Step %s has empty response but has ground truth", i
+                    )
+                    logger.warning("Ground truth: '%s...'", gt[:50])
+                    logger.warning("Response: '%s'", response)
+                    logger.warning("Scoring as 0.0 (failure to retrieve/respond)")
                     scores[i] = 0.0  # Failure score instead of None
                     continue
                 
@@ -138,4 +144,3 @@ class AccuracyEvaluator:
             return 0.0
         
         return float(dot_product / (norm_v1 * norm_v2))
-

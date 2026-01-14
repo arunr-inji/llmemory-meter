@@ -9,6 +9,10 @@ import yaml
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 
+from llmemory_meter.logging_utils import get_logger
+
+logger = get_logger(__name__)
+
 
 @dataclass
 class MemoryToolConfig:
@@ -172,9 +176,9 @@ class ConfigManager:
         
         # Create default config if file doesn't exist
         if not os.path.exists(file_path):
-            print(f"⚠️  Config file {file_path} not found. Creating default config...")
+            logger.warning("Config file %s not found. Creating default config...", file_path)
             ConfigManager.save_default_config(file_path)
-            print(f"✅ Created default config: {file_path}")
+            logger.info("Created default config: %s", file_path)
         
         try:
             with open(file_path, 'r') as f:
@@ -184,7 +188,7 @@ class ConfigManager:
             return ConfigManager._dict_to_config(config_dict)
         
         except Exception as e:
-            print(f"❌ Error loading config from {file_path}: {e}")
+            logger.error("Error loading config from %s: %s", file_path, e)
             raise Exception(f"Failed to load configuration from {file_path}: {e}")
     
     @staticmethod

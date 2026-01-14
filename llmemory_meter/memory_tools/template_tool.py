@@ -10,6 +10,9 @@ from typing import Dict, Any, Optional
 
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser import Config
+from llmemory_meter.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class TemplateTool(MemoryTool):
@@ -21,7 +24,7 @@ class TemplateTool(MemoryTool):
         # Replace with your API key check
         self.api_key = Config.TEMPLATE_API_KEY  # Add to config.py
         if not self.api_key:
-            print("⚠️  TEMPLATE_API_KEY not found - using mock implementation")
+            logger.warning("TEMPLATE_API_KEY not found - using mock implementation")
             self._use_mock = True
         else:
             self._use_mock = False
@@ -35,9 +38,9 @@ class TemplateTool(MemoryTool):
             # Replace with your client initialization
             # import your_memory_tool
             # self.client = your_memory_tool.Client(api_key=self.api_key)
-            print("✅ Template client initialized")
+            logger.info("Template client initialized")
         except Exception as e:
-            print(f"⚠️  Failed to initialize Template: {e} - using mock implementation")
+            logger.warning("Failed to initialize Template: %s - using mock implementation", e)
             self._use_mock = True
     
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:

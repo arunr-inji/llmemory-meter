@@ -5,7 +5,9 @@ from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 
-_DEBUG_ENABLED = os.getenv("DEBUG", "false").lower() == "true"
+from llmemory_meter.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 # Find .env file starting from this module's directory and going up
 try:
@@ -21,8 +23,7 @@ try:
         load_dotenv(verbose=False)
 except (PermissionError, FileNotFoundError, OSError) as e:
     # If .env file can't be loaded, continue with system environment variables
-    if _DEBUG_ENABLED:
-        print(f"⚠️ Could not load .env file: {e}")
+    logger.warning("Could not load .env file: %s", e)
 
 
 class Config:
@@ -52,8 +53,7 @@ class Config:
                             _memgpt_key = line.split('=', 1)[1].strip().strip('"').strip("'")
                             break
         except Exception as e:
-            if _DEBUG_ENABLED:
-                print(f"⚠️ Could not read MEMGPT_API_KEY from .env: {e}")
+            logger.warning("Could not read MEMGPT_API_KEY from .env: %s", e)
     MEMGPT_API_KEY: Optional[str] = _memgpt_key
     
     ZEP_API_KEY: Optional[str] = os.getenv("ZEP_API_KEY")

@@ -10,6 +10,9 @@ from typing import Dict, Any, Optional
 
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser import Config
+from llmemory_meter.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class OpenAIMemoryTool(MemoryTool):
@@ -35,7 +38,7 @@ class OpenAIMemoryTool(MemoryTool):
         try:
             self.client = openai.AsyncOpenAI(api_key=self.api_key)
             self.model = self.config.get("model", "gpt-4o-mini")
-            print("✅ OpenAI client initialized")
+            logger.info("OpenAI client initialized")
         except Exception as e:
             raise Exception(f"Failed to initialize OpenAI: {e}")
     

@@ -10,6 +10,10 @@ import asyncio
 from functools import partial
 import time
 import uuid
+
+from llmemory_meter.logging_utils import get_logger
+
+logger = get_logger(__name__)
 import tiktoken
 
 from llmemory_meter.workload import WorkloadStep, StepResult
@@ -45,7 +49,7 @@ class MemoryTool(ABC):
             return len(encoding.encode(text))
         except Exception as e:
             # Fail loudly if token estimation is misconfigured or tiktoken errors.
-            print(f"❌ Token estimation failed: {e}")
+            logger.error("Token estimation failed: %s", e)
             raise
 
     @abstractmethod

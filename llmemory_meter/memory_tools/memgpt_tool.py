@@ -4,6 +4,9 @@ from typing import Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser import Config
+from llmemory_meter.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class MemGPTTool(MemoryTool):
@@ -77,13 +80,13 @@ class MemGPTTool(MemoryTool):
                 self._agent_id = new_agent.id
                 
         except Exception as e:
-            print(f"⚠️ Error in _setup_agent: {e}")
+            logger.warning("Error in _setup_agent: %s", e)
             # Fallback: try to list and use first available agent
             try:
                 agents = list(self.client.agents.list())
                 if agents:
                     self._agent_id = agents[0].id
-                    print(f"Warning: Using first available agent: {self._agent_id}")
+                    logger.warning("Using first available agent: %s", self._agent_id)
                 else:
                     raise Exception(f"Could not set up Letta agent: {e}")
             except Exception as fallback_error:
@@ -243,7 +246,7 @@ class MemGPTTool(MemoryTool):
                     self.client.agents.delete(self._agent_id)
                 except Exception as e:
                     # Fail loudly if we cannot delete the agent to avoid stale context.
-                    print(f"⚠️ Error deleting MemGPT agent: {e}")
+                    logger.error("Error deleting MemGPT agent: %s", e)
                     raise
 
             # Generate new user_id and agent for workload isolation

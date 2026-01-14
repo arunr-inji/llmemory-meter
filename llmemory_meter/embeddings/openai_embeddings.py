@@ -2,6 +2,10 @@
 
 from typing import List
 from openai import OpenAI
+
+from llmemory_meter.logging_utils import get_logger
+
+logger = get_logger(__name__)
 from llmemory_meter.embeddings import EmbeddingProvider
 
 
@@ -56,13 +60,20 @@ class OpenAIEmbeddings(EmbeddingProvider):
         validated_texts = []
         for i, text in enumerate(texts):
             if text is None:
-                print(f"⚠️  WARNING: OpenAI embeddings received None at index {i}")
+                logger.warning("OpenAI embeddings received None at index %s", i)
                 validated_texts.append("[empty]")  # Use placeholder text
             elif not isinstance(text, str):
-                print(f"⚠️  WARNING: OpenAI embeddings received non-string at index {i}: {type(text)}")
+                logger.warning(
+                    "OpenAI embeddings received non-string at index %s: %s",
+                    i,
+                    type(text),
+                )
                 validated_texts.append(str(text) if text else "[empty]")
             elif not text.strip():
-                print(f"⚠️  WARNING: OpenAI embeddings received empty/whitespace string at index {i}")
+                logger.warning(
+                    "OpenAI embeddings received empty/whitespace string at index %s",
+                    i,
+                )
                 validated_texts.append("[empty]")  # Use placeholder text
             else:
                 validated_texts.append(text)
@@ -77,11 +88,17 @@ class OpenAIEmbeddings(EmbeddingProvider):
             sorted_data = sorted(response.data, key=lambda x: x.index)
             return [d.embedding for d in sorted_data]
         except Exception as e:
-            print(f"\n❌ OpenAI API Error Details:")
-            print(f"   Error: {e}")
-            print(f"   Input type: {type(validated_texts)}")
-            print(f"   Input length: {len(validated_texts)}")
-            print(f"   First 3 inputs:")
+            logger.error("OpenAI API Error Details:")
+            logger.error("Error: %s", e)
+            logger.error("Input type: %s", type(validated_texts))
+            logger.error("Input length: %s", len(validated_texts))
+            logger.error("First 3 inputs:")
             for i, text in enumerate(validated_texts[:3]):
-                print(f"      [{i}] type={type(text)}, len={len(text) if text else 0}, preview='{str(text)[:50]}'")
+                logger.error(
+                    "[%s] type=%s, len=%s, preview='%s'",
+                    i,
+                    type(text),
+                    len(text) if text else 0,
+                    str(text)[:50],
+                )
             raise

@@ -15,7 +15,10 @@ from zep_cloud.client import Zep
 from zep_cloud.types import Message
 
 from llmemory_meter.memory_tools.base import MemoryTool
+from llmemory_meter.logging_utils import get_logger
 import time
+
+logger = get_logger(__name__)
 
 
 class ZepTool(MemoryTool):
@@ -52,7 +55,7 @@ class ZepTool(MemoryTool):
         # Initialize user and thread
         self._ensure_user_exists()
         self._ensure_thread_exists()
-        print("✅ Zep client initialized")
+        logger.info("Zep client initialized")
 
     def _truncate_for_graph(self, text: str, limit: int = 9000) -> str:
         """Truncate text to stay within graph.add 10k char limit (leave buffer)."""
@@ -66,13 +69,13 @@ class ZepTool(MemoryTool):
             # Try to get user, create if doesn't exist
             try:
                 self.client.user.get(user_id=self.user_id)
-                print(f"✅ Zep user '{self.user_id}' found")
+                logger.info("Zep user '%s' found", self.user_id)
             except Exception as e:
                 # User doesn't exist or users are managed automatically in Zep Cloud
-                print(f"ℹ️ Zep user creation: users are auto-managed in Zep Cloud")
+                logger.info("Zep user creation: users are auto-managed in Zep Cloud")
         except Exception as e:
             # Continue without user creation
-            print(f"⚠️ Could not verify Zep user: {type(e).__name__}: {str(e)[:80]}")
+            logger.warning("Could not verify Zep user: %s: %s", type(e).__name__, str(e)[:80])
 
     def _ensure_thread_exists(self):
         """Ensure thread exists for the current session."""
@@ -85,21 +88,21 @@ class ZepTool(MemoryTool):
                     last_name="User",
                     email=f"{self.user_id}@test.com"
                 )
-                print(f"✅ Zep user '{self.user_id}' created")
+                logger.info("Zep user '%s' created", self.user_id)
             except Exception as user_err:
                 # User might already exist
-                print(f"ℹ️ Zep user: {type(user_err).__name__} (user may already exist)")
+                logger.info("Zep user: %s (user may already exist)", type(user_err).__name__)
             
             # Now create thread
             self.client.thread.create(
                 thread_id=self.session_id,
                 user_id=self.user_id
             )
-            print(f"✅ Zep thread '{self.session_id}' created")
+            logger.info("Zep thread '%s' created", self.session_id)
         except Exception as e:
             # Thread might already exist
             error_msg = str(e)[:200]
-            print(f"ℹ️ Zep thread creation: {type(e).__name__}: {error_msg}")
+            logger.info("Zep thread creation: %s: %s", type(e).__name__, error_msg)
             # Don't fail - thread creation might fail if it already exists, continue anyway
 
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
@@ -169,18 +172,18 @@ class ZepTool(MemoryTool):
             return response
 
         except asyncio.TimeoutError:
-            print(f"⏱️ Zep store operation timed out (SDK: 30s, asyncio: 45s)")
-            print(f"   This suggests Zep backend is overloaded or unresponsive")
+            logger.warning("Zep store operation timed out (SDK: 30s, asyncio: 45s)")
+            logger.warning("Zep backend may be overloaded or unresponsive")
             raise Exception(f"Zep API timeout in store operation (backend may be overloaded)")
         except Exception as e:
             # Log the actual error with full details
             error_type = type(e).__name__
-            print(f"❌ Zep store error: {error_type}")
-            print(f"   Error: {str(e)[:500]}")
+            logger.error("Zep store error: %s", error_type)
+            logger.error("Error: %s", str(e)[:500])
             if hasattr(e, 'body'):
-                print(f"   Body: {e.body}")
+                logger.error("Body: %s", e.body)
             if hasattr(e, 'status_code'):
-                print(f"   Status: {e.status_code}")
+                logger.error("Status: %s", e.status_code)
             raise Exception(f"Zep API error in store: {error_type}: {str(e)[:200]}")
 
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
@@ -258,7 +261,7 @@ class ZepTool(MemoryTool):
             return response
 
         except asyncio.TimeoutError:
-            print(f"⏱️ Zep retrieve operation timed out after 30s")
+            logger.warning("Zep retrieve operation timed out after 30s")
             raise Exception(f"Zep API timeout in retrieve operation")
         except Exception as e:
             # Log the actual error with full details
@@ -267,19 +270,19 @@ class ZepTool(MemoryTool):
             
             # For NotFoundError, it's expected if thread is new - return empty result instead of raising
             if "NotFoundError" in error_type or "404" in error_str:
-                print(f"ℹ️ Zep retrieve: Thread not found (thread may be too new)")
+                logger.info("Zep retrieve: Thread not found (thread may be too new)")
                 response = "No relevant memories found in Zep (thread is new)."
                 input_tokens = self._estimate_tokens(query)
                 output_tokens = self._estimate_tokens(response)
                 self._last_tokens = input_tokens + output_tokens
                 return response
             
-            print(f"❌ Zep retrieve error: {error_type}")
-            print(f"   Error: {error_str[:500]}")
+            logger.error("Zep retrieve error: %s", error_type)
+            logger.error("Error: %s", error_str[:500])
             if hasattr(e, 'body'):
-                print(f"   Body: {e.body}")
+                logger.error("Body: %s", e.body)
             if hasattr(e, 'status_code'):
-                print(f"   Status: {e.status_code}")
+                logger.error("Status: %s", e.status_code)
             raise Exception(f"Zep API error in retrieve: {error_type}: {error_str[:200]}")
 
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
@@ -365,17 +368,17 @@ class ZepTool(MemoryTool):
             error_str = str(e)
             error_repr = repr(e)
             
-            print(f"❌ Zep chat error: {error_type}")
-            print(f"   Error string: {error_str[:500]}")
-            print(f"   Error repr: {error_repr[:500]}")
+            logger.error("Zep chat error: %s", error_type)
+            logger.error("Error string: %s", error_str[:500])
+            logger.error("Error repr: %s", error_repr[:500])
             
             # Try to extract body/status if available
             if hasattr(e, 'body'):
-                print(f"   Error body: {e.body}")
+                logger.error("Error body: %s", e.body)
             if hasattr(e, 'status_code'):
-                print(f"   Status code: {e.status_code}")
+                logger.error("Status code: %s", e.status_code)
             if hasattr(e, 'message'):
-                print(f"   Message: {e.message}")
+                logger.error("Message: %s", e.message)
             
             raise Exception(f"Zep API error in chat: {error_type}: {error_str[:200]}")
 
@@ -439,7 +442,7 @@ class ZepTool(MemoryTool):
             FIXED_WAIT_SINGLE_MESSAGE = 15  # Fixed wait for single messages
             
             if message_uuid:
-                print(f"⏱️ Waiting {FIXED_WAIT_SINGLE_MESSAGE}s for Zep processing...")
+                logger.info("Waiting %ss for Zep processing...", FIXED_WAIT_SINGLE_MESSAGE)
                 await asyncio.sleep(FIXED_WAIT_SINGLE_MESSAGE)
                 elapsed = FIXED_WAIT_SINGLE_MESSAGE
             else:
@@ -494,10 +497,10 @@ class ZepTool(MemoryTool):
                     
                     if search_result and hasattr(search_result, 'edges') and search_result.edges:
                         # Facts are now searchable!
-                        print(f"✅ Facts indexed and ready ({time.time() - start_time:.1f}s total)")
+                        logger.info("Facts indexed and ready (%.1fs total)", time.time() - start_time)
                         return
                 except Exception as e:
-                    print(f"⚠️ Zep indexing poll error: {type(e).__name__}: {e}")
+                    logger.warning("Zep indexing poll error: %s: %s", type(e).__name__, e)
                 
                 await asyncio.sleep(1)
             
@@ -505,7 +508,7 @@ class ZepTool(MemoryTool):
             
         except Exception as e:
             # Polling failed, fall back to static wait
-            print(f"⚠️ Zep processing poll failed: {type(e).__name__}: {e}")
+            logger.warning("Zep processing poll failed: %s: %s", type(e).__name__, e)
             await asyncio.sleep(8)
     
     async def clear_memory(self, session_id: Optional[str] = None) -> str:
@@ -525,7 +528,7 @@ class ZepTool(MemoryTool):
             # CRITICAL FIX 1: Shutdown old executor and create new one
             # After multiple workloads, the dedicated thread pool can accumulate
             # stale threads. Recreating ensures fresh thread pool.
-            print(f"🔄 Recreating Zep executor and client...")
+            logger.info("Recreating Zep executor and client...")
             if hasattr(self, '_executor'):
                 self._executor.shutdown(wait=False)  # Don't wait for threads
             self._executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="zep_")
@@ -562,7 +565,7 @@ class ZepTool(MemoryTool):
                     "last_updated": datetime.now().isoformat()
                 }
         except Exception as e:
-            print(f"⚠️ Failed to read Zep memory stats: {type(e).__name__}: {e}")
+            logger.warning("Failed to read Zep memory stats: %s: %s", type(e).__name__, e)
 
         return {
             "session_id": self.session_id,
