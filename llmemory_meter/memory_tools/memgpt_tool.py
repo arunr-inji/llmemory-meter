@@ -299,9 +299,18 @@ class MemGPTTool(MemoryTool):
         for each workload to ensure complete isolation.
         """
         try:
+            # Delete the current agent to avoid context accumulation.
+            if self._agent_id:
+                try:
+                    self.client.agents.delete(self._agent_id)
+                except Exception as e:
+                    return f"Error deleting MemGPT agent: {e}"
+
             # Generate new user_id and agent for workload isolation
             self._reset_instance_id()
-            self._initialize_letta_client()
+            agent_name = f"benchmark_agent_{self._instance_id}"
+            memgpt_config = self.config.get("memgpt_config") or {}
+            self._setup_agent(agent_name, memgpt_config)
             
             return f"Memory cleared (new agent: {self._agent_id})"
         except Exception as e:
