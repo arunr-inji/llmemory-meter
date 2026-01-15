@@ -2,8 +2,6 @@
 
 from typing import Dict, Any, Optional
 import asyncio
-import time
-import random
 from concurrent.futures import ThreadPoolExecutor
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser.env import Config
@@ -25,13 +23,6 @@ class MemGPTTool(MemoryTool):
         # Require Letta API key
         if not Config.MEMGPT_API_KEY:
             raise ValueError("MEMGPT_API_KEY required for Letta Cloud")
-        
-        # Generate unique user_id for each benchmark run to prevent context accumulation
-        # If user_id is provided in config, use it; otherwise generate unique one
-        if self.config.get("user_id"):
-            self._user_id = self.config.get("user_id")
-        else:
-            self._user_id = f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
         
         self._agent_id = None
         self._last_tokens = 0  # Track token usage from last API call
@@ -65,12 +56,7 @@ class MemGPTTool(MemoryTool):
             
             # Set up or find existing agent
             memgpt_config = self.config.get("memgpt_config") or {}
-            # Always generate unique agent name to prevent reusing agents from previous runs
-            if memgpt_config.get("agent_name"):
-                agent_name = memgpt_config.get("agent_name")
-            else:
-                # Use timestamp + random for uniqueness to prevent context accumulation
-                agent_name = f"benchmark_agent_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
+            agent_name = self._agent_name()
             self._setup_agent(agent_name, memgpt_config)
                 
         except Exception as e:
@@ -123,6 +109,10 @@ class MemGPTTool(MemoryTool):
                     raise Exception(f"Could not set up Letta agent: {e}")
             except:
                 raise Exception(f"Could not set up Letta agent: {e}")
+
+    def _agent_name(self) -> str:
+        """Generate a short, unique agent name for the current instance."""
+        return f"benchmark_agent_{self._session_id}"
     
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store memory in Letta by sending a message to the agent."""
@@ -311,14 +301,21 @@ class MemGPTTool(MemoryTool):
         for each workload to ensure complete isolation.
         """
         try:
+            # Delete the current agent to avoid context accumulation.
+            if self._agent_id:
+                try:
+                    self.client.agents.delete(self._agent_id)
+                except Exception as e:
+                    # Fail loudly if we cannot delete the agent to avoid stale context.
+                    print(f"⚠️ Error deleting MemGPT agent: {e}")
+                    raise
+
             # Generate new user_id and agent for workload isolation
-            self._user_id = f"benchmark_user_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
-            agent_name = f"benchmark_agent_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
-            
-            # Create new agent
+            self._reset_session()
+            agent_name = self._agent_name()
             memgpt_config = self.config.get("memgpt_config") or {}
             self._setup_agent(agent_name, memgpt_config)
             
-            return f"Memory cleared (new agent: {agent_name})"
+            return f"Memory cleared (new agent: {self._agent_id})"
         except Exception as e:
             return f"Error reinitializing MemGPT agent: {e}"

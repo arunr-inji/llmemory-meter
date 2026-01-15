@@ -58,10 +58,7 @@ class ZepTool(MemoryTool):
         )
 
         # Session management
-        # Use unique user_id per instance to avoid knowledge graph accumulation
         # Zep's graph.add() stores at USER level, not thread level
-        default_user = f"benchmark_user_{int(time.time() * 1000)}"
-        self.user_id = config.get("user_id", default_user)
         self.session_id = config.get("session_id", self._session_id)
         
         # Token tracking
@@ -602,8 +599,8 @@ class ZepTool(MemoryTool):
         """
         try:
             # Generate new user_id for workload isolation
-            self.user_id = f"benchmark_user_{int(time.time() * 1000)}"
-            self.session_id = f"zep_{int(time.time())}"
+            self._reset_session()
+            self.session_id = self._session_id
             
             # CRITICAL FIX 1: Shutdown old executor and create new one
             # After multiple workloads, the dedicated thread pool can accumulate

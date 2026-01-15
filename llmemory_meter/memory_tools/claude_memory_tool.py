@@ -17,8 +17,6 @@ class ClaudeMemoryTool(MemoryTool):
             raise ValueError("ANTHROPIC_API_KEY required for Claude Memory")
         
         self.api_key = Config.ANTHROPIC_API_KEY
-        self._user_id = self.config.get("user_id", "benchmark_user")
-        
         # Initialize Claude client
         self._initialize_claude_client()
     
