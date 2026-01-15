@@ -631,6 +631,7 @@ class MemoryComparator:
                 print(f"  • Avg Latency: {metrics['avg_latency_ms']}ms")
                 print(f"  • P95 Latency: {metrics['p95_latency_ms']}ms") 
                 print(f"  • Success Rate: {success_rate}%")
+                print(f"  • Total Queries: {metrics['total_queries']}")
                 
                 # Display accuracy per-provider if available (skip overall avg to avoid confusion)
                 if 'accuracy_by_provider' in metrics and metrics['accuracy_by_provider']:
@@ -638,6 +639,21 @@ class MemoryComparator:
                     print(f"  • Accuracy: {' | '.join(provider_strs)}")
                 
                 print(f"  • Avg Tokens/Query: {metrics['avg_tokens_per_query']}")
+
+                if 'operation_metrics' in metrics and metrics['operation_metrics']:
+                    print("  • Operation Breakdown:")
+                    for action in ["store", "retrieve", "chat"]:
+                        if action not in metrics['operation_metrics']:
+                            continue
+                        op = metrics['operation_metrics'][action]
+                        print(
+                            f"    - {action.capitalize()} ({op['total_queries']} ops): "
+                            f"avg {op['avg_latency_ms']}ms "
+                            f"(p95 {op['p95_latency_ms']}ms, p99 {op['p99_latency_ms']}ms), "
+                            f"tokens avg {op['avg_tokens_per_query']} "
+                            f"(total {op['total_tokens']}), "
+                            f"success {op['success_rate']}%"
+                        )
                 
                 # Warn if not 100% reliable
                 if success_rate < 100.0:
