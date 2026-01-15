@@ -1,7 +1,7 @@
 """Performance metrics calculation and analysis."""
 
 from dataclasses import dataclass
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import statistics
 from llmemory_meter.workload import WorkloadResult
 
@@ -19,6 +19,7 @@ class PerformanceMetrics:
     total_queries: int
     avg_accuracy: float = None  # Average accuracy score (primary provider)
     accuracy_by_provider: Dict[str, float] = None  # Accuracy by embedding provider
+    operation_metrics: Optional[Dict[str, Dict[str, Any]]] = None  # Per-action metrics
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert metrics to dictionary."""
@@ -40,8 +41,27 @@ class PerformanceMetrics:
             result["accuracy_by_provider"] = {
                 provider: round(score, 3) for provider, score in self.accuracy_by_provider.items()
             }
+
+        if self.operation_metrics:
+            result["operation_metrics"] = self._format_operation_metrics(self.operation_metrics)
         
         return result
+
+    @staticmethod
+    def _format_operation_metrics(operation_metrics: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """Round operation metrics for output."""
+        formatted = {}
+        for action, metrics in operation_metrics.items():
+            formatted[action] = {
+                "avg_latency_ms": round(metrics["avg_latency_ms"], 2),
+                "p95_latency_ms": round(metrics["p95_latency_ms"], 2),
+                "p99_latency_ms": round(metrics["p99_latency_ms"], 2),
+                "total_tokens": metrics["total_tokens"],
+                "avg_tokens_per_query": round(metrics["avg_tokens_per_query"], 2),
+                "success_rate": round(metrics["success_rate"] * 100, 1),
+                "total_queries": metrics["total_queries"]
+            }
+        return formatted
 
 
 class MetricsCalculator:
@@ -60,15 +80,18 @@ class MetricsCalculator:
         total_queries = 0
         all_accuracy_scores = []
         accuracy_by_provider = {}
+        operation_buckets = {}
         
         for result in results:
             for step_result in result.step_results:
                 all_latencies.append(step_result.latency_ms)
-                if step_result.tokens_used:
+                if step_result.tokens_used is not None:
                     all_tokens.append(step_result.tokens_used)
                 if step_result.success:
                     successful_queries += 1
                 total_queries += 1
+
+                operation_buckets.setdefault(step_result.action, []).append(step_result)
                 
                 # Collect accuracy scores
                 if step_result.accuracy is not None:
@@ -95,6 +118,11 @@ class MetricsCalculator:
                 provider: statistics.mean(scores)
                 for provider, scores in accuracy_by_provider.items()
             }
+
+        # Calculate per-action metrics
+        operation_metrics = {}
+        for action, steps in operation_buckets.items():
+            operation_metrics[action] = MetricsCalculator._calculate_operation_metrics(steps)
         
         return PerformanceMetrics(
             tool_name=tool_name,
@@ -106,8 +134,41 @@ class MetricsCalculator:
             success_rate=successful_queries / total_queries if total_queries > 0 else 0,
             total_queries=total_queries,
             avg_accuracy=avg_accuracy,
-            accuracy_by_provider=avg_accuracy_by_provider
+            accuracy_by_provider=avg_accuracy_by_provider,
+            operation_metrics=operation_metrics
         )
+
+    @staticmethod
+    def _calculate_operation_metrics(step_results: List[Any]) -> Dict[str, Any]:
+        """Calculate metrics for a single operation type."""
+        if not step_results:
+            return {
+                "avg_latency_ms": 0.0,
+                "p95_latency_ms": 0.0,
+                "p99_latency_ms": 0.0,
+                "total_tokens": 0,
+                "avg_tokens_per_query": 0.0,
+                "success_rate": 0.0,
+                "total_queries": 0
+            }
+
+        latencies = [r.latency_ms for r in step_results]
+        sorted_latencies = sorted(latencies)
+        p95_index = int(0.95 * len(sorted_latencies))
+        p99_index = int(0.99 * len(sorted_latencies))
+        tokens = [r.tokens_used for r in step_results if r.tokens_used is not None]
+        successful = sum(1 for r in step_results if r.success)
+        total = len(step_results)
+
+        return {
+            "avg_latency_ms": statistics.mean(latencies),
+            "p95_latency_ms": sorted_latencies[min(p95_index, len(sorted_latencies) - 1)],
+            "p99_latency_ms": sorted_latencies[min(p99_index, len(sorted_latencies) - 1)],
+            "total_tokens": sum(tokens),
+            "avg_tokens_per_query": statistics.mean(tokens) if tokens else 0,
+            "success_rate": successful / total if total > 0 else 0,
+            "total_queries": total
+        }
     
     @staticmethod
     def compare_metrics(metrics_list: List[PerformanceMetrics]) -> Dict[str, Any]:
