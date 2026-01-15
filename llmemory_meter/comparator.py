@@ -210,7 +210,7 @@ class MemoryComparator:
             cleaned = cleaned.split('|')[0].strip()
         
         return cleaned.strip()
-    
+
     def _evaluate_accuracy(self, step_results: List[StepResult], steps: List[WorkloadStep]) -> List[StepResult]:
         """Evaluate accuracy using embedding and/or exact match based on match_type.
 
