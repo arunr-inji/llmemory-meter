@@ -136,6 +136,7 @@ class StandardBenchmarks:
                     action="retrieve",
                     content="How many books have I read?",
                     ground_truth="over 500 books",
+                    match_type="contains",
                     metadata={"type": "fact_recall", "expected": "over 500 books"}
                 ),
                 WorkloadStep(
@@ -226,6 +227,7 @@ class StandardBenchmarks:
                     action="retrieve",
                     content="What is the special code mentioned in the information?",
                     ground_truth="ALPHA-7749-BETA",
+                    match_type="exact",
                     metadata={"type": "needle_retrieval", "expected": "ALPHA-7749-BETA"}
                 ),
                 WorkloadStep(
@@ -272,7 +274,8 @@ class StandardBenchmarks:
                     action="retrieve",
                     content="How many cardiac catheterizations have I performed?",
                     ground_truth="over 2000 cardiac catheterizations",
-                    metadata={"type": "experience_recall", "expected": "over 2,000"}
+                    match_type="contains",
+                    metadata={"type": "experience_recall", "expected": "over 2000"}
                 ),
                 WorkloadStep(
                     action="chat",
@@ -438,6 +441,7 @@ class StandardBenchmarks:
                     action="retrieve",
                     content="What compensation was offered to John Smith?",
                     ground_truth="$20 credit compensation",
+                    match_type="contains",
                     metadata={"type": "specific_recall", "expected": "$20 credit"}
                 )
             ]

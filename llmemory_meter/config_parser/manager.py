@@ -28,6 +28,7 @@ class BenchmarkConfig:
     name: str
     enabled: bool = True
     settings: Optional[Dict[str, Any]] = None
+    workloads: Optional[List[str]] = None  # Specific workload names to run (None = all)
 
 
 @dataclass
@@ -274,4 +275,12 @@ class ConfigManager:
         for tool in config.memory_tools:
             if tool.name == tool_name:
                 return tool
+        return None
+
+    @staticmethod
+    def get_benchmark_config(config: LLMemoryMeterConfig, benchmark_name: str) -> Optional[BenchmarkConfig]:
+        """Get configuration for specific benchmark."""
+        for benchmark in config.benchmarks:
+            if benchmark.name == benchmark_name:
+                return benchmark
         return None

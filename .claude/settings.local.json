@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "mcp__perplexity__perplexity_research",
+      "Bash(python:*)",
+      "Bash(python3:*)"
+    ]
+  }
+}

@@ -16,13 +16,41 @@ class MemoryComparator:
     """Main class for comparing memory tools with custom workloads."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        self.config = config or {}
+        self.config_obj = None
+        if config is not None and hasattr(config, "benchmarks"):
+            self.config_obj = config
+            self.config = self._build_config_dict(config)
+        else:
+            self.config = config or {}
         self.available_tools = Config.get_available_tools()
         self._tool_instances: Dict[str, MemoryTool] = {}
         # Get concurrent_tools setting from config
         self.concurrent_tools = self.config.get('concurrent_tools', True)
         # Track if this is the first workload (skip clear_memory for first workload)
         self._workload_count = 0
+
+    def _build_config_dict(self, config) -> Dict[str, Any]:
+        """Normalize LLMemoryMeterConfig into the dict shape used by tools."""
+        from dataclasses import asdict, is_dataclass
+
+        config_dict: Dict[str, Any] = {}
+
+        if getattr(config, "general", None):
+            config_dict.update(config.general)
+            config_dict["general"] = config.general
+
+        if getattr(config, "memory_tools", None):
+            for tool_config in config.memory_tools:
+                if hasattr(tool_config, "name") and hasattr(tool_config, "settings"):
+                    config_dict[tool_config.name] = tool_config.settings
+
+        if getattr(config, "metrics", None):
+            config_dict["metrics"] = asdict(config.metrics) if is_dataclass(config.metrics) else config.metrics
+
+        if getattr(config, "accuracy", None):
+            config_dict["accuracy"] = config.accuracy
+
+        return config_dict
     
     def _get_tool_instance(self, tool_name: str) -> MemoryTool:
         """Get or create a tool instance."""
@@ -166,58 +194,134 @@ class MemoryComparator:
         return cleaned.strip()
     
     def _evaluate_accuracy(self, step_results: List, steps: List) -> List:
-        """Evaluate accuracy post-hoc (doesn't affect latency/tokens).
-        
+        """Evaluate accuracy using embedding and/or exact match based on match_type.
+
+        Two-phase evaluation:
+        1. Embedding-based: For steps with match_type=None or "embedding"
+        2. Exact match: For steps with match_type="exact", "exact_case_insensitive", etc.
+
+        Results stored in accuracy_by_provider dict with keys:
+        - Provider names (openai, local) for embedding scores
+        - "exact_match_{type}" for exact match scores
+
         Args:
             step_results: List of StepResult objects
             steps: List of WorkloadStep objects with ground truth
-            
+
         Returns:
             Updated step_results with accuracy scores populated
         """
-        from llmemory_meter.accuracy_evaluator import AccuracyEvaluator
-        
-        # Get accuracy config
-        accuracy_config = self.config.get('accuracy', {})
-        providers = accuracy_config.get('providers', ['openai'])
-        
-        # Ensure providers is a list
-        if isinstance(providers, str):
-            providers = [providers]
-        
-        # Collect responses and ground truths, stripping formatting for fair comparison
+        from llmemory_meter.accuracy_evaluator import AccuracyEvaluator, ExactMatchEvaluator
+
+        # Strip formatting prefixes for fair comparison
         responses = [self._strip_formatting_prefix(sr.response) for sr in step_results]
         ground_truths = [step.ground_truth for step in steps]
-        
-        # Initialize accuracy_by_provider dict for each step result
+
+        # Initialize accuracy_by_provider dict
         for sr in step_results:
             sr.accuracy_by_provider = {}
-        
-        # Evaluate with each provider
-        for provider in providers:
-            try:
-                # Get provider-specific model if configured
-                provider_config = accuracy_config.get(provider, {})
-                model = provider_config.get('model') if isinstance(provider_config, dict) else None
-                
-                evaluator = AccuracyEvaluator(provider=provider, model=model)
-                accuracy_scores = evaluator.evaluate_batch(responses, ground_truths)
-                
-                # Store scores in accuracy_by_provider dict
-                for sr, score in zip(step_results, accuracy_scores):
-                    sr.accuracy_by_provider[provider] = score
-            except Exception as e:
-                print(f"Warning: Failed to evaluate accuracy with {provider}: {e}")
-                # Set None for all steps for this provider
-                for sr in step_results:
-                    sr.accuracy_by_provider[provider] = None
-        
-        # Set primary accuracy field to first provider's score
-        if providers:
-            primary_provider = providers[0]
-            for sr in step_results:
-                sr.accuracy = sr.accuracy_by_provider.get(primary_provider)
-        
+
+        # Separate steps by match_type
+        embedding_indices = []
+        exact_match_indices = []
+        match_types_map = {}  # index -> match_type
+
+        for i, step in enumerate(steps):
+            match_type = step.match_type or "embedding"
+            match_types_map[i] = match_type
+
+            if match_type == "embedding":
+                embedding_indices.append(i)
+            elif match_type in ["exact", "exact_case_insensitive", "contains", "regex"]:
+                exact_match_indices.append(i)
+            else:
+                print(f"Warning: Unknown match_type '{match_type}' at step {i}, defaulting to embedding")
+                embedding_indices.append(i)
+
+        # Evaluate embedding-based steps
+        if embedding_indices:
+            accuracy_config = self.config.get('accuracy', {})
+            providers = accuracy_config.get('providers', ['openai'])
+            if isinstance(providers, str):
+                providers = [providers]
+
+            for provider in providers:
+                try:
+                    # Get model config
+                    if provider == 'openai':
+                        model = accuracy_config.get('openai', {}).get('model', 'text-embedding-3-small')
+                    elif provider == 'local':
+                        model = accuracy_config.get('local', {}).get('model', 'all-mpnet-base-v2')
+                    else:
+                        model = None
+
+                    # Create evaluator
+                    evaluator = AccuracyEvaluator(provider=provider, model=model)
+
+                    # Evaluate only embedding indices
+                    embedding_responses = [responses[i] for i in embedding_indices]
+                    embedding_ground_truths = [ground_truths[i] for i in embedding_indices]
+
+                    accuracy_scores = evaluator.evaluate_batch(embedding_responses, embedding_ground_truths)
+
+                    # Store scores
+                    for idx, score in zip(embedding_indices, accuracy_scores):
+                        step_results[idx].accuracy_by_provider[provider] = score
+
+                except Exception as e:
+                    print(f"Warning: Failed to evaluate accuracy with {provider}: {e}")
+                    for idx in embedding_indices:
+                        step_results[idx].accuracy_by_provider[provider] = None
+
+        # Evaluate exact-match steps
+        if exact_match_indices:
+            # Group by match_type for efficiency
+            for match_type in ["exact", "exact_case_insensitive", "contains", "regex"]:
+                type_indices = [i for i in exact_match_indices if match_types_map[i] == match_type]
+
+                if type_indices:
+                    try:
+                        evaluator = ExactMatchEvaluator(match_type=match_type)
+
+                        # Evaluate only these indices
+                        type_responses = [responses[i] for i in type_indices]
+                        type_ground_truths = [ground_truths[i] for i in type_indices]
+
+                        scores = evaluator.evaluate_batch(type_responses, type_ground_truths)
+
+                        # Store scores with descriptive key
+                        for idx, score in zip(type_indices, scores):
+                            step_results[idx].accuracy_by_provider[f"exact_match_{match_type}"] = score
+
+                    except Exception as e:
+                        print(f"Warning: Failed to evaluate exact match ({match_type}): {e}")
+                        for idx in type_indices:
+                            step_results[idx].accuracy_by_provider[f"exact_match_{match_type}"] = None
+
+        # Set primary accuracy field
+        # Priority: first embedding provider > first exact match type
+        accuracy_config = self.config.get('accuracy', {})
+        providers = accuracy_config.get('providers', ['openai'])
+        if isinstance(providers, str):
+            providers = [providers]
+
+        for sr in step_results:
+            # Try embedding providers first
+            primary_set = False
+            if providers:
+                for provider in providers:
+                    if provider in sr.accuracy_by_provider and sr.accuracy_by_provider[provider] is not None:
+                        sr.accuracy = sr.accuracy_by_provider[provider]
+                        primary_set = True
+                        break
+
+            # Fallback to exact match if no embedding provider
+            if not primary_set:
+                for key in sr.accuracy_by_provider:
+                    if key.startswith("exact_match_") and sr.accuracy_by_provider[key] is not None:
+                        sr.accuracy = sr.accuracy_by_provider[key]
+                        break
+
         return step_results
     
     async def compare_tools(self, workload: Workload, tools: Optional[List[str]] = None) -> Dict[str, Any]:
@@ -493,12 +597,12 @@ class MemoryComparator:
     def get_benchmark_info(self, benchmark_name: str) -> Optional[Dict[str, Any]]:
         """Get detailed information about a specific benchmark."""
         return BenchmarkRunner.get_benchmark_info(benchmark_name)
-    
+
     async def run_benchmark_suite(self, suite_name: str, tools: Optional[List[str]] = None) -> Dict[str, Any]:
         """Run a specific benchmark suite on selected tools."""
         if tools is None:
             tools = self.available_tools
-        
+
         # Get the benchmark suite
         all_suites = StandardBenchmarks.get_all_suites(self.config)
         suite = None
@@ -506,17 +610,37 @@ class MemoryComparator:
             if s.name == suite_name:
                 suite = s
                 break
-        
+
         if not suite:
             raise ValueError(f"Benchmark suite '{suite_name}' not found. Available suites: {[s.name for s in all_suites]}")
-        
+
+        # Get benchmark config to check for workload filtering
+        if self.config_obj is not None:
+            from llmemory_meter.config_parser.manager import ConfigManager
+            benchmark_config = ConfigManager.get_benchmark_config(self.config_obj, suite_name)
+        else:
+            benchmark_config = None
+
+        # Filter workloads if specific ones are requested
+        workloads_to_run = suite.workloads
+        if benchmark_config and benchmark_config.workloads:
+            # Filter to only the requested workloads
+            requested_workload_names = set(benchmark_config.workloads)
+            workloads_to_run = [w for w in suite.workloads if w.name in requested_workload_names]
+
+            if not workloads_to_run:
+                print(f"⚠️  No matching workloads found for {suite_name}. Requested: {benchmark_config.workloads}")
+                print(f"   Available workloads: {[w.name for w in suite.workloads]}")
+            else:
+                print(f"🔍 Filtering to {len(workloads_to_run)} of {len(suite.workloads)} workloads: {[w.name for w in workloads_to_run]}")
+
         print(f"🧪 Running benchmark suite: {suite.name}")
         print(f"📝 Description: {suite.description}")
         print(f"📊 Category: {suite.category}")
-        print(f"🔧 Testing {len(suite.workloads)} workloads on {len(tools)} tools")
-        
+        print(f"🔧 Testing {len(workloads_to_run)} workloads on {len(tools)} tools")
+
         # Run the benchmark
-        results = await self.benchmark_tools(suite.workloads, tools)
+        results = await self.benchmark_tools(workloads_to_run, tools)
         
         # Create specialized benchmark report
         benchmark_report = BenchmarkRunner.create_benchmark_report(results, suite_name)

@@ -70,32 +70,7 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
     # Initialize comparator with config
     print(f"\n🚀 Initializing memory tools...")
     try:
-        # Pass both general config and memory tools config to comparator
-        from dataclasses import asdict, is_dataclass
-        
-        full_config = {}
-        if hasattr(config, 'general') and config.general:
-            full_config.update(config.general)
-        
-        # Add memory tools configuration
-        if hasattr(config, 'memory_tools') and config.memory_tools:
-            for tool_config in config.memory_tools:
-                if hasattr(tool_config, 'name') and hasattr(tool_config, 'settings'):
-                    full_config[tool_config.name] = tool_config.settings
-        
-        # Add metrics configuration (needed for accuracy evaluation)
-        if hasattr(config, 'metrics'):
-            full_config['metrics'] = asdict(config.metrics) if is_dataclass(config.metrics) else config.metrics
-        
-        # Add accuracy configuration (needed for provider settings)
-        if hasattr(config, 'accuracy') and config.accuracy:
-            full_config['accuracy'] = config.accuracy
-        
-        # Add benchmarks configuration (needed for stress test random seed, etc)
-        # For now, just pass an empty dict - future enhancement can parse benchmark settings
-        full_config['benchmarks'] = {}
-        
-        comparator = MemoryComparator(full_config)
+        comparator = MemoryComparator(config)
         
         # Run benchmarks
         print(f"\n🧪 Running benchmarks...")
