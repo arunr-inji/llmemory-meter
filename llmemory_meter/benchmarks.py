@@ -39,7 +39,8 @@ class StandardBenchmarks:
             StandardBenchmarks.long_context_suite(),
             StandardBenchmarks.persona_consistency_suite(),
             StandardBenchmarks.technical_performance_suite(config),
-            StandardBenchmarks.domain_specific_suite()
+            StandardBenchmarks.domain_specific_suite(),
+            StandardBenchmarks.exact_match_evaluation_suite()
             # memory_stress_suite() omitted - stress test now in technical_performance_suite()
         ]
     
@@ -457,6 +458,218 @@ class StandardBenchmarks:
             metrics=["task_completion", "context_accuracy", "domain_relevance"]
         )
     
+    @staticmethod
+    def exact_match_evaluation_suite() -> BenchmarkSuite:
+        """Benchmark suite for testing exact match evaluation types.
+
+        Tests all four exact match types: exact, exact_case_insensitive, contains, regex.
+        """
+        workloads = []
+
+        # Exact match workloads (2)
+        api_key_workload = Workload(
+            name="API Key Exact Match",
+            description="Tests exact string matching for API keys and credentials",
+            steps=[
+                WorkloadStep(
+                    action="store",
+                    content="Your API configuration: API_KEY=sk-proj-abc123XYZ789, ENDPOINT=https://api.example.com, REGION=us-west-2",
+                    metadata={"type": "credentials", "sensitive": True}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What is my API key?",
+                    ground_truth="sk-proj-abc123XYZ789",
+                    match_type="exact",
+                    metadata={"type": "credential_recall", "expected": "sk-proj-abc123XYZ789"}
+                ),
+                WorkloadStep(
+                    action="store",
+                    content="Database password updated to: P@ssw0rd!2024#Secure",
+                    metadata={"type": "password_update"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What is the current database password?",
+                    ground_truth="P@ssw0rd!2024#Secure",
+                    match_type="exact",
+                    metadata={"type": "password_recall", "expected": "P@ssw0rd!2024#Secure"}
+                )
+            ]
+        )
+        workloads.append(api_key_workload)
+
+        product_id_workload = Workload(
+            name="Product ID Exact Match",
+            description="Tests exact matching for product codes and SKUs",
+            steps=[
+                WorkloadStep(
+                    action="store",
+                    content="Order received for Product SKU: MB-2024-PRO-X1, Quantity: 5 units, Color: Midnight Blue",
+                    metadata={"type": "order_info"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What is the product SKU for this order?",
+                    ground_truth="MB-2024-PRO-X1",
+                    match_type="exact",
+                    metadata={"type": "sku_recall", "expected": "MB-2024-PRO-X1"}
+                ),
+                WorkloadStep(
+                    action="store",
+                    content="Serial number for device: SN1234567890ABCDEF",
+                    metadata={"type": "device_registration"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What is the device serial number?",
+                    ground_truth="SN1234567890ABCDEF",
+                    match_type="exact",
+                    metadata={"type": "serial_recall", "expected": "SN1234567890ABCDEF"}
+                )
+            ]
+        )
+        workloads.append(product_id_workload)
+
+        # Exact case insensitive workloads (2)
+        email_workload = Workload(
+            name="Email Case Insensitive Match",
+            description="Tests case-insensitive matching for emails and usernames",
+            steps=[
+                WorkloadStep(
+                    action="store",
+                    content="Primary contact email: Support@Example.Com, Backup: admin@COMPANY.org",
+                    metadata={"type": "contact_info"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What is the primary contact email?",
+                    ground_truth="support@example.com",
+                    match_type="exact_case_insensitive",
+                    metadata={"type": "email_recall", "note": "should match regardless of case"}
+                ),
+                WorkloadStep(
+                    action="store",
+                    content="User account created: Username is JohnDoe2024",
+                    metadata={"type": "account_creation"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What is the username?",
+                    ground_truth="johndoe2024",
+                    match_type="exact_case_insensitive",
+                    metadata={"type": "username_recall", "note": "should match regardless of case"}
+                )
+            ]
+        )
+        workloads.append(email_workload)
+
+        command_workload = Workload(
+            name="Command Case Insensitive Match",
+            description="Tests case-insensitive matching for commands and keywords",
+            steps=[
+                WorkloadStep(
+                    action="store",
+                    content="System command to restart service: RESTART-SERVICE-NGINX",
+                    metadata={"type": "system_command"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What is the command to restart the service?",
+                    ground_truth="restart-service-nginx",
+                    match_type="exact_case_insensitive",
+                    metadata={"type": "command_recall", "note": "commands are case insensitive"}
+                ),
+                WorkloadStep(
+                    action="store",
+                    content="Access level required: ADMIN_FULL_ACCESS",
+                    metadata={"type": "permission_info"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What access level is required?",
+                    ground_truth="Admin_Full_Access",
+                    match_type="exact_case_insensitive",
+                    metadata={"type": "permission_recall", "note": "should match regardless of case"}
+                )
+            ]
+        )
+        workloads.append(command_workload)
+
+        # Regex match workloads (2)
+        phone_pattern_workload = Workload(
+            name="Phone Number Regex Match",
+            description="Tests regex pattern matching for phone numbers and dates",
+            steps=[
+                WorkloadStep(
+                    action="store",
+                    content="Customer phone: +1 (555) 123-4567, alternate format: 555-987-6543",
+                    metadata={"type": "contact_info"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What is the customer's primary phone number?",
+                    ground_truth=r"\+1\s*\(555\)\s*123-4567",
+                    match_type="regex",
+                    metadata={"type": "phone_recall", "note": "regex allows format flexibility"}
+                ),
+                WorkloadStep(
+                    action="store",
+                    content="Appointment scheduled for 2024-03-15 at 14:30",
+                    metadata={"type": "appointment"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What date is the appointment?",
+                    ground_truth=r"202[0-9]-[0-1][0-9]-[0-3][0-9]",
+                    match_type="regex",
+                    metadata={"type": "date_recall", "note": "matches YYYY-MM-DD format"}
+                )
+            ]
+        )
+        workloads.append(phone_pattern_workload)
+
+        email_pattern_workload = Workload(
+            name="Email Regex Pattern Match",
+            description="Tests regex pattern matching for email formats and IDs",
+            steps=[
+                WorkloadStep(
+                    action="store",
+                    content="Support email: john.doe@company.com, Sales: sales-team@business.co.uk",
+                    metadata={"type": "email_directory"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What is John's email address?",
+                    ground_truth=r"[\w\.-]+@[\w\.-]+\.\w+",
+                    match_type="regex",
+                    metadata={"type": "email_pattern_recall", "note": "matches email pattern"}
+                ),
+                WorkloadStep(
+                    action="store",
+                    content="Transaction ID: TXN-2024-03-15-A7B3C9",
+                    metadata={"type": "transaction_log"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What is the transaction ID?",
+                    ground_truth=r"TXN-\d{4}-\d{2}-\d{2}-[A-F0-9]{6}",
+                    match_type="regex",
+                    metadata={"type": "transaction_id_recall", "note": "matches TXN-YYYY-MM-DD-HEXCODE pattern"}
+                )
+            ]
+        )
+        workloads.append(email_pattern_workload)
+
+        return BenchmarkSuite(
+            name="Exact Match Evaluation",
+            description="Benchmarks for testing exact match evaluation methods (exact, case-insensitive, regex)",
+            category="technical",
+            workloads=workloads,
+            reference="Exact match evaluation testing framework",
+            metrics=["exact_match_accuracy", "pattern_recognition", "case_handling"]
+        )
+
     @staticmethod
     def memory_stress_suite() -> BenchmarkSuite:
         """Memory stress testing benchmark suite.

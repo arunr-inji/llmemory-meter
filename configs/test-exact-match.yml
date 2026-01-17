@@ -34,6 +34,9 @@ benchmarks:
   settings: null
   workloads:
     - Customer Service Memory
+- name: Exact Match Evaluation
+  enabled: true
+  settings: null
 
 metrics:
   latency: true
