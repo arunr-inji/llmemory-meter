@@ -478,7 +478,7 @@ class StandardBenchmarks:
                 ),
                 WorkloadStep(
                     action="retrieve",
-                    content="What is my API key?",
+                    content="What is my API key? Be concise and return only the key.",
                     ground_truth="sk-proj-abc123XYZ789",
                     match_type="exact",
                     metadata={"type": "credential_recall", "expected": "sk-proj-abc123XYZ789"}
@@ -490,7 +490,7 @@ class StandardBenchmarks:
                 ),
                 WorkloadStep(
                     action="retrieve",
-                    content="What is the current database password?",
+                    content="What is the current database password? Provide only the password.",
                     ground_truth="P@ssw0rd!2024#Secure",
                     match_type="exact",
                     metadata={"type": "password_recall", "expected": "P@ssw0rd!2024#Secure"}
@@ -510,7 +510,7 @@ class StandardBenchmarks:
                 ),
                 WorkloadStep(
                     action="retrieve",
-                    content="What is the product SKU for this order?",
+                    content="What is the product SKU for this order? Be concise and return only the SKU.",
                     ground_truth="MB-2024-PRO-X1",
                     match_type="exact",
                     metadata={"type": "sku_recall", "expected": "MB-2024-PRO-X1"}
@@ -522,7 +522,7 @@ class StandardBenchmarks:
                 ),
                 WorkloadStep(
                     action="retrieve",
-                    content="What is the device serial number?",
+                    content="What is the device serial number? Provide only the serial number.",
                     ground_truth="SN1234567890ABCDEF",
                     match_type="exact",
                     metadata={"type": "serial_recall", "expected": "SN1234567890ABCDEF"}
@@ -543,7 +543,7 @@ class StandardBenchmarks:
                 ),
                 WorkloadStep(
                     action="retrieve",
-                    content="What is the primary contact email?",
+                    content="What is the primary contact email? Be concise and return only the email address.",
                     ground_truth="support@example.com",
                     match_type="exact_case_insensitive",
                     metadata={"type": "email_recall", "note": "should match regardless of case"}
@@ -555,7 +555,7 @@ class StandardBenchmarks:
                 ),
                 WorkloadStep(
                     action="retrieve",
-                    content="What is the username?",
+                    content="What is the username? Provide only the username.",
                     ground_truth="johndoe2024",
                     match_type="exact_case_insensitive",
                     metadata={"type": "username_recall", "note": "should match regardless of case"}
@@ -575,7 +575,7 @@ class StandardBenchmarks:
                 ),
                 WorkloadStep(
                     action="retrieve",
-                    content="What is the command to restart the service?",
+                    content="What is the command to restart the service? Be concise and return only the command.",
                     ground_truth="restart-service-nginx",
                     match_type="exact_case_insensitive",
                     metadata={"type": "command_recall", "note": "commands are case insensitive"}
@@ -587,7 +587,7 @@ class StandardBenchmarks:
                 ),
                 WorkloadStep(
                     action="retrieve",
-                    content="What access level is required?",
+                    content="What access level is required? Provide only the access level.",
                     ground_truth="Admin_Full_Access",
                     match_type="exact_case_insensitive",
                     metadata={"type": "permission_recall", "note": "should match regardless of case"}
