@@ -491,18 +491,20 @@ class MemoryComparator:
             spearmanr = None
         
         # Extract scores by provider for each tool
+        # Only include embedding providers (not exact_match_* keys)
         tool_scores = {}
         for tool_name, results_list in all_results.items():
             scores_by_provider = {}
-            
+
             # Aggregate accuracy scores across all workloads
             for workload_result in results_list:
                 for step_result in workload_result.step_results:
                     if step_result.accuracy_by_provider:
                         for provider, score in step_result.accuracy_by_provider.items():
-                            if score is not None:
+                            # Only include embedding providers, not exact match evaluators
+                            if score is not None and not provider.startswith("exact_match_"):
                                 scores_by_provider.setdefault(provider, []).append(score)
-            
+
             # Calculate averages
             if scores_by_provider:
                 tool_scores[tool_name] = {
@@ -596,10 +598,10 @@ class MemoryComparator:
                 "interpretation": interpretation
             },
             "thresholds": {
-                "negligible": 0.05,
-                "small": 0.10,
-                "moderate": 0.15,
-                "explanation": "Delta < 0.05 = negligible, 0.05-0.10 = small, 0.10-0.15 = moderate, > 0.15 = large"
+                "negligible": self.DELTA_NEGLIGIBLE,
+                "small": self.DELTA_SMALL,
+                "moderate": self.DELTA_MODERATE,
+                "explanation": f"Delta < {self.DELTA_NEGLIGIBLE} = negligible, {self.DELTA_NEGLIGIBLE}-{self.DELTA_SMALL} = small, {self.DELTA_SMALL}-{self.DELTA_MODERATE} = moderate, > {self.DELTA_MODERATE} = large"
             },
             "by_tool": by_tool_analysis
         }
@@ -714,6 +716,8 @@ class MemoryComparator:
         """Print provider comparison analysis."""
         print(f"\n📊 Embedding Provider Comparison:")
         print("-" * 40)
+        print(f"  Note: This compares embedding-based accuracy only (e.g., OpenAI, local).")
+        print(f"        Exact match evaluators are excluded from this comparison.\n")
         
         if "summary" in comparison:
             summary = comparison["summary"]
@@ -787,8 +791,26 @@ class MemoryComparator:
                 
                 # Display accuracy per-provider if available (skip overall avg to avoid confusion)
                 if 'accuracy_by_provider' in metrics and metrics['accuracy_by_provider']:
-                    provider_strs = [f"{p}: {s*100:.1f}%" for p, s in metrics['accuracy_by_provider'].items()]
-                    print(f"  • Accuracy: {' | '.join(provider_strs)}")
+                    # Separate embedding providers from exact match evaluators
+                    embedding_providers = {}
+                    exact_match_evaluators = {}
+
+                    for p, s in metrics['accuracy_by_provider'].items():
+                        if p.startswith('exact_match_'):
+                            exact_match_evaluators[p] = s
+                        else:
+                            embedding_providers[p] = s
+
+                    # Display embedding provider accuracy
+                    if embedding_providers:
+                        provider_strs = [f"{p}: {s*100:.1f}%" for p, s in embedding_providers.items()]
+                        print(f"  • Accuracy (Embedding): {' | '.join(provider_strs)}")
+
+                    # Display exact match accuracy separately
+                    if exact_match_evaluators:
+                        match_strs = [f"{p.replace('exact_match_', '')}: {s*100:.1f}%"
+                                     for p, s in exact_match_evaluators.items()]
+                        print(f"  • Accuracy (Exact Match): {' | '.join(match_strs)}")
                 
                 print(f"  • Avg Tokens/Query: {metrics['avg_tokens_per_query']}")
 
@@ -828,7 +850,11 @@ class MemoryComparator:
                     print(f"💰 Token Efficiency: {' > '.join(rankings['token_efficiency'])}")
         
         # Display provider comparison if accuracy evaluation is enabled
+        # Only show if there are actually embedding providers to compare
         if "accuracy_comparison" in results and results["accuracy_comparison"]:
-            self._print_provider_comparison(results["accuracy_comparison"])
+            comparison = results["accuracy_comparison"]
+            # Check if we have actual data (not just empty dict from no providers)
+            if "summary" in comparison or "by_tool" in comparison:
+                self._print_provider_comparison(comparison)
         
         print("\n" + "="*60)

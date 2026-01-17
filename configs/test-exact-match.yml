@@ -43,10 +43,11 @@ metrics:
   memory_quality: false
 
 accuracy:
-  providers:
-    - openai
+  providers: [openai, local]
   openai:
     model: text-embedding-3-small
+  local:
+    model: all-MiniLM-L6-v2
 
 output:
   save_results: true
