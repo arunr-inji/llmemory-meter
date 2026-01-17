@@ -14,7 +14,25 @@ from llmemory_meter.benchmarks import StandardBenchmarks, BenchmarkRunner
 
 class MemoryComparator:
     """Main class for comparing memory tools with custom workloads."""
-    
+
+    # Provider comparison thresholds for accuracy delta interpretation
+    # Delta = max(provider_scores) - min(provider_scores) for each tool
+    DELTA_NEGLIGIBLE = 0.05   # Difference < 0.05: providers essentially agree
+    DELTA_SMALL = 0.10        # Difference < 0.10: minor disagreement
+    DELTA_MODERATE = 0.15     # Difference < 0.15: moderate disagreement
+    # Difference >= 0.15: large disagreement (suggests provider choice matters)
+
+    # Consistency thresholds for overall provider agreement
+    CONSISTENCY_EXCELLENT_AVG_DELTA = 0.05   # Average delta for excellent consistency
+    CONSISTENCY_EXCELLENT_MAX_DELTA = 0.10   # Max delta for excellent consistency
+    CONSISTENCY_EXCELLENT_CORRELATION = 0.90  # Min correlation for excellent (Spearman's ρ)
+
+    CONSISTENCY_GOOD_AVG_DELTA = 0.10        # Average delta for good consistency
+    CONSISTENCY_GOOD_MAX_DELTA = 0.15        # Max delta for good consistency
+    CONSISTENCY_GOOD_CORRELATION = 0.70      # Min correlation for good (Spearman's ρ)
+
+    CONSISTENCY_MODERATE_AVG_DELTA = 0.15    # Average delta threshold for moderate
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config_obj = None
         if config is not None and hasattr(config, "benchmarks"):
@@ -512,11 +530,11 @@ class MemoryComparator:
                 deltas.append(delta)
                 
                 # Interpret delta using thresholds
-                if delta < 0.05:
+                if delta < self.DELTA_NEGLIGIBLE:
                     interpretation = "negligible"
-                elif delta < 0.10:
+                elif delta < self.DELTA_SMALL:
                     interpretation = "small"
-                elif delta < 0.15:
+                elif delta < self.DELTA_MODERATE:
                     interpretation = "moderate"
                 else:
                     interpretation = "large"
@@ -551,13 +569,17 @@ class MemoryComparator:
         max_delta = max(deltas)
         
         # Determine consistency level
-        if avg_delta < 0.05 and max_delta < 0.10 and (correlation is None or correlation > 0.90):
+        if (avg_delta < self.CONSISTENCY_EXCELLENT_AVG_DELTA and
+            max_delta < self.CONSISTENCY_EXCELLENT_MAX_DELTA and
+            (correlation is None or correlation > self.CONSISTENCY_EXCELLENT_CORRELATION)):
             consistency = "excellent"
             interpretation = "Provider choice has minimal impact on results"
-        elif avg_delta < 0.10 and max_delta < 0.15 and (correlation is None or correlation > 0.70):
+        elif (avg_delta < self.CONSISTENCY_GOOD_AVG_DELTA and
+              max_delta < self.CONSISTENCY_GOOD_MAX_DELTA and
+              (correlation is None or correlation > self.CONSISTENCY_GOOD_CORRELATION)):
             consistency = "good"
             interpretation = "Minor differences but rankings mostly consistent"
-        elif avg_delta < 0.15:
+        elif avg_delta < self.CONSISTENCY_MODERATE_AVG_DELTA:
             consistency = "moderate"
             interpretation = "Some disagreement between providers, investigate further"
         else:
