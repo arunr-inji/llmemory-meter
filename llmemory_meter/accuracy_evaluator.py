@@ -250,7 +250,8 @@ class ExactMatchEvaluator:
             compiled = re.compile(pattern.strip())
 
             # Set timeout (1 second)
-            def timeout_handler(_signum, _frame):
+            def timeout_handler(_signum, _frame):  # type: ignore[misc]
+                # Parameters required by signal.signal() interface but not used
                 raise TimeoutError("Regex matching timeout")
 
             signal.signal(signal.SIGALRM, timeout_handler)

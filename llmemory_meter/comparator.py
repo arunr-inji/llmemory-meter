@@ -6,7 +6,7 @@ from datetime import datetime
 import json
 
 from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool, MemGPTTool, ClaudeMemoryTool, ZepTool
-from llmemory_meter.workload import Workload, WorkloadResult, StepResult
+from llmemory_meter.workload import Workload, WorkloadResult, StepResult, WorkloadStep
 from llmemory_meter.metrics import MetricsCalculator
 from llmemory_meter.config_parser import Config
 from llmemory_meter.benchmarks import StandardBenchmarks, BenchmarkRunner
@@ -193,7 +193,7 @@ class MemoryComparator:
         
         return cleaned.strip()
     
-    def _evaluate_accuracy(self, step_results: List, steps: List) -> List:
+    def _evaluate_accuracy(self, step_results: List[StepResult], steps: List[WorkloadStep]) -> List[StepResult]:
         """Evaluate accuracy using embedding and/or exact match based on match_type.
 
         Two-phase evaluation:
@@ -631,8 +631,14 @@ class MemoryComparator:
             if not workloads_to_run:
                 print(f"⚠️  No matching workloads found for {suite_name}. Requested: {benchmark_config.workloads}")
                 print(f"   Available workloads: {[w.name for w in suite.workloads]}")
+                print(f"   Skipping this benchmark.")
+                return {}
             else:
                 print(f"🔍 Filtering to {len(workloads_to_run)} of {len(suite.workloads)} workloads: {[w.name for w in workloads_to_run]}")
+        elif not workloads_to_run:
+            print(f"⚠️  Benchmark suite '{suite_name}' has no workloads.")
+            print(f"   Skipping this benchmark.")
+            return {}
 
         print(f"🧪 Running benchmark suite: {suite.name}")
         print(f"📝 Description: {suite.description}")
