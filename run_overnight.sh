@@ -67,11 +67,15 @@ echo -e "${GREEN}🕐 Finished:${NC} $(date)"
 echo -e "${GREEN}📁 Log saved:${NC} $LOG_FILE"
 echo ""
 
-# Copy results to results directory with timestamp
-if [ -f "comprehensive_results.json" ]; then
-    cp comprehensive_results.json "${RESULTS_DIR}/comprehensive_${TIMESTAMP}.json"
-    echo -e "${GREEN}📊 Results copied:${NC} ${RESULTS_DIR}/comprehensive_${TIMESTAMP}.json"
-fi
+# Move results to results directory with timestamp
+shopt -s nullglob
+for result_file in *_results.json; do
+    base_name="${result_file%_results.json}"
+    dest_file="${RESULTS_DIR}/${base_name}_${TIMESTAMP}.json"
+    mv "$result_file" "$dest_file"
+    echo -e "${GREEN}📊 Results moved:${NC} $dest_file"
+done
+shopt -u nullglob
 
 # Print summary of results files
 echo ""
@@ -111,4 +115,3 @@ fi
 #   -d "{\"personalizations\":[{\"to\":[{\"email\":\"$YOUR_EMAIL\"}]}],\"from\":{\"email\":\"benchmark@yourapp.com\"},\"subject\":\"Benchmark Complete\",\"content\":[{\"type\":\"text/plain\",\"value\":\"Benchmark finished at $(date). Log: $LOG_FILE\"}]}"
 
 exit $EXIT_CODE
-

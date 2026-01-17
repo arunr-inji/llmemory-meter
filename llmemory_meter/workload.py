@@ -13,6 +13,7 @@ class WorkloadStep:
     expected_response: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
     ground_truth: Optional[str] = None  # Expected answer for accuracy evaluation
+    match_type: Optional[str] = None  # "embedding" (default), "exact", "exact_case_insensitive", "contains", "regex"
 
 
 @dataclass

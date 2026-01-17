@@ -1,0 +1,72 @@
+memory_tools:
+- name: mem0
+  enabled: true
+  api_key_env: MEM0_API_KEY
+  model: gpt-4o-mini
+  settings:
+    llm_provider: openai
+    llm_api_key_env: OPENAI_API_KEY
+    vector_store:
+      provider: qdrant
+      host: localhost
+      port: 6333
+      collection_name: test_exact_match
+- name: openai_memory
+  enabled: true
+  api_key_env: OPENAI_API_KEY
+  model: gpt-4o-mini
+  settings:
+    temperature: 0.3
+    max_tokens: 300
+
+# Benchmarks - Only run workloads with exact match checks
+benchmarks:
+- name: Conversational AI Memory
+  enabled: true
+  settings: null
+  workloads:  # Optional: specify workload names to run (omit to run all)
+    - Persona Consistency Test
+- name: Long Context Memory
+  enabled: true
+  settings: null
+  workloads:
+    - Information Needle Test
+- name: Persona Consistency
+  enabled: true
+  settings: null
+  workloads:
+    - Professional Persona Consistency
+- name: Domain-Specific Applications
+  enabled: true
+  settings: null
+  workloads:
+    - Customer Service Memory
+- name: Exact Match Evaluation
+  enabled: true
+  settings: null
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: true
+  memory_quality: false
+
+accuracy:
+  providers: [openai, local]
+  openai:
+    model: text-embedding-3-small
+  local:
+    model: all-MiniLM-L6-v2
+
+output:
+  save_results: true
+  output_file: test_exact_match_results.json
+  print_summary: true
+  detailed_logs: false
+
+general:
+  timeout: 60
+  max_retries: 2
+  concurrent_tools: false
+  debug: false

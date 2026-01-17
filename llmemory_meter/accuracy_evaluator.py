@@ -136,6 +136,141 @@ class AccuracyEvaluator:
         # Avoid division by zero
         if norm_v1 == 0 or norm_v2 == 0:
             return 0.0
-        
+
         return float(dot_product / (norm_v1 * norm_v2))
+
+
+class ExactMatchEvaluator:
+    """Evaluates accuracy using exact/partial string matching.
+
+    Complements AccuracyEvaluator for tasks requiring precise answers
+    (codes, numbers, key-value pairs) where embedding similarity is too loose.
+    """
+
+    def __init__(self, match_type: str = "exact"):
+        """Initialize with match type.
+
+        Args:
+            match_type: One of "exact", "exact_case_insensitive", "contains", "regex"
+
+        Raises:
+            ValueError: If match_type is not supported
+        """
+        valid_types = ["exact", "exact_case_insensitive", "contains", "regex"]
+        if match_type not in valid_types:
+            raise ValueError(f"match_type must be one of {valid_types}, got: {match_type}")
+        self.match_type = match_type
+
+    def evaluate_single(self, response: str, ground_truth: str,
+                       match_type: Optional[str] = None) -> Optional[float]:
+        """Evaluate accuracy for a single response.
+
+        Args:
+            response: The tool's response
+            ground_truth: The expected answer
+            match_type: Override instance match_type for this evaluation
+
+        Returns:
+            Binary score: 1.0 (match) or 0.0 (no match)
+            Returns None if no ground truth (store steps)
+        """
+        # Handle missing ground truth (store steps)
+        if not ground_truth or not ground_truth.strip():
+            return None
+
+        # Handle empty response
+        if not response or not response.strip():
+            return 0.0
+
+        # Determine which match type to use
+        match_type = match_type or self.match_type
+
+        # Route to appropriate match function
+        if match_type == "exact":
+            matched = self._exact_match(response, ground_truth)
+        elif match_type == "exact_case_insensitive":
+            matched = self._exact_case_insensitive_match(response, ground_truth)
+        elif match_type == "contains":
+            matched = self._contains_match(response, ground_truth)
+        elif match_type == "regex":
+            matched = self._regex_match(response, ground_truth)
+        else:
+            raise ValueError(f"Unknown match_type: {match_type}")
+
+        return 1.0 if matched else 0.0
+
+    def evaluate_batch(self, responses: List[str], ground_truths: List[str],
+                      match_types: Optional[List[str]] = None) -> List[Optional[float]]:
+        """Evaluate accuracy for a batch of responses.
+
+        Note: Unlike embedding evaluation, exact matching doesn't benefit from batching
+        since there are no API calls to optimize. This method exists for API consistency
+        with AccuracyEvaluator.
+
+        Args:
+            responses: List of tool responses
+            ground_truths: List of expected answers
+            match_types: Optional per-response match type overrides
+
+        Returns:
+            List of binary scores (None for steps without ground truth)
+        """
+        if match_types is None:
+            match_types = [None] * len(responses)
+
+        results = []
+        for response, ground_truth, match_type in zip(responses, ground_truths, match_types):
+            score = self.evaluate_single(response, ground_truth, match_type)
+            results.append(score)
+
+        return results
+
+    def _exact_match(self, response: str, ground_truth: str) -> bool:
+        """Case-sensitive exact match after stripping whitespace."""
+        return response.strip() == ground_truth.strip()
+
+    def _exact_case_insensitive_match(self, response: str, ground_truth: str) -> bool:
+        """Case-insensitive exact match after stripping whitespace."""
+        return response.strip().lower() == ground_truth.strip().lower()
+
+    def _contains_match(self, response: str, ground_truth: str) -> bool:
+        """Check if ground_truth substring appears in response (case-insensitive)."""
+        return ground_truth.strip().lower() in response.strip().lower()
+
+    def _regex_match(self, response: str, pattern: str) -> bool:
+        """Check if response matches regex pattern.
+
+        Includes timeout protection against ReDoS attacks.
+        """
+        import re
+        import signal
+
+        try:
+            # Compile pattern
+            compiled = re.compile(pattern.strip())
+
+            # Set timeout (1 second)
+            def timeout_handler(_signum, _frame):  # type: ignore[misc]
+                # Parameters required by signal.signal() interface but not used
+                raise TimeoutError("Regex matching timeout")
+
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(1)
+
+            try:
+                match = compiled.search(response.strip()) is not None
+            finally:
+                signal.alarm(0)  # Cancel timeout
+
+            return match
+
+        except re.error as e:
+            print(f"Warning: Invalid regex pattern '{pattern}': {e}")
+            return False
+        except TimeoutError:
+            print(f"Warning: Regex matching timeout for pattern '{pattern}'")
+            return False
+        except Exception as e:
+            print(f"Warning: Regex matching failed: {e}")
+            return False
 

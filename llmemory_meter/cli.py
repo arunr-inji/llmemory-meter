@@ -70,32 +70,7 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
     # Initialize comparator with config
     print(f"\n🚀 Initializing memory tools...")
     try:
-        # Pass both general config and memory tools config to comparator
-        from dataclasses import asdict, is_dataclass
-        
-        full_config = {}
-        if hasattr(config, 'general') and config.general:
-            full_config.update(config.general)
-        
-        # Add memory tools configuration
-        if hasattr(config, 'memory_tools') and config.memory_tools:
-            for tool_config in config.memory_tools:
-                if hasattr(tool_config, 'name') and hasattr(tool_config, 'settings'):
-                    full_config[tool_config.name] = tool_config.settings
-        
-        # Add metrics configuration (needed for accuracy evaluation)
-        if hasattr(config, 'metrics'):
-            full_config['metrics'] = asdict(config.metrics) if is_dataclass(config.metrics) else config.metrics
-        
-        # Add accuracy configuration (needed for provider settings)
-        if hasattr(config, 'accuracy') and config.accuracy:
-            full_config['accuracy'] = config.accuracy
-        
-        # Add benchmarks configuration (needed for stress test random seed, etc)
-        # For now, just pass an empty dict - future enhancement can parse benchmark settings
-        full_config['benchmarks'] = {}
-        
-        comparator = MemoryComparator(full_config)
+        comparator = MemoryComparator(config)
         
         # Run benchmarks
         print(f"\n🧪 Running benchmarks...")
@@ -156,12 +131,75 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
         
         # Print summary if configured
         if config.output.get('print_summary', True):
-            # Create summary from all results
-            summary_results = {}
+            # Aggregate all workload results across all benchmarks for overall metrics
+            from llmemory_meter.metrics import MetricsCalculator
+            from llmemory_meter.workload import WorkloadResult, StepResult
+            from collections import defaultdict
+            from datetime import datetime
+
+            all_workload_results = defaultdict(list)  # tool_name -> list of WorkloadResults
+
             for benchmark_name, benchmark_results in all_results.items():
                 if "standard_results" in benchmark_results:
-                    summary_results.update(benchmark_results["standard_results"])
-            
+                    workload_results_dict = benchmark_results["standard_results"].get("workload_results", {})
+                    # workload_results_dict is: {"Workload Name": {"tool1": result_dict, "tool2": result_dict}}
+                    for workload_name, tools_dict in workload_results_dict.items():
+                        if isinstance(tools_dict, dict):
+                            for tool_name, result_dict in tools_dict.items():
+                                # Reconstruct WorkloadResult from serialized dict
+                                if isinstance(result_dict, dict) and 'tool_name' in result_dict:
+                                    # Reconstruct StepResult objects
+                                    step_results = []
+                                    for step_dict in result_dict.get('step_results', []):
+                                        step_result = StepResult(
+                                            step_index=step_dict['step_index'],
+                                            action=step_dict['action'],
+                                            response=step_dict['response'],
+                                            latency_ms=step_dict['latency_ms'],
+                                            tokens_used=step_dict.get('tokens_used'),
+                                            success=step_dict['success'],
+                                            error_message=step_dict.get('error_message'),
+                                            metadata=step_dict.get('metadata'),
+                                            accuracy=step_dict.get('accuracy'),
+                                            accuracy_by_provider=step_dict.get('accuracy_by_provider')
+                                        )
+                                        step_results.append(step_result)
+
+                                    # Reconstruct WorkloadResult object
+                                    workload_result = WorkloadResult(
+                                        tool_name=result_dict['tool_name'],
+                                        workload_name=result_dict['workload_name'],
+                                        step_results=step_results,
+                                        total_latency_ms=result_dict['total_latency_ms'],
+                                        total_tokens_used=result_dict['total_tokens_used'],
+                                        success_rate=result_dict['success_rate'],
+                                        timestamp=datetime.fromisoformat(result_dict['timestamp'])
+                                    )
+                                    all_workload_results[tool_name].append(workload_result)
+
+            # Calculate overall metrics across all benchmarks
+            summary_results = {}
+            if all_workload_results:
+                overall_metrics = {}
+                for tool_name, results_list in all_workload_results.items():
+                    if results_list:
+                        try:
+                            metrics = MetricsCalculator.calculate_metrics(results_list)
+                            overall_metrics[tool_name] = metrics
+                        except Exception as e:
+                            print(f"Warning: Error calculating overall metrics for {tool_name}: {e}")
+
+                if overall_metrics:
+                    summary_results["overall_metrics"] = {
+                        name: metrics.to_dict() for name, metrics in overall_metrics.items()
+                    }
+
+                    # Generate accuracy comparison across all benchmarks
+                    if config.metrics.accuracy:
+                        provider_comparison = comparator._generate_provider_comparison(all_workload_results)
+                        if provider_comparison:
+                            summary_results["accuracy_comparison"] = provider_comparison
+
             if summary_results:
                 comparator.print_summary(summary_results)
         

@@ -31,9 +31,32 @@ LLMemoryMeter measures comprehensive performance across multiple dimensions:
 
 ### 🎯 **Memory Quality Metrics**
 - **Accuracy**: How well retrieved information matches queries
-- **Consistency**: Reliability of responses across repeated queries  
+- **Consistency**: Reliability of responses across repeated queries
 - **Retention**: Information persistence across sessions
 - **Context Relevance**: Appropriateness of retrieved memories
+
+#### Accuracy Evaluation
+
+LLMemoryMeter supports multiple accuracy evaluation modes:
+
+- **Embedding similarity**: Cosine similarity (0.0-1.0) for semantic matching
+  - OpenAI embeddings (text-embedding-3-small)
+  - Local embeddings (all-mpnet-base-v2)
+- **Exact match**: Binary scoring (1.0/0.0) for precise answers
+  - `exact`: Case-sensitive exact match
+  - `exact_case_insensitive`: Case-insensitive match
+  - `contains`: Ground truth substring in response
+  - `regex`: Ground truth as regex pattern
+
+Set `match_type` on WorkloadStep to override default embedding evaluation:
+```python
+WorkloadStep(
+    action="retrieve",
+    content="What is the API key?",
+    ground_truth="sk-abc123xyz789",
+    match_type="exact"  # Require exact match
+)
+```
 
 ### 📊 **Benchmark Categories**
 - **Conversational AI**: Multi-session chat, persona consistency (MSC, PersonaChat)
