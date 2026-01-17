@@ -175,7 +175,7 @@ class ExactMatchEvaluator:
             Returns None if no ground truth (store steps)
         """
         # Handle missing ground truth (store steps)
-        if not ground_truth:
+        if not ground_truth or not ground_truth.strip():
             return None
 
         # Handle empty response
