@@ -203,6 +203,10 @@ class ExactMatchEvaluator:
                       match_types: Optional[List[str]] = None) -> List[Optional[float]]:
         """Evaluate accuracy for a batch of responses.
 
+        Note: Unlike embedding evaluation, exact matching doesn't benefit from batching
+        since there are no API calls to optimize. This method exists for API consistency
+        with AccuracyEvaluator.
+
         Args:
             responses: List of tool responses
             ground_truths: List of expected answers
@@ -246,7 +250,7 @@ class ExactMatchEvaluator:
             compiled = re.compile(pattern.strip())
 
             # Set timeout (1 second)
-            def timeout_handler(signum, frame):
+            def timeout_handler(_signum, _frame):
                 raise TimeoutError("Regex matching timeout")
 
             signal.signal(signal.SIGALRM, timeout_handler)
