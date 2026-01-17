@@ -66,6 +66,26 @@ With delays (actual):        ~6.3s avg  (4x higher)
 
 ---
 
+### Mem0: Token Accounting + Result Parsing Inconsistencies (Issue #5)
+**Status**: ⚠️ Known Limitation
+
+**Description**: Mem0 tool token usage and result handling can be inconsistent with actual responses.
+
+**Details**:
+- `execute_step` overwrites `_last_tokens` for store/retrieve, discarding the more complete estimates from `store_memory`/`retrieve_memory`
+- `retrieve_memory` ignores non-dict result items, which can lead to "No memories found" even when results exist
+- `chat` uses the raw `len(memories)` count even when no memory text is extracted, producing misleading response text
+- `_sync_search` accepts `metadata` but does not pass it into `Memory.search`, so metadata filtering is ignored
+
+**Impact**:
+- ⚠️ Underreported `tokens_used` in `StepResult`
+- ⚠️ Potential false negatives in retrieval results
+- ⚠️ Misleading chat response context count
+
+**Recommendation**: Align token accounting to a single source of truth and normalize result parsing across dict/list responses.
+
+---
+
 ## Data Format Issues
 
 ### JSON Serialization (Issue #3)
@@ -137,4 +157,3 @@ Current benchmarks are **inspired by** MSC/PersonaChat but are **not** the actua
 
 *Last Updated: December 11, 2024*
 *Version: 0.1.1*
-

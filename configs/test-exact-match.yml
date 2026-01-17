@@ -11,6 +11,13 @@ memory_tools:
       host: localhost
       port: 6333
       collection_name: test_exact_match
+- name: openai_memory
+  enabled: true
+  api_key_env: OPENAI_API_KEY
+  model: gpt-4o-mini
+  settings:
+    temperature: 0.3
+    max_tokens: 300
 
 # Benchmarks - Only run workloads with exact match checks
 benchmarks:
