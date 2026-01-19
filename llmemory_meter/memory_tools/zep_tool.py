@@ -24,12 +24,6 @@ from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.workload import WorkloadStep, StepResult
 import time
 
-# Try to import tiktoken for better token estimation
-try:
-    import tiktoken
-    _has_tiktoken = True
-except ImportError:
-    _has_tiktoken = False
 
 
 class ZepTool(MemoryTool):
@@ -554,19 +548,6 @@ class ZepTool(MemoryTool):
             # Polling failed, fall back to static wait
             await asyncio.sleep(8)
     
-    def _estimate_tokens(self, text: str) -> int:
-        """Estimate token count using tiktoken if available, fallback to heuristic."""
-        if not text:
-            return 0
-        if _has_tiktoken:
-            try:
-                encoding = tiktoken.get_encoding("cl100k_base")  # GPT-4 tokenizer
-                return len(encoding.encode(text))
-            except:
-                pass
-        # Fallback: rough estimate (1 token ≈ 4 characters)
-        return len(text) // 4
-
     async def execute_step(self, step: WorkloadStep, step_index: int) -> StepResult:
         """Execute a single workload step and measure performance."""
         start_time = time.time()

@@ -7,12 +7,6 @@ from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser.env import Config
 from llmemory_meter.pricing import split_tokens
 
-# Try to import tiktoken for token estimation
-try:
-    import tiktoken
-    _has_tiktoken = True
-except ImportError:
-    _has_tiktoken = False
 
 
 class MemGPTTool(MemoryTool):
@@ -37,19 +31,6 @@ class MemGPTTool(MemoryTool):
         # Initialize Letta client
         self._initialize_letta_client()
     
-    def _estimate_tokens(self, text: str) -> int:
-        """Estimate token count if API doesn't provide it."""
-        if not text:
-            return 0
-        if _has_tiktoken:
-            try:
-                encoding = tiktoken.get_encoding("cl100k_base")  # GPT-4 tokenizer
-                return len(encoding.encode(text))
-            except:
-                pass
-        # Fallback: rough estimate (1 token ≈ 4 characters)
-        return len(text) // 4
-
     def _set_last_usage(
         self,
         total_tokens: Optional[int],

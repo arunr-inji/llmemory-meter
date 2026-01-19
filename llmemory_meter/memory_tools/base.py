@@ -12,6 +12,12 @@ from datetime import datetime
 
 from llmemory_meter.workload import WorkloadStep, StepResult
 
+try:
+    import tiktoken
+    _has_tiktoken = True
+except ImportError:
+    _has_tiktoken = False
+
 
 class MemoryTool(ABC):
     """Abstract base class for memory tools."""
@@ -50,6 +56,18 @@ class MemoryTool(ABC):
         should override this to clear their user/agent state between workloads.
         """
         return "No memory clearing needed for this tool"
+
+    def _estimate_tokens(self, text: str) -> int:
+        """Estimate token count using tiktoken if available, fallback to heuristic."""
+        if not text:
+            return 0
+        if _has_tiktoken:
+            try:
+                encoding = tiktoken.get_encoding("cl100k_base")  # GPT-4 tokenizer
+                return len(encoding.encode(text))
+            except Exception:
+                pass
+        return len(text) // 4
     
     async def execute_step(self, step: WorkloadStep, step_index: int) -> StepResult:
         """Execute a single workload step and measure performance."""
