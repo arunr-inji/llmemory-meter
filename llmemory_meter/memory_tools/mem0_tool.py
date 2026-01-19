@@ -249,6 +249,7 @@ class Mem0Tool(MemoryTool):
     
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token count for Mem0 operations."""
+        # TODO: Deduplicate token estimation across tools into a shared utility.
         if not text:
             return 0
         if _has_tiktoken:

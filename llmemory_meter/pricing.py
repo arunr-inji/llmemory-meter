@@ -89,3 +89,26 @@ def calculate_cost_usd(
     input_cost = (input_tokens / 1_000_000) * pricing.get("input", 0)
     output_cost = (output_tokens / 1_000_000) * pricing.get("output", 0)
     return input_cost + output_cost
+
+
+def normalize_token_split(
+    total_tokens: Optional[int],
+    input_tokens: Optional[int],
+    output_tokens: Optional[int],
+    input_ratio: float = DEFAULT_INPUT_RATIO,
+) -> Optional[Tuple[int, int]]:
+    """Normalize token counts into (input, output) with fallbacks."""
+    if input_tokens is None and output_tokens is None:
+        if total_tokens is None:
+            return None
+        return split_tokens(total_tokens, input_ratio)
+
+    if total_tokens is not None:
+        if input_tokens is None and output_tokens is not None:
+            input_tokens = max(total_tokens - output_tokens, 0)
+        if output_tokens is None and input_tokens is not None:
+            output_tokens = max(total_tokens - input_tokens, 0)
+
+    input_tokens = input_tokens or 0
+    output_tokens = output_tokens or 0
+    return input_tokens, output_tokens

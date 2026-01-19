@@ -4,7 +4,13 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, Tuple
 import statistics
 from llmemory_meter.workload import WorkloadResult
-from llmemory_meter.pricing import merge_pricing, split_tokens, calculate_cost_usd, resolve_input_ratio
+from llmemory_meter.pricing import (
+    merge_pricing,
+    split_tokens,
+    calculate_cost_usd,
+    resolve_input_ratio,
+    normalize_token_split,
+)
 
 
 @dataclass
@@ -252,18 +258,11 @@ class MetricsCalculator:
             output_tokens = getattr(step, "output_tokens", None)
             total_tokens = getattr(step, "tokens_used", None)
 
-            if input_tokens is None and output_tokens is None:
-                if total_tokens is None:
-                    continue
-                ratio = resolve_input_ratio(pricing_config, getattr(step, "action", None))
-                input_tokens, output_tokens = split_tokens(total_tokens, ratio)
-            else:
-                if input_tokens is None and total_tokens is not None and output_tokens is not None:
-                    input_tokens = max(total_tokens - output_tokens, 0)
-                if output_tokens is None and total_tokens is not None and input_tokens is not None:
-                    output_tokens = max(total_tokens - input_tokens, 0)
-                input_tokens = input_tokens or 0
-                output_tokens = output_tokens or 0
+            ratio = resolve_input_ratio(pricing_config, getattr(step, "action", None))
+            normalized = normalize_token_split(total_tokens, input_tokens, output_tokens, ratio)
+            if normalized is None:
+                continue
+            input_tokens, output_tokens = normalized
 
             cost = calculate_cost_usd(input_tokens, output_tokens, model_pricing)
             total_cost += cost
