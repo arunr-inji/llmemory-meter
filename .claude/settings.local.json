@@ -5,7 +5,10 @@
       "mcp__perplexity__perplexity_research",
       "Bash(python:*)",
       "Bash(python3:*)",
-      "Bash(./run_overnight.sh:*)"
+      "Bash(./run_overnight.sh:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr edit:*)",
+      "Bash(git restore:*)"
     ]
   }
 }
