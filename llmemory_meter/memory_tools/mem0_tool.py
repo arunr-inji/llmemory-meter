@@ -33,6 +33,9 @@ class Mem0Tool(MemoryTool):
         
         self.api_key = Config.MEM0_API_KEY
         self._last_tokens = 0  # Track token usage
+        self._last_input_tokens = 0
+        self._last_output_tokens = 0
+        self.model = None
         
         # Create dedicated thread pool executor to avoid shared pool exhaustion
         self._executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="mem0_")
@@ -93,6 +96,8 @@ class Mem0Tool(MemoryTool):
                     }
                 }
             }
+
+            self.model = llm_provider_config["config"].get("model")
             
             # Add vector store configuration if provided
             vector_store_config = self.config.get("vector_store")
@@ -140,6 +145,8 @@ class Mem0Tool(MemoryTool):
             # Estimate tokens: input (content) + output (processing + response)
             input_tokens = self._estimate_tokens(content)
             output_tokens = self._estimate_tokens(response) + int(input_tokens * 0.5)  # Mem0 processing overhead
+            self._last_input_tokens = input_tokens
+            self._last_output_tokens = output_tokens
             self._last_tokens = input_tokens + output_tokens
             
             return response
@@ -186,6 +193,8 @@ class Mem0Tool(MemoryTool):
                     # Estimate tokens: input (query) + output (retrieved memories)
                     input_tokens = self._estimate_tokens(query)
                     output_tokens = self._estimate_tokens(response)
+                    self._last_input_tokens = input_tokens
+                    self._last_output_tokens = output_tokens
                     self._last_tokens = input_tokens + output_tokens
                     return response
 
@@ -193,6 +202,8 @@ class Mem0Tool(MemoryTool):
             response = f"No memories found in Mem0 for query: '{query}'"
             input_tokens = self._estimate_tokens(query)
             output_tokens = self._estimate_tokens(response)
+            self._last_input_tokens = input_tokens
+            self._last_output_tokens = output_tokens
             self._last_tokens = input_tokens + output_tokens
             return response
         except Exception as e:
@@ -228,6 +239,8 @@ class Mem0Tool(MemoryTool):
             input_text = message + " " + context
             input_tokens = self._estimate_tokens(input_text)
             output_tokens = self._estimate_tokens(response)
+            self._last_input_tokens = input_tokens
+            self._last_output_tokens = output_tokens
             self._last_tokens = input_tokens + output_tokens
             
             return response
@@ -254,16 +267,14 @@ class Mem0Tool(MemoryTool):
         
         start_time = time.time()
         self._last_tokens = 0  # Reset before each call
+        self._last_input_tokens = 0
+        self._last_output_tokens = 0
         
         try:
             if step.action == "store":
                 response = await self.store_memory(step.content, step.metadata)
-                # Estimate tokens for store operation
-                self._last_tokens = self._estimate_tokens(step.content)
             elif step.action == "retrieve":
                 response = await self.retrieve_memory(step.content, step.metadata)
-                # Estimate tokens for retrieve operation
-                self._last_tokens = self._estimate_tokens(step.content)
             elif step.action == "chat":
                 response = await self.chat(step.content, step.metadata)
                 # Tokens already tracked in chat method
@@ -278,6 +289,9 @@ class Mem0Tool(MemoryTool):
                 response=response,
                 latency_ms=latency_ms,
                 tokens_used=self._last_tokens,
+                input_tokens=self._last_input_tokens,
+                output_tokens=self._last_output_tokens,
+                model=self.model,
                 success=True
             )
             
@@ -289,6 +303,9 @@ class Mem0Tool(MemoryTool):
                 response="",
                 latency_ms=latency_ms,
                 tokens_used=0,
+                input_tokens=0,
+                output_tokens=0,
+                model=self.model,
                 success=False,
                 error_message=str(e)
             )

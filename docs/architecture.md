@@ -87,11 +87,13 @@ metrics:
   token_usage: true      # Count LLM tokens consumed
   accuracy: true         # Post-hoc semantic similarity evaluation
   memory_quality: false  # Future: qualitative assessment
+  cost_analysis: false   # Estimate $ cost per op and per 1K ops
 ```
 
 **What it tunes:**
 - Which performance metrics to collect and report
 - Whether to run accuracy evaluation (embedding API cost/time)
+- Whether to compute cost estimates from token usage
 - What appears in output reports
 
 **How it maps to execution:**
@@ -99,7 +101,28 @@ metrics:
 - `accuracy: true` triggers `_evaluate_accuracy()` at `comparator.py:95-96`
 - Latency/tokens always collected but only reported if enabled
 
-#### 4. `accuracy` (optional) - Semantic similarity configuration
+#### 4. `pricing` (optional) - Cost overrides
+
+```yaml
+pricing:
+  gpt-4o-mini:
+    input: 0.15   # USD per 1M input tokens
+    output: 0.60  # USD per 1M output tokens
+```
+
+**What it tunes:**
+- Overrides the default pricing table for cost analysis
+- Enables cost estimates for custom or newer models
+- Controls how $/1K ops is computed per action
+- Keep defaults up to date with provider pricing (override as needed)
+
+**How it maps to execution:**
+- Parsed at `config_parser/manager.py:215`
+- Merged with defaults in `pricing.py`
+- Costs computed from `StepResult` input/output token splits (estimated when only totals are available)
+- When only total tokens are available, a 60/40 input/output split is assumed
+
+#### 5. `accuracy` (optional) - Semantic similarity configuration
 
 ```yaml
 accuracy:
@@ -122,7 +145,7 @@ accuracy:
 - Calculates cosine similarity between responses and ground truth
 - Stores per-provider scores in `StepResult.accuracy_by_provider`
 
-#### 5. `output` - Results saving and display
+#### 6. `output` - Results saving and display
 
 ```yaml
 output:
@@ -141,7 +164,7 @@ output:
 - Checked at `cli.py:141-166`
 - Calls `comparator.save_results()` and `comparator.print_summary()`
 
-#### 6. `general` - Execution behavior
+#### 7. `general` - Execution behavior
 
 ```yaml
 general:

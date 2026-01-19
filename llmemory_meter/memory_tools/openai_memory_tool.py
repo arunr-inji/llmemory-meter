@@ -29,6 +29,32 @@ class OpenAIMemoryTool(MemoryTool):
         self.stored_memories = []
         self.conversation_history = []
         self._last_tokens = 0  # Track token usage from last API call
+        self._last_input_tokens = 0
+        self._last_output_tokens = 0
+
+    def _set_last_usage(self, usage) -> None:
+        """Store token usage details from an OpenAI response."""
+        if not usage:
+            self._last_tokens = 0
+            self._last_input_tokens = 0
+            self._last_output_tokens = 0
+            return
+
+        input_tokens = getattr(usage, "prompt_tokens", None)
+        if input_tokens is None:
+            input_tokens = getattr(usage, "input_tokens", None)
+
+        output_tokens = getattr(usage, "completion_tokens", None)
+        if output_tokens is None:
+            output_tokens = getattr(usage, "output_tokens", None)
+
+        total_tokens = getattr(usage, "total_tokens", None)
+        if total_tokens is None and input_tokens is not None and output_tokens is not None:
+            total_tokens = input_tokens + output_tokens
+
+        self._last_input_tokens = input_tokens or 0
+        self._last_output_tokens = output_tokens or 0
+        self._last_tokens = total_tokens or (self._last_input_tokens + self._last_output_tokens)
     
     def _initialize_openai_client(self):
         """Initialize the OpenAI client."""
@@ -68,7 +94,7 @@ class OpenAIMemoryTool(MemoryTool):
             memory_entry["summary"] = summary
             
             # Track token usage
-            self._last_tokens = response.usage.total_tokens if response.usage else 0
+            self._set_last_usage(response.usage)
             
             return f"Stored in OpenAI Memory: {content} (Summary: {summary})"
         except Exception as e:
@@ -99,7 +125,7 @@ class OpenAIMemoryTool(MemoryTool):
             answer = response.choices[0].message.content
             
             # Track token usage
-            self._last_tokens = response.usage.total_tokens if response.usage else 0
+            self._set_last_usage(response.usage)
             
             return f"Retrieved from OpenAI Memory for '{query}': {answer}"
         except Exception as e:
@@ -136,7 +162,7 @@ class OpenAIMemoryTool(MemoryTool):
             answer = response.choices[0].message.content
             
             # Track token usage
-            self._last_tokens = response.usage.total_tokens if response.usage else 0
+            self._set_last_usage(response.usage)
             
             # Update conversation history
             self.conversation_history.extend([
@@ -154,6 +180,8 @@ class OpenAIMemoryTool(MemoryTool):
         
         start_time = time.time()
         self._last_tokens = 0  # Reset before each call
+        self._last_input_tokens = 0
+        self._last_output_tokens = 0
         
         try:
             if step.action == "store":
@@ -173,6 +201,9 @@ class OpenAIMemoryTool(MemoryTool):
                 response=response,
                 latency_ms=latency_ms,
                 tokens_used=self._last_tokens,  # Use tracked tokens
+                input_tokens=self._last_input_tokens,
+                output_tokens=self._last_output_tokens,
+                model=self.model,
                 success=True
             )
             
@@ -184,6 +215,9 @@ class OpenAIMemoryTool(MemoryTool):
                 response="",
                 latency_ms=latency_ms,
                 tokens_used=0,
+                input_tokens=0,
+                output_tokens=0,
+                model=self.model,
                 success=False,
                 error_message=str(e)
             )

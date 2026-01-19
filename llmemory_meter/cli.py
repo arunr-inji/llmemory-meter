@@ -157,6 +157,9 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
                                             response=step_dict['response'],
                                             latency_ms=step_dict['latency_ms'],
                                             tokens_used=step_dict.get('tokens_used'),
+                                            input_tokens=step_dict.get('input_tokens'),
+                                            output_tokens=step_dict.get('output_tokens'),
+                                            model=step_dict.get('model'),
                                             success=step_dict['success'],
                                             error_message=step_dict.get('error_message'),
                                             metadata=step_dict.get('metadata'),
@@ -184,7 +187,7 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
                 for tool_name, results_list in all_workload_results.items():
                     if results_list:
                         try:
-                            metrics = MetricsCalculator.calculate_metrics(results_list)
+                            metrics = MetricsCalculator.calculate_metrics(results_list, config=comparator.config)
                             overall_metrics[tool_name] = metrics
                         except Exception as e:
                             print(f"Warning: Error calculating overall metrics for {tool_name}: {e}")

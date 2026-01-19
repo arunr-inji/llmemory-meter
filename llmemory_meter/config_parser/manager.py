@@ -39,6 +39,7 @@ class MetricsConfig:
     token_usage: bool = True
     accuracy: bool = False  # Future feature
     memory_quality: bool = False  # Future feature
+    cost_analysis: bool = False
 
 
 @dataclass
@@ -50,6 +51,7 @@ class LLMemoryMeterConfig:
     output: Dict[str, Any]
     general: Dict[str, Any]
     accuracy: Optional[Dict[str, Any]] = None  # Accuracy evaluation configuration
+    pricing: Optional[Dict[str, Any]] = None  # Optional pricing overrides
 
 
 class ConfigManager:
@@ -117,7 +119,8 @@ class ConfigManager:
                 success_rate=True,
                 token_usage=True,
                 accuracy=False,
-                memory_quality=False
+                memory_quality=False,
+                cost_analysis=False
             ),
             output={
                 "save_results": True,
@@ -210,6 +213,7 @@ class ConfigManager:
         
         # Get accuracy configuration
         accuracy_config = config_dict.get('accuracy', None)
+        pricing_config = config_dict.get('pricing', None)
         
         return LLMemoryMeterConfig(
             memory_tools=memory_tools,
@@ -217,7 +221,8 @@ class ConfigManager:
             metrics=metrics,
             output=config_dict.get('output', {}),
             general=config_dict.get('general', {}),
-            accuracy=accuracy_config
+            accuracy=accuracy_config,
+            pricing=pricing_config
         )
     
     @staticmethod

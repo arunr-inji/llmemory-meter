@@ -5,6 +5,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.config_parser.env import Config
+from llmemory_meter.pricing import split_tokens
 
 # Try to import tiktoken for token estimation
 try:
@@ -26,6 +27,9 @@ class MemGPTTool(MemoryTool):
         
         self._agent_id = None
         self._last_tokens = 0  # Track token usage from last API call
+        self._last_input_tokens = 0
+        self._last_output_tokens = 0
+        self.model = self.config.get("model", "gpt-4o-mini")
         
         # Create dedicated thread pool executor to avoid shared pool exhaustion
         self._executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="memgpt_")
@@ -45,6 +49,45 @@ class MemGPTTool(MemoryTool):
                 pass
         # Fallback: rough estimate (1 token ≈ 4 characters)
         return len(text) // 4
+
+    def _set_last_usage(
+        self,
+        total_tokens: Optional[int],
+        input_tokens: Optional[int] = None,
+        output_tokens: Optional[int] = None,
+    ) -> None:
+        """Store token usage details with a fallback split."""
+        if total_tokens is None:
+            total_tokens = 0
+
+        if input_tokens is None and output_tokens is None:
+            input_tokens, output_tokens = split_tokens(total_tokens)
+        else:
+            if input_tokens is None and output_tokens is not None:
+                input_tokens = max(total_tokens - output_tokens, 0)
+            if output_tokens is None and input_tokens is not None:
+                output_tokens = max(total_tokens - input_tokens, 0)
+
+        self._last_input_tokens = input_tokens or 0
+        self._last_output_tokens = output_tokens or 0
+        self._last_tokens = total_tokens or (self._last_input_tokens + self._last_output_tokens)
+
+    def _extract_usage_tokens(self, usage) -> Dict[str, Optional[int]]:
+        """Normalize usage token fields across providers."""
+        input_tokens = getattr(usage, "input_tokens", None)
+        if input_tokens is None:
+            input_tokens = getattr(usage, "prompt_tokens", None)
+
+        output_tokens = getattr(usage, "output_tokens", None)
+        if output_tokens is None:
+            output_tokens = getattr(usage, "completion_tokens", None)
+
+        total_tokens = getattr(usage, "total_tokens", None)
+        return {
+            "total_tokens": total_tokens,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+        }
     
     def _initialize_letta_client(self):
         """Initialize Letta client and set up agent."""
@@ -140,16 +183,21 @@ class MemGPTTool(MemoryTool):
             # Extract token usage
             if hasattr(response, 'usage'):
                 usage = response.usage
-                self._last_tokens = usage.total_tokens
+                tokens = self._extract_usage_tokens(usage)
+                self._set_last_usage(
+                    tokens["total_tokens"],
+                    input_tokens=tokens["input_tokens"],
+                    output_tokens=tokens["output_tokens"],
+                )
             else:
                 # Fallback: estimate tokens
-                self._last_tokens = self._estimate_tokens(content)
+                self._set_last_usage(self._estimate_tokens(content))
             
             return response
                 
         except Exception as e:
             # Fallback: estimate tokens from content
-            self._last_tokens = self._estimate_tokens(content)
+            self._set_last_usage(self._estimate_tokens(content))
             raise Exception(f"Letta API error in store: {e}")
     
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
@@ -188,16 +236,21 @@ class MemGPTTool(MemoryTool):
             # Extract token usage
             if hasattr(response, 'usage'):
                 usage = response.usage
-                self._last_tokens = usage.total_tokens
+                tokens = self._extract_usage_tokens(usage)
+                self._set_last_usage(
+                    tokens["total_tokens"],
+                    input_tokens=tokens["input_tokens"],
+                    output_tokens=tokens["output_tokens"],
+                )
             else:
                 # Fallback: estimate tokens
-                self._last_tokens = self._estimate_tokens(query)
+                self._set_last_usage(self._estimate_tokens(query))
             
             return response
                 
         except Exception as e:
             # Fallback: estimate tokens from query
-            self._last_tokens = self._estimate_tokens(query)
+            self._set_last_usage(self._estimate_tokens(query))
             raise Exception(f"Letta API error in retrieve: {e}")
     
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
@@ -242,16 +295,21 @@ class MemGPTTool(MemoryTool):
             # Extract token usage
             if hasattr(response, 'usage'):
                 usage = response.usage
-                self._last_tokens = usage.total_tokens
+                tokens = self._extract_usage_tokens(usage)
+                self._set_last_usage(
+                    tokens["total_tokens"],
+                    input_tokens=tokens["input_tokens"],
+                    output_tokens=tokens["output_tokens"],
+                )
             else:
                 # Fallback: estimate tokens
-                self._last_tokens = self._estimate_tokens(message)
+                self._set_last_usage(self._estimate_tokens(message))
             
             return response
                 
         except Exception as e:
             # Fallback: estimate tokens from message
-            self._last_tokens = self._estimate_tokens(message)
+            self._set_last_usage(self._estimate_tokens(message))
             raise Exception(f"Letta API error in chat: {e}")
     
     async def execute_step(self, step, step_index: int):
@@ -261,6 +319,8 @@ class MemGPTTool(MemoryTool):
         
         start_time = time.time()
         self._last_tokens = 0  # Reset before each call
+        self._last_input_tokens = 0
+        self._last_output_tokens = 0
         
         try:
             if step.action == "store":
@@ -280,7 +340,10 @@ class MemGPTTool(MemoryTool):
                 response=response,
                 latency_ms=latency_ms,
                 success=True,
-                tokens_used=self._last_tokens
+                tokens_used=self._last_tokens,
+                input_tokens=self._last_input_tokens,
+                output_tokens=self._last_output_tokens,
+                model=self.model
             )
         except Exception as e:
             latency_ms = (time.time() - start_time) * 1000
@@ -291,7 +354,10 @@ class MemGPTTool(MemoryTool):
                 latency_ms=latency_ms,
                 success=False,
                 error_message=str(e),
-                tokens_used=self._last_tokens
+                tokens_used=self._last_tokens,
+                input_tokens=self._last_input_tokens,
+                output_tokens=self._last_output_tokens,
+                model=self.model
             )
     
     async def clear_memory(self, session_id: Optional[str] = None) -> str:

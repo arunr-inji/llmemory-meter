@@ -40,11 +40,31 @@ class ClaudeMemoryTool(MemoryTool):
             # Memory storage (simple in-memory for now, Claude handles persistence)
             self._conversation_history = []
             self._last_tokens = 0  # Track token usage from last API call
+            self._last_input_tokens = 0
+            self._last_output_tokens = 0
             
         except ImportError:
             raise ImportError("anthropic package not installed. Install with: pip install anthropic")
         except Exception as e:
             raise Exception(f"Failed to initialize Claude: {e}")
+
+    def _set_last_usage(self, usage) -> None:
+        """Store token usage details from a Claude response."""
+        if not usage:
+            self._last_tokens = 0
+            self._last_input_tokens = 0
+            self._last_output_tokens = 0
+            return
+
+        input_tokens = getattr(usage, "input_tokens", None)
+        output_tokens = getattr(usage, "output_tokens", None)
+        total_tokens = None
+        if input_tokens is not None and output_tokens is not None:
+            total_tokens = input_tokens + output_tokens
+
+        self._last_input_tokens = input_tokens or 0
+        self._last_output_tokens = output_tokens or 0
+        self._last_tokens = total_tokens or (self._last_input_tokens + self._last_output_tokens)
     
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store memory by adding to conversation context."""
@@ -76,10 +96,7 @@ class ClaudeMemoryTool(MemoryTool):
             )
             
             # Track token usage (Claude API format)
-            if hasattr(response, 'usage'):
-                self._last_tokens = response.usage.input_tokens + response.usage.output_tokens
-            else:
-                self._last_tokens = 0
+            self._set_last_usage(getattr(response, "usage", None))
             
             return f"Stored in Claude Memory: {content}"
         except Exception as e:
@@ -103,10 +120,7 @@ class ClaudeMemoryTool(MemoryTool):
             )
             
             # Track token usage
-            if hasattr(response, 'usage'):
-                self._last_tokens = response.usage.input_tokens + response.usage.output_tokens
-            else:
-                self._last_tokens = 0
+            self._set_last_usage(getattr(response, "usage", None))
             
             if response.content and len(response.content) > 0:
                 response_text = response.content[0].text
@@ -134,10 +148,7 @@ class ClaudeMemoryTool(MemoryTool):
             )
             
             # Track token usage
-            if hasattr(response, 'usage'):
-                self._last_tokens = response.usage.input_tokens + response.usage.output_tokens
-            else:
-                self._last_tokens = 0
+            self._set_last_usage(getattr(response, "usage", None))
             
             if response.content and len(response.content) > 0:
                 response_text = response.content[0].text
@@ -165,6 +176,8 @@ class ClaudeMemoryTool(MemoryTool):
         
         start_time = time.time()
         self._last_tokens = 0  # Reset before each call
+        self._last_input_tokens = 0
+        self._last_output_tokens = 0
         
         try:
             if step.action == "store":
@@ -184,6 +197,9 @@ class ClaudeMemoryTool(MemoryTool):
                 response=response,
                 latency_ms=latency_ms,
                 tokens_used=self._last_tokens,  # Use tracked tokens
+                input_tokens=self._last_input_tokens,
+                output_tokens=self._last_output_tokens,
+                model=self.model,
                 success=True
             )
             
@@ -195,6 +211,9 @@ class ClaudeMemoryTool(MemoryTool):
                 response="",
                 latency_ms=latency_ms,
                 tokens_used=0,
+                input_tokens=0,
+                output_tokens=0,
+                model=self.model,
                 success=False,
                 error_message=str(e)
             )

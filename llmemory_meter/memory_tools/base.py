@@ -73,6 +73,9 @@ class MemoryTool(ABC):
                 response=response,
                 latency_ms=latency_ms,
                 tokens_used=tokens_used,
+                input_tokens=0,
+                output_tokens=0,
+                model=self.config.get("model"),
                 success=True
             )
             
@@ -84,6 +87,9 @@ class MemoryTool(ABC):
                 response="",
                 latency_ms=latency_ms,
                 tokens_used=0,
+                input_tokens=0,
+                output_tokens=0,
+                model=self.config.get("model"),
                 success=False,
                 error_message=str(e)
             )

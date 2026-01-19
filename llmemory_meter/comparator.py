@@ -71,6 +71,9 @@ class MemoryComparator:
         if getattr(config, "accuracy", None):
             config_dict["accuracy"] = config.accuracy
 
+        if getattr(config, "pricing", None):
+            config_dict["pricing"] = config.pricing
+
         return config_dict
     
     def _get_tool_instance(self, tool_name: str) -> MemoryTool:
@@ -136,6 +139,9 @@ class MemoryComparator:
                     response="",
                     latency_ms=STEP_TIMEOUT * 1000,
                     tokens_used=0,
+                    input_tokens=0,
+                    output_tokens=0,
+                    model=getattr(tool, "model", None),
                     success=False,
                     error_message=f"Operation timed out after {STEP_TIMEOUT/60:.0f} minutes"
                 )
@@ -447,7 +453,7 @@ class MemoryComparator:
         for tool_name, results in all_results.items():
             if results:  # Only calculate if we have results
                 try:
-                    metrics = MetricsCalculator.calculate_metrics(results)
+                    metrics = MetricsCalculator.calculate_metrics(results, config=self.config)
                     overall_metrics[tool_name] = metrics
                 except Exception as e:
                     print(f"Error calculating metrics for {tool_name}: {e}")
@@ -820,6 +826,21 @@ class MemoryComparator:
                         print(f"  • Accuracy (Exact Match): {' | '.join(match_strs)}")
                 
                 print(f"  • Avg Tokens/Query: {metrics['avg_tokens_per_query']}")
+                if "cost_priced_queries" in metrics:
+                    priced = metrics.get("cost_priced_queries")
+                    total = metrics.get("total_queries", 0)
+                    if priced is not None and priced != total:
+                        print(f"  • Cost Coverage: {priced}/{total} ops priced")
+                    if metrics.get("cost_unpriced_models"):
+                        missing_models = ", ".join(metrics["cost_unpriced_models"])
+                        print(f"  • Missing Pricing: {missing_models}")
+
+                if "total_cost_usd" in metrics:
+                    print(f"  • Total Cost: ${metrics['total_cost_usd']}")
+                    if "avg_cost_per_query_usd" in metrics:
+                        print(f"  • Avg Cost/Op: ${metrics['avg_cost_per_query_usd']}")
+                    if "cost_per_1k_ops_usd" in metrics:
+                        print(f"  • Cost/1K Ops: ${metrics['cost_per_1k_ops_usd']}")
 
                 if 'operation_metrics' in metrics and metrics['operation_metrics']:
                     print("  • Operation Breakdown:")
@@ -827,6 +848,9 @@ class MemoryComparator:
                         if action not in metrics['operation_metrics']:
                             continue
                         op = metrics['operation_metrics'][action]
+                        cost_summary = ""
+                        if "cost_per_1k_ops_usd" in op:
+                            cost_summary = f", cost/1K ${op['cost_per_1k_ops_usd']}"
                         print(
                             f"    - {action.capitalize()} ({op['total_queries']} ops): "
                             f"avg {op['avg_latency_ms']}ms "
@@ -834,6 +858,7 @@ class MemoryComparator:
                             f"tokens avg {op['avg_tokens_per_query']} "
                             f"(total {op['total_tokens']}), "
                             f"success {op['success_rate']}%"
+                            f"{cost_summary}"
                         )
                 
                 # Warn if not 100% reliable

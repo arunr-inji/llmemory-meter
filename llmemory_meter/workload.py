@@ -72,6 +72,9 @@ class StepResult:
     response: str
     latency_ms: float
     tokens_used: Optional[int] = None
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    model: Optional[str] = None
     success: bool = True
     error_message: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
@@ -124,6 +127,9 @@ class WorkloadResult:
                     "response": step.response,  # Full response (needed for accurate semantic comparison)
                     "latency_ms": step.latency_ms,
                     "tokens_used": step.tokens_used,
+                    "input_tokens": step.input_tokens,
+                    "output_tokens": step.output_tokens,
+                    "model": step.model,
                     "success": step.success,
                     "error_message": step.error_message,
                     "metadata": step.metadata,
