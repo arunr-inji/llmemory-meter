@@ -19,6 +19,7 @@ class MemoryTool(ABC):
     def __init__(self, name: str, config: Optional[Dict[str, Any]] = None):
         self.name = name
         self.config = config or {}
+        self.model = self.config.get("model")
         self._reset_session()
 
     def _reset_session(self) -> None:
@@ -75,7 +76,7 @@ class MemoryTool(ABC):
                 tokens_used=tokens_used,
                 input_tokens=0,
                 output_tokens=0,
-                model=self.config.get("model"),
+                model=self.model,
                 success=True
             )
             
@@ -89,7 +90,7 @@ class MemoryTool(ABC):
                 tokens_used=0,
                 input_tokens=0,
                 output_tokens=0,
-                model=self.config.get("model"),
+                model=self.model,
                 success=False,
                 error_message=str(e)
             )
