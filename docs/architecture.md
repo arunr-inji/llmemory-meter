@@ -126,6 +126,17 @@ pricing:
 - Costs computed from `StepResult` input/output token splits (estimated when only totals are available)
 - When only total tokens are available, `input_ratio` or `input_ratio_by_action` is used (defaults to 0.6 input / 0.4 output)
 
+**Cost analysis flow:**
+```
+StepResult (tokens_used, input_tokens, output_tokens, model)
+   ↓
+MetricsCalculator._calculate_costs()
+   ↓
+PerformanceMetrics (total_cost, cost/1K ops, per-action cost)
+   ↓
+JSON output + print_summary()
+```
+
 #### 5. `accuracy` (optional) - Semantic similarity configuration
 
 ```yaml
