@@ -13,11 +13,29 @@ A comprehensive Python tool for benchmarking and comparing AI memory systems lik
 ## Supported Memory Tools
 
 - **Mem0** - Multi-level memory system with semantic search and vector storage
-- **OpenAI Memory** - Built-in ChatGPT memory capabilities  
+- **OpenAI Memory** - Built-in ChatGPT memory capabilities
 - **MemGPT** - Virtual memory management system (requires local server)
 - **Claude Memory** - Anthropic's conversational memory via Claude API
 - **Zep** - Enterprise-grade memory platform (requires cloud setup)
+- **Baseline** - Simple no-memory baseline (keeps last k messages, no API keys required)
 - **Extensible Framework** - Easy to add new memory tools
+
+### Baseline Tool
+
+The **Baseline** tool provides a simple comparison point for evaluating whether AI memory products offer advantages over basic context management:
+
+- **No API Keys**: Runs without any external dependencies or API keys
+- **Zero Token Usage**: No LLM calls, so no API costs
+- **Instant Response**: Sub-millisecond latency (no network calls)
+- **Simple Strategy**: Stores only the last k messages (default k=5)
+- **100% Reliability**: No external service failures
+
+Use the baseline to answer: "Is this memory system better than just keeping the last 5 messages?"
+
+**Quick Test (no API keys needed):**
+```bash
+./run_overnight.sh configs/baseline-only.yml
+```
 
 ## Performance Metrics
 
@@ -69,16 +87,23 @@ WorkloadStep(
 LLMemoryMeter offers **tiered configurations** for different use cases:
 
 ### 🚀 **Starter Configuration (Default)**
-- **Tools**: Mem0 + OpenAI Memory (2 tools)
-- **Benchmarks**: 2 basic scenarios  
+- **Tools**: Mem0 + OpenAI Memory + Baseline (3 tools)
+- **Benchmarks**: 2 basic scenarios
 - **Runtime**: ~2-3 minutes
 - **Use Case**: Quick evaluation, getting started
 - **Command**: `llmemory run` (uses `configs/starter.yml`)
 
-### 🔬 **Comprehensive Configuration**  
-- **Tools**: Mem0 + OpenAI + MemGPT + Claude (4+ tools)
+### 🧪 **Baseline-Only Configuration**
+- **Tools**: Baseline only (no API keys required)
+- **Benchmarks**: 1 scenario (Conversational AI Memory)
+- **Runtime**: < 1 second
+- **Use Case**: Smoke testing, framework validation without API keys
+- **Command**: `./run_overnight.sh configs/baseline-only.yml`
+
+### 🔬 **Comprehensive Configuration**
+- **Tools**: Mem0 + OpenAI + MemGPT + Claude + Zep + Baseline (6 tools)
 - **Benchmarks**: All 6 scenarios enabled
-- **Runtime**: ~15-20 minutes  
+- **Runtime**: ~15-20 minutes
 - **Use Case**: Research, tech articles, vendor evaluation
 - **Command**: `llmemory run --config comprehensive`
 
@@ -133,6 +158,10 @@ cp .env.example .env
 
 6. **Run benchmarks**:
 ```bash
+# Quick test without API keys (baseline tool only)
+./run_overnight.sh configs/baseline-only.yml
+
+# Full benchmark (requires API keys)
 python llmemory run
 ```
 
@@ -279,6 +308,11 @@ llmemory run --config comprehensive
 # Run with custom config (auto-finds in configs/ folder)
 llmemory run --config my_experiment
 
+# Overnight runner with logging and Telegram notifications (recommended)
+./run_overnight.sh configs/baseline-only.yml   # No API keys needed
+./run_overnight.sh configs/starter.yml
+./run_overnight.sh configs/comprehensive.yml
+
 # Create new config file (saved to configs/ folder)
 llmemory create-config --output my_experiment.yml
 
@@ -373,7 +407,10 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Start Qdrant for Mem0 (requires Docker)
+# Quick test without API keys or Docker (baseline tool only)
+./run_overnight.sh configs/baseline-only.yml
+
+# For full testing: Start Qdrant for Mem0 (requires Docker)
 docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
 
 # When done, you can clean up:

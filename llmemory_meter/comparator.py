@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
 
-from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool, MemGPTTool, ClaudeMemoryTool, ZepTool
+from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool, MemGPTTool, ClaudeMemoryTool, ZepTool, NoMemoryTool
 from llmemory_meter.workload import Workload, WorkloadResult, StepResult, WorkloadStep
 from llmemory_meter.metrics import MetricsCalculator
 from llmemory_meter.config_parser import Config
@@ -84,8 +84,10 @@ class MemoryComparator:
                     self._tool_instances[tool_name] = ClaudeMemoryTool(self.config.get("claude_memory", {}))
                 elif tool_name == "zep":
                     self._tool_instances[tool_name] = ZepTool(self.config.get("zep", {}))
+                elif tool_name == "baseline":
+                    self._tool_instances[tool_name] = NoMemoryTool(self.config.get("baseline", {}))
                 else:
-                    raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory, memgpt, claude_memory, zep")
+                    raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory, memgpt, claude_memory, zep, baseline")
             except (ValueError, ImportError) as e:
                 # Re-raise configuration and import errors
                 raise e
@@ -354,7 +356,7 @@ class MemoryComparator:
         # This ensures workload isolation (prevents fact accumulation across workloads)
         if self._workload_count > 0:  # Only clear for 2nd+ workloads
             for tool_name in tools:
-                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep"]:
+                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep", "baseline"]:
                     try:
                         tool = self._get_tool_instance(tool_name)
                         await tool.clear_memory()
@@ -370,7 +372,7 @@ class MemoryComparator:
             # Run workload on all tools concurrently
             tasks = []
             for tool_name in tools:
-                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep"]:  # Supported tools
+                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep", "baseline"]:  # Supported tools
                     task = self.run_workload_on_tool(workload, tool_name)
                     tasks.append((tool_name, task))
             
@@ -393,7 +395,7 @@ class MemoryComparator:
         else:
             # Run workload on tools sequentially (thread-safe)
             for tool_name in tools:
-                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep"]:  # Supported tools
+                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep", "baseline"]:  # Supported tools
                     try:
                         result = await self.run_workload_on_tool(workload, tool_name)
                         results[tool_name] = result

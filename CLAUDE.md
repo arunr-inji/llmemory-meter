@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-LLMemoryMeter is a Python benchmarking framework for comparing AI memory systems (Mem0, OpenAI Memory, MemGPT, Claude Memory, Zep). It measures latency, accuracy, and memory quality using standardized workloads.
+LLMemoryMeter is a Python benchmarking framework for comparing AI memory systems (Mem0, OpenAI Memory, MemGPT, Claude Memory, Zep, Baseline). It measures latency, accuracy, and memory quality using standardized workloads.
 
 ## Common Commands
 
@@ -17,9 +17,14 @@ python llmemory run --config comprehensive
 
 # Single-tool testing
 python llmemory run --config mem0-only.yml
+python llmemory run --config baseline-only.yml
 
 # Debug with verbose output
 python llmemory run --verbose
+
+# Overnight runner with logging and notifications (preferred for testing)
+./run_overnight.sh configs/baseline-only.yml
+./run_overnight.sh configs/starter.yml
 
 # Prerequisites: Qdrant for Mem0
 docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
@@ -82,12 +87,41 @@ Results stored in `StepResult.accuracy_by_provider` with keys like `"exact_match
 4. Add elif branch in `comparator.py:_get_tool_instance()` (~line 31-42)
 5. Add tool config in YAML files
 
+### Baseline Tool
+
+**Purpose**: Simple baseline that stores only the last k messages in memory. Provides a comparison baseline for memory products vs basic context management.
+
+**Implementation**: `llmemory_meter/memory_tools/baseline_tool.py`
+
+**Key Features**:
+- No API keys required (`api_key_env: null`)
+- No LLM calls (zero token usage)
+- Stores last k messages in Python list (in-memory)
+- Zero latency (no network calls)
+- 100% success rate (no external dependencies)
+
+**Configuration**:
+```yaml
+- name: baseline
+  enabled: true
+  api_key_env: null
+  model: null
+  settings:
+    k: 5  # Keep last 5 messages
+```
+
+**Use Cases**:
+- Smoke testing without API keys
+- Baseline comparison ("is Mem0 better than just keeping recent messages?")
+- Validating framework changes without external dependencies
+
 ## Configuration
 
 Configs live in `configs/`. Key files:
-- `starter.yml` - Default (2 tools, 2 benchmarks)
+- `starter.yml` - Default (3 tools, 2 benchmarks)
 - `comprehensive.yml` - Full suite (all tools/benchmarks)
 - `*-only.yml` - Single-tool configs for focused testing
+- `baseline-only.yml` - Baseline tool only (no API keys required)
 - `test-exact-match.yml` - Workloads with exact match checks only
 
 Five YAML sections: `memory_tools`, `benchmarks`, `metrics`, `output`, `general`
@@ -129,6 +163,14 @@ See `KNOWN_ISSUES.md` for detailed issue tracking.
 No formal test suite. Validate changes with:
 
 ```bash
+# Quick validation (no API keys required)
+./run_overnight.sh configs/baseline-only.yml
+
+# Standard validation (requires API keys)
 python llmemory run --config quick-test.yml   # Fast smoke test
 python llmemory run --config comprehensive.yml  # Full validation
+
+# Overnight runner with logging (preferred)
+./run_overnight.sh configs/starter.yml
+./run_overnight.sh configs/comprehensive.yml
 ```

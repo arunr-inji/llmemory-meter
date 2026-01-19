@@ -11,12 +11,14 @@ from llmemory_meter.memory_tools.openai_memory_tool import OpenAIMemoryTool
 from llmemory_meter.memory_tools.memgpt_tool import MemGPTTool
 from llmemory_meter.memory_tools.claude_memory_tool import ClaudeMemoryTool
 from llmemory_meter.memory_tools.zep_tool import ZepTool
+from llmemory_meter.memory_tools.baseline_tool import NoMemoryTool
 
 __all__ = [
     "MemoryTool",
-    "Mem0Tool", 
+    "Mem0Tool",
     "OpenAIMemoryTool",
     "MemGPTTool",
     "ClaudeMemoryTool",
-    "ZepTool"
+    "ZepTool",
+    "NoMemoryTool"
 ]

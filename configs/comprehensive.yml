@@ -48,6 +48,12 @@ memory_tools:
   api_key_env: ZEP_API_KEY
   model: gpt-4o-mini
   settings: {}
+- name: baseline
+  enabled: true
+  api_key_env: null
+  model: null
+  settings:
+    k: 10
 
 benchmarks:
 - name: Conversational AI Memory
