@@ -58,7 +58,10 @@ class MemoryTool(ABC):
         return "No memory clearing needed for this tool"
 
     def _estimate_tokens(self, text: str) -> int:
-        """Estimate token count using tiktoken if available, fallback to heuristic."""
+        """Estimate token count using tiktoken if available, fallback to heuristic.
+
+        Tools should call this helper instead of re-implementing token estimation.
+        """
         if not text:
             return 0
         if _has_tiktoken:

@@ -832,7 +832,7 @@ class MemoryComparator:
                     if priced is not None and priced != total:
                         print(
                             f"  • Cost Coverage: {priced}/{total} ops priced "
-                            f"(missing pricing data for some models)"
+                            f"(add pricing overrides in config for missing models)"
                         )
                     if metrics.get("cost_unpriced_models"):
                         missing_models = ", ".join(metrics["cost_unpriced_models"])
