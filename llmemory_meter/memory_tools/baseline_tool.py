@@ -50,6 +50,11 @@ class NoMemoryTool(MemoryTool):
 
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Chat using last k messages as context."""
+        # Add user message to stored messages
+        self.stored_messages.append(message)
+        if len(self.stored_messages) > self.k:
+            self.stored_messages = self.stored_messages[-self.k:]
+
         # Build context from stored messages
         if self.stored_messages:
             context = " | ".join([msg[:50] for msg in self.stored_messages])
@@ -125,6 +130,14 @@ class FullContextTool(MemoryTool):
 
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Chat using ALL messages as context (no limit)."""
+        # Add user message to stored messages
+        self.stored_messages.append(message)
+
+        # Apply safety limit if configured
+        if self.max_messages and len(self.stored_messages) > self.max_messages:
+            self.stored_messages = self.stored_messages[-self.max_messages:]
+
+        # Build context from stored messages
         if self.stored_messages:
             # Preview last 5 messages to keep logs readable
             context_preview = " | ".join([msg[:50] for msg in self.stored_messages[-5:]])
