@@ -251,6 +251,8 @@ class MetricsCalculator:
                 continue
             model_pricing = pricing.get(model)
             if not model_pricing:
+                if model not in missing_models:
+                    print(f"⚠️ No pricing for model: {model}")
                 missing_models.add(model)
                 continue
 
