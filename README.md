@@ -18,23 +18,37 @@ A comprehensive Python tool for benchmarking and comparing AI memory systems lik
 - **Claude Memory** - Anthropic's conversational memory via Claude API
 - **Zep** - Enterprise-grade memory platform (requires cloud setup)
 - **Baseline** - Simple no-memory baseline (keeps last k messages, no API keys required)
+- **Full-Context** - Stores all messages without limit (simulates "stuff everything into prompt", no API keys required)
 - **Extensible Framework** - Easy to add new memory tools
 
-### Baseline Tool
+### Baseline Tools
 
-The **Baseline** tool provides a simple comparison point for evaluating whether AI memory products offer advantages over basic context management:
+LLMemoryMeter includes **two baseline implementations** to help you understand the value of memory systems compared to basic context management:
 
+**1. Baseline (NoMemoryTool)** - Last k messages strategy:
+- Stores only the last k messages (default k=5)
+- Simulates "keep recent context" approach
+- Answers: "Is memory better than just keeping recent messages?"
+
+**2. Full-Context (FullContextTool)** - All messages strategy:
+- Stores ALL messages without limit
+- Simulates "stuff everything into prompt" approach
+- Answers: "Is memory better than just keeping all context?"
+
+**Common Features**:
 - **No API Keys**: Runs without any external dependencies or API keys
 - **Zero Token Usage**: No LLM calls, so no API costs
 - **Instant Response**: Sub-millisecond latency (no network calls)
-- **Simple Strategy**: Stores only the last k messages (default k=5)
 - **100% Reliability**: No external service failures
 
-Use the baseline to answer: "Is this memory system better than just keeping the last 5 messages?"
-
-**Quick Test (no API keys needed):**
+**Quick Tests (no API keys needed):**
 ```bash
+# Test individual baselines
 ./run_overnight.sh configs/baseline-only.yml
+./run_overnight.sh configs/full-context-only.yml
+
+# Compare both strategies
+llmemory run --config baseline-comparison.yml
 ```
 
 ## Performance Metrics
@@ -87,7 +101,7 @@ WorkloadStep(
 LLMemoryMeter offers **tiered configurations** for different use cases:
 
 ### 🚀 **Starter Configuration (Default)**
-- **Tools**: Mem0 + OpenAI Memory + Baseline (3 tools)
+- **Tools**: Mem0 + OpenAI Memory + Baseline + Full-Context (4 tools)
 - **Benchmarks**: 2 basic scenarios
 - **Runtime**: ~2-3 minutes
 - **Use Case**: Quick evaluation, getting started
@@ -100,8 +114,16 @@ LLMemoryMeter offers **tiered configurations** for different use cases:
 - **Use Case**: Smoke testing, framework validation without API keys
 - **Command**: `./run_overnight.sh configs/baseline-only.yml`
 
+### 📊 **Baseline Comparison**
+- **Tools**: Baseline (last k) + Full-Context (all messages)
+- **Benchmarks**: Conversational AI Memory + Long Context Memory
+- **Runtime**: < 2 seconds
+- **Use Case**: Compare context management strategies
+- **Command**: `llmemory run --config baseline-comparison.yml`
+- **Files**: `configs/baseline-comparison.yml`, `configs/full-context-only.yml`
+
 ### 🔬 **Comprehensive Configuration**
-- **Tools**: Mem0 + OpenAI + MemGPT + Claude + Zep + Baseline (6 tools)
+- **Tools**: Mem0 + OpenAI + MemGPT + Claude + Zep + Baseline + Full-Context (7 tools)
 - **Benchmarks**: All 6 scenarios enabled
 - **Runtime**: ~15-20 minutes
 - **Use Case**: Research, tech articles, vendor evaluation

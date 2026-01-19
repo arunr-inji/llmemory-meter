@@ -54,6 +54,12 @@ memory_tools:
   model: null
   settings:
     k: 10
+- name: full_context
+  enabled: true
+  api_key_env: null
+  model: null
+  settings:
+    max_messages: 1000  # Safety limit for stress tests
 
 benchmarks:
 - name: Conversational AI Memory

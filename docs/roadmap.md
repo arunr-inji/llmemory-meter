@@ -16,13 +16,13 @@ Your two objectives:
 
 Currently you only compare "memory products." Add baselines so practitioners can map results to what they do today:
 
-| Baseline | Description | Implementation Complexity |
-|----------|-------------|--------------------------|
-| **No-Memory** | Only last-k messages, discard rest | Trivial - mock store/retrieve |
-| **Full-Context** | Stuff everything into prompt until limit | Simple - list storage, no retrieval |
-| **Summarize-then-Append** | Rolling LLM summary + recent turns | Medium - LLM call on store |
-| **RAG** | Vector store retrieval of prior turns | Medium - local embeddings + chromadb |
-| **Hybrid** | Summary + retrieval | Medium - combines above |
+| Baseline | Description | Implementation Complexity | Status |
+|----------|-------------|--------------------------|---------|
+| **No-Memory** | Only last-k messages, discard rest | Trivial - mock store/retrieve | ✅ Complete |
+| **Full-Context** | Stuff everything into prompt until limit | Simple - list storage, no retrieval | ✅ Complete |
+| **Summarize-then-Append** | Rolling LLM summary + recent turns | Medium - LLM call on store | 📋 Planned |
+| **RAG** | Vector store retrieval of prior turns | Medium - local embeddings + chromadb | 📋 Planned |
+| **Hybrid** | Summary + retrieval | Medium - combines above | 📋 Planned |
 
 **Why critical:** Without baselines, readers can't answer "is Mem0 better than just stuffing context?" This makes your framework useful to teams who won't buy a SaaS memory layer.
 

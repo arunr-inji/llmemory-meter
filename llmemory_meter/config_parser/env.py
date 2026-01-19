@@ -80,10 +80,14 @@ class Config:
         """Get list of tools that can be used based on available API keys."""
         available_keys = cls.validate_api_keys()
         available_tools = []
-        
+
         if available_keys.get("mem0"):
             available_tools.append("mem0")
         if available_keys.get("openai_memory"):
             available_tools.append("openai_memory")
-            
+
+        # Baseline tools don't require API keys and are always available
+        available_tools.append("baseline")
+        available_tools.append("full_context")
+
         return available_tools

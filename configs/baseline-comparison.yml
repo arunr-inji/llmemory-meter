@@ -1,0 +1,44 @@
+# Baseline Strategies Comparison
+# Compares "last k messages" vs "full context" strategies
+# No API keys required
+
+memory_tools:
+- name: baseline
+  enabled: true
+  api_key_env: null
+  model: null
+  settings:
+    k: 5  # Last 5 messages
+- name: full_context
+  enabled: true
+  api_key_env: null
+  model: null
+  settings:
+    max_messages: null  # Unlimited
+
+benchmarks:
+- name: Conversational AI Memory
+  enabled: true
+  settings: null
+- name: Long Context Memory
+  enabled: true
+  settings: null
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: false
+  memory_quality: false
+
+output:
+  save_results: true
+  output_file: baseline_comparison_results.json
+  print_summary: true
+  detailed_logs: false
+
+general:
+  timeout: 60
+  max_retries: 2
+  concurrent_tools: false
+  debug: false

@@ -1,8 +1,9 @@
 """
-No-Memory Baseline Tool
+Baseline Memory Tools
 
-Simple baseline that keeps only the last k messages in memory.
-Provides comparison baseline for memory products.
+Simple baseline implementations for comparing memory products:
+- NoMemoryTool: Keeps only last k messages
+- FullContextTool: Keeps all messages (no limit)
 """
 
 from typing import Dict, Any, Optional, List
@@ -71,3 +72,78 @@ class NoMemoryTool(MemoryTool):
         self.stored_messages = []
         self.conversation_history = []
         return "Baseline memory cleared"
+
+
+class FullContextTool(MemoryTool):
+    """Full-context baseline: stores ALL messages without limit.
+
+    Simulates "stuff everything into prompt" strategy.
+    WARNING: Memory grows unbounded unless max_messages is set.
+    """
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        super().__init__("full_context", config)
+
+        # Configuration
+        self.max_messages = self.config.get("max_messages", None)  # None = unlimited
+        self.include_metadata = self.config.get("include_metadata", False)
+
+        # In-memory storage
+        self.stored_messages: List[str] = []
+        self.conversation_history: List[Dict[str, str]] = []
+
+    async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+        """Store message, keeping all messages (no limit)."""
+        self.stored_messages.append(content)
+
+        # Apply safety limit if configured
+        if self.max_messages and len(self.stored_messages) > self.max_messages:
+            self.stored_messages = self.stored_messages[-self.max_messages:]
+
+        return f"Full-context stored (total {len(self.stored_messages)} messages): {content[:80]}..."
+
+    async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+        """Retrieve all stored messages."""
+        if not self.stored_messages:
+            return f"No messages stored for query: '{query}'"
+
+        # Format messages (show preview if many messages to avoid huge logs)
+        msg_count = len(self.stored_messages)
+
+        if msg_count <= 6:
+            formatted = "\n".join([
+                f"  {i+1}. {msg}"
+                for i, msg in enumerate(self.stored_messages)
+            ])
+        else:
+            # Show first 3 and last 3 to keep logs readable
+            first_three = "\n".join([f"  {i+1}. {msg}" for i, msg in enumerate(self.stored_messages[:3])])
+            last_three = "\n".join([f"  {msg_count-2+i}. {msg}" for i, msg in enumerate(self.stored_messages[-3:])])
+            formatted = f"{first_three}\n  ... ({msg_count-6} more messages) ...\n{last_three}"
+
+        return f"Full-context retrieved (all {msg_count} messages) for '{query}':\n{formatted}"
+
+    async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+        """Chat using ALL messages as context (no limit)."""
+        if self.stored_messages:
+            # Preview last 5 messages to keep logs readable
+            context_preview = " | ".join([msg[:50] for msg in self.stored_messages[-5:]])
+            response = f"Full-context response to '{message}' (using all {len(self.stored_messages)} messages as context): Based on full context [{context_preview}...], here is the response."
+        else:
+            response = f"Full-context response to '{message}': No prior context available."
+
+        # Update conversation history (store ALL)
+        self.conversation_history.append({"role": "user", "content": message})
+        self.conversation_history.append({"role": "assistant", "content": response})
+
+        # Apply safety limit if configured
+        if self.max_messages and len(self.conversation_history) > self.max_messages * 2:
+            self.conversation_history = self.conversation_history[-(self.max_messages * 2):]
+
+        return response
+
+    async def clear_memory(self, session_id: Optional[str] = None) -> str:
+        """Clear memory between workloads."""
+        self.stored_messages = []
+        self.conversation_history = []
+        return "Full-context memory cleared"

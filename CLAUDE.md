@@ -87,41 +87,77 @@ Results stored in `StepResult.accuracy_by_provider` with keys like `"exact_match
 4. Add elif branch in `comparator.py:_get_tool_instance()` (~line 31-42)
 5. Add tool config in YAML files
 
-### Baseline Tool
+### Baseline Tools
 
-**Purpose**: Simple baseline that stores only the last k messages in memory. Provides a comparison baseline for memory products vs basic context management.
+**Purpose**: Simple baseline implementations for comparing memory products against basic context management strategies.
 
-**Implementation**: `llmemory_meter/memory_tools/baseline_tool.py`
+**Implementations**: `llmemory_meter/memory_tools/baseline_tool.py`
+
+**Two Strategies**:
+
+1. **NoMemoryTool (baseline)**: Stores only last k messages
+   - Simulates "keep recent context" strategy
+   - Default: k=5
+   - Configuration: `settings.k`
+
+2. **FullContextTool (full_context)**: Stores ALL messages
+   - Simulates "stuff everything into prompt" strategy
+   - No message limit (optional safety limit: `max_messages`)
+   - Default: unlimited (max_messages=null)
+   - Configuration: `settings.max_messages`
 
 **Key Features**:
 - No API keys required (`api_key_env: null`)
 - No LLM calls (zero token usage)
-- Stores last k messages in Python list (in-memory)
+- Stores messages in Python lists (in-memory)
 - Zero latency (no network calls)
 - 100% success rate (no external dependencies)
 
-**Configuration**:
+**Configuration Examples**:
 ```yaml
+# Last k messages strategy
 - name: baseline
   enabled: true
   api_key_env: null
   model: null
   settings:
-    k: 5  # Keep last 5 messages
+    k: 5
+
+# Full context strategy
+- name: full_context
+  enabled: true
+  api_key_env: null
+  model: null
+  settings:
+    max_messages: null  # unlimited
 ```
 
 **Use Cases**:
 - Smoke testing without API keys
-- Baseline comparison ("is Mem0 better than just keeping recent messages?")
-- Validating framework changes without external dependencies
+- Baseline comparisons ("is Mem0 better than full context?")
+- Validating framework changes without dependencies
+- Understanding memory vs context trade-offs
+- Comparing context management strategies
+
+**Testing**:
+```bash
+# Test individual baselines
+./run_overnight.sh configs/baseline-only.yml
+./run_overnight.sh configs/full-context-only.yml
+
+# Compare both strategies
+python llmemory run --config baseline-comparison.yml
+```
 
 ## Configuration
 
 Configs live in `configs/`. Key files:
-- `starter.yml` - Default (3 tools, 2 benchmarks)
+- `starter.yml` - Default (4 tools, 2 benchmarks)
 - `comprehensive.yml` - Full suite (all tools/benchmarks)
 - `*-only.yml` - Single-tool configs for focused testing
 - `baseline-only.yml` - Baseline tool only (no API keys required)
+- `full-context-only.yml` - Full-context baseline only (no API keys required)
+- `baseline-comparison.yml` - Compare both baseline strategies (no API keys required)
 - `test-exact-match.yml` - Workloads with exact match checks only
 
 Five YAML sections: `memory_tools`, `benchmarks`, `metrics`, `output`, `general`
@@ -165,6 +201,10 @@ No formal test suite. Validate changes with:
 ```bash
 # Quick validation (no API keys required)
 ./run_overnight.sh configs/baseline-only.yml
+./run_overnight.sh configs/full-context-only.yml
+
+# Compare baseline strategies (no API keys required)
+./run_overnight.sh configs/baseline-comparison.yml
 
 # Standard validation (requires API keys)
 python llmemory run --config quick-test.yml   # Fast smoke test
