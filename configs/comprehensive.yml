@@ -53,7 +53,7 @@ memory_tools:
   api_key_env: null
   model: null
   settings:
-    k: 10
+    k: 5
 - name: full_context
   enabled: true
   api_key_env: null

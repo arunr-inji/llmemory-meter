@@ -1,5 +1,5 @@
-# Baseline Strategies Comparison
-# Compares "last k messages" vs "full context" strategies
+# Baseline Tool Validation Configuration
+# Tests mixed store/chat behavior to ensure context continuity
 # No API keys required
 
 memory_tools:
@@ -8,20 +8,19 @@ memory_tools:
   api_key_env: null
   model: null
   settings:
-    k: 5  # Last 5 messages
+    k: 5
 - name: full_context
   enabled: true
   api_key_env: null
   model: null
   settings:
-    max_messages: null  # Unlimited
+    max_messages: null
 
 benchmarks:
 - name: Conversational AI Memory
   enabled: true
-  settings: null
-- name: Long Context Memory
-  enabled: true
+  workloads:
+    - Multi-Session Memory Retention  # Tests mixed store/chat
   settings: null
 
 metrics:
@@ -31,19 +30,19 @@ metrics:
   accuracy: true
   memory_quality: false
 
+accuracy:
+  providers: [local]
+  local:
+    model: all-mpnet-base-v2
+
 output:
   save_results: true
-  output_file: baseline_comparison_results.json
+  output_file: baseline_validation_results.json
   print_summary: true
-  detailed_logs: false
+  detailed_logs: true
 
 general:
   timeout: 60
   max_retries: 2
   concurrent_tools: false
-  debug: false
-
-accuracy:
-  providers: [local]
-  local:
-    model: all-mpnet-base-v2
+  debug: true

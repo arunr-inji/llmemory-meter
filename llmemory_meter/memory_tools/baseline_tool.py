@@ -11,7 +11,15 @@ from llmemory_meter.memory_tools.base import MemoryTool
 
 
 class NoMemoryTool(MemoryTool):
-    """Baseline tool: stores only last k messages, discards the rest."""
+    """Baseline tool: stores only last k messages, discards the rest.
+
+    Maintains two storage mechanisms:
+    - stored_messages: All content from store_memory() and chat() calls, trimmed to last k
+    - conversation_history: Chat turns in user/assistant format, trimmed to last k turns
+
+    Both store/chat operations add to stored_messages, ensuring consistent context
+    across all operations.
+    """
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__("baseline", config)
@@ -32,7 +40,7 @@ class NoMemoryTool(MemoryTool):
         if len(self.stored_messages) > self.k:
             self.stored_messages = self.stored_messages[-self.k:]
 
-        return f"Baseline stored (last {self.k}): {content[:80]}..."
+        return f"Baseline stored (last {self.k}): {content[:50]}..."
 
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve last k stored messages."""
@@ -83,6 +91,13 @@ class FullContextTool(MemoryTool):
 
     Simulates "stuff everything into prompt" strategy.
     WARNING: Memory grows unbounded unless max_messages is set.
+
+    Maintains two storage mechanisms:
+    - stored_messages: All content from store_memory() and chat() calls, no limit
+    - conversation_history: Chat turns in user/assistant format, no limit
+
+    Both store/chat operations add to stored_messages, ensuring consistent context
+    across all operations. Optional max_messages provides safety limit.
     """
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
@@ -103,7 +118,7 @@ class FullContextTool(MemoryTool):
         if self.max_messages and len(self.stored_messages) > self.max_messages:
             self.stored_messages = self.stored_messages[-self.max_messages:]
 
-        return f"Full-context stored (total {len(self.stored_messages)} messages): {content[:80]}..."
+        return f"Full-context stored (total {len(self.stored_messages)} messages): {content[:50]}..."
 
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve all stored messages."""

@@ -33,6 +33,9 @@ class MemoryComparator:
 
     CONSISTENCY_MODERATE_AVG_DELTA = 0.15    # Average delta threshold for moderate
 
+    # Supported memory tools
+    SUPPORTED_TOOLS = ["mem0", "openai_memory", "memgpt", "claude_memory", "zep", "baseline", "full_context"]
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config_obj = None
         if config is not None and hasattr(config, "benchmarks"):
@@ -358,7 +361,7 @@ class MemoryComparator:
         # This ensures workload isolation (prevents fact accumulation across workloads)
         if self._workload_count > 0:  # Only clear for 2nd+ workloads
             for tool_name in tools:
-                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep", "baseline", "full_context"]:
+                if tool_name in self.SUPPORTED_TOOLS:
                     try:
                         tool = self._get_tool_instance(tool_name)
                         await tool.clear_memory()
@@ -374,7 +377,7 @@ class MemoryComparator:
             # Run workload on all tools concurrently
             tasks = []
             for tool_name in tools:
-                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep", "baseline", "full_context"]:  # Supported tools
+                if tool_name in self.SUPPORTED_TOOLS:
                     task = self.run_workload_on_tool(workload, tool_name)
                     tasks.append((tool_name, task))
             
@@ -397,7 +400,7 @@ class MemoryComparator:
         else:
             # Run workload on tools sequentially (thread-safe)
             for tool_name in tools:
-                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep", "baseline", "full_context"]:  # Supported tools
+                if tool_name in self.SUPPORTED_TOOLS:
                     try:
                         result = await self.run_workload_on_tool(workload, tool_name)
                         results[tool_name] = result
