@@ -18,7 +18,6 @@ class NoMemoryTool(MemoryTool):
 
         # Configuration
         self.k = self.config.get("k", 5)
-        self.include_metadata = self.config.get("include_metadata", False)
 
         # In-memory storage
         self.stored_messages: List[str] = []
@@ -91,7 +90,6 @@ class FullContextTool(MemoryTool):
 
         # Configuration
         self.max_messages = self.config.get("max_messages", None)  # None = unlimited
-        self.include_metadata = self.config.get("include_metadata", False)
 
         # In-memory storage
         self.stored_messages: List[str] = []
