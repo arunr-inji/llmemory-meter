@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, Tuple
 import statistics
 from llmemory_meter.workload import WorkloadResult
-from llmemory_meter.pricing import merge_pricing, split_tokens, calculate_cost_usd
+from llmemory_meter.pricing import merge_pricing, split_tokens, calculate_cost_usd, resolve_input_ratio
 
 
 @dataclass
@@ -166,7 +166,7 @@ class MetricsCalculator:
                 cost_priced_queries,
                 cost_unpriced_models,
                 cost_by_action,
-            ) = MetricsCalculator._calculate_costs(all_step_results, pricing)
+            ) = MetricsCalculator._calculate_costs(all_step_results, pricing, (config or {}).get("pricing"))
 
             if cost_priced_queries:
                 avg_cost_per_query = cost_total / cost_priced_queries
@@ -231,6 +231,7 @@ class MetricsCalculator:
     def _calculate_costs(
         step_results: List[Any],
         pricing: Dict[str, Dict[str, float]],
+        pricing_config: Optional[Dict[str, Any]] = None,
     ) -> Tuple[Optional[float], int, List[str], Dict[str, Dict[str, Any]]]:
         """Calculate cost totals and per-action cost metrics."""
         total_cost = 0.0
@@ -254,7 +255,8 @@ class MetricsCalculator:
             if input_tokens is None and output_tokens is None:
                 if total_tokens is None:
                     continue
-                input_tokens, output_tokens = split_tokens(total_tokens)
+                ratio = resolve_input_ratio(pricing_config, getattr(step, "action", None))
+                input_tokens, output_tokens = split_tokens(total_tokens, ratio)
             else:
                 if input_tokens is None and total_tokens is not None and output_tokens is not None:
                     input_tokens = max(total_tokens - output_tokens, 0)

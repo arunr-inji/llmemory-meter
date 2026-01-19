@@ -18,6 +18,39 @@ PRICING: Dict[str, Dict[str, float]] = {
 DEFAULT_INPUT_RATIO = 0.6
 
 
+def resolve_input_ratio(pricing_config: Optional[Dict[str, Any]], action: Optional[str]) -> float:
+    """Resolve input token ratio from pricing config for a given action."""
+    if not pricing_config:
+        return DEFAULT_INPUT_RATIO
+
+    by_action = pricing_config.get("input_ratio_by_action")
+    if isinstance(by_action, dict) and action:
+        ratio = by_action.get(action)
+        if ratio is None:
+            ratio = by_action.get("default")
+        if ratio is not None:
+            return _clamp_ratio(ratio)
+
+    ratio = pricing_config.get("input_ratio")
+    if ratio is not None:
+        return _clamp_ratio(ratio)
+
+    return DEFAULT_INPUT_RATIO
+
+
+def _clamp_ratio(value: Any) -> float:
+    """Clamp a ratio into the [0, 1] range."""
+    try:
+        ratio = float(value)
+    except (TypeError, ValueError):
+        return DEFAULT_INPUT_RATIO
+    if ratio < 0:
+        return 0.0
+    if ratio > 1:
+        return 1.0
+    return ratio
+
+
 def merge_pricing(overrides: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, float]]:
     """Merge pricing overrides into defaults."""
     pricing = {model: rates.copy() for model, rates in PRICING.items()}

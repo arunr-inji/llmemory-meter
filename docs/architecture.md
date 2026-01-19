@@ -108,6 +108,10 @@ pricing:
   gpt-4o-mini:
     input: 0.15   # USD per 1M input tokens
     output: 0.60  # USD per 1M output tokens
+  input_ratio: 0.4  # Optional global input/output split fallback
+  input_ratio_by_action:
+    default: 0.6
+    retrieve: 0.4
 ```
 
 **What it tunes:**
@@ -120,7 +124,7 @@ pricing:
 - Parsed at `config_parser/manager.py:215`
 - Merged with defaults in `pricing.py`
 - Costs computed from `StepResult` input/output token splits (estimated when only totals are available)
-- When only total tokens are available, a 60/40 input/output split is assumed
+- When only total tokens are available, `input_ratio` or `input_ratio_by_action` is used (defaults to 0.6 input / 0.4 output)
 
 #### 5. `accuracy` (optional) - Semantic similarity configuration
 
