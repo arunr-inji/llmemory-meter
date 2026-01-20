@@ -160,6 +160,7 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
                                             input_tokens=step_dict.get('input_tokens'),
                                             output_tokens=step_dict.get('output_tokens'),
                                             model=step_dict.get('model'),
+                                            tokens_estimated=step_dict.get('tokens_estimated'),
                                             success=step_dict['success'],
                                             error_message=step_dict.get('error_message'),
                                             metadata=step_dict.get('metadata'),

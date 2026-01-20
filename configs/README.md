@@ -28,6 +28,15 @@ This directory contains YAML configuration files for LLMemoryMeter benchmarks.
 - Requires GOOGLE_API_KEY and MEM0_API_KEY
 - Demonstrates multi-LLM provider setup
 
+### 💰 **cost-analysis-multipliers.yml**
+- Multi-tool (Mem0, Zep, OpenAI Memory, MemGPT) run
+- Cost analysis + accuracy enabled
+- Uses token overhead multipliers for Mem0/Zep estimates
+
+### 💰 **cost-analysis-no-multipliers.yml**
+- Same as above, but with overhead multipliers disabled
+- Useful for comparing estimated vs raw token cost
+
 ## Creating Your Own Config
 
 1. **Copy a template**:

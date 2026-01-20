@@ -1,0 +1,70 @@
+general:
+  concurrent: false
+  timeout: 45
+  max_retries: 2
+
+memory_tools:
+- name: openai_memory
+  enabled: true
+  api_key_env: OPENAI_API_KEY
+  model: gpt-4o-mini
+  settings:
+    temperature: 0.3
+    max_tokens: 300
+
+- name: mem0
+  enabled: true
+  api_key_env: MEM0_API_KEY
+  model: gpt-4o-mini
+  settings:
+    llm_provider: openai
+    llm_api_key_env: OPENAI_API_KEY
+    llm_config:
+      model: gpt-4o-mini
+      temperature: 0.2
+      max_tokens: 1500
+    vector_store:
+      provider: qdrant
+      host: localhost
+      port: 6333
+      collection_name: llmemory_benchmarks
+    token_overhead_ratio: 0.5
+
+- name: memgpt
+  enabled: true
+  api_key_env: MEMGPT_API_KEY
+  model: gpt-4o-mini
+  settings:
+    memgpt_config: {}
+
+- name: zep
+  enabled: true
+  api_key_env: ZEP_API_KEY
+  model: null
+  settings:
+    api_url: https://api.getzep.com
+    token_overhead_ratio: 0.3
+
+benchmarks:
+- name: Conversational AI Memory
+  enabled: true
+  settings: null
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: true
+  memory_quality: false
+  cost_analysis: true
+
+accuracy:
+  providers: [openai, local]
+  openai:
+    model: text-embedding-3-small
+  local:
+    model: all-mpnet-base-v2
+
+output:
+  output_file: cost_multipliers_results.json
+  verbose: true

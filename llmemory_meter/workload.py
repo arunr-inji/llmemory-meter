@@ -75,6 +75,7 @@ class StepResult:
     input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
     model: Optional[str] = None
+    tokens_estimated: Optional[bool] = None
     success: bool = True
     error_message: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
@@ -130,6 +131,7 @@ class WorkloadResult:
                     "input_tokens": step.input_tokens,
                     "output_tokens": step.output_tokens,
                     "model": step.model,
+                    "tokens_estimated": step.tokens_estimated,
                     "success": step.success,
                     "error_message": step.error_message,
                     "metadata": step.metadata,

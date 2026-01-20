@@ -31,6 +31,7 @@ class OpenAIMemoryTool(MemoryTool):
         self._last_tokens = 0  # Track token usage from last API call
         self._last_input_tokens = 0
         self._last_output_tokens = 0
+        self._tokens_estimated = False
 
     def _set_last_usage(self, usage) -> None:
         """Store token usage details from an OpenAI response."""
@@ -38,6 +39,7 @@ class OpenAIMemoryTool(MemoryTool):
             self._last_tokens = 0
             self._last_input_tokens = 0
             self._last_output_tokens = 0
+            self._tokens_estimated = False
             return
 
         input_tokens = getattr(usage, "prompt_tokens", None)
@@ -55,6 +57,7 @@ class OpenAIMemoryTool(MemoryTool):
         self._last_input_tokens = input_tokens or 0
         self._last_output_tokens = output_tokens or 0
         self._last_tokens = total_tokens or (self._last_input_tokens + self._last_output_tokens)
+        self._tokens_estimated = False
     
     def _initialize_openai_client(self):
         """Initialize the OpenAI client."""
@@ -182,6 +185,7 @@ class OpenAIMemoryTool(MemoryTool):
         self._last_tokens = 0  # Reset before each call
         self._last_input_tokens = 0
         self._last_output_tokens = 0
+        self._tokens_estimated = False
         
         try:
             if step.action == "store":
@@ -204,6 +208,7 @@ class OpenAIMemoryTool(MemoryTool):
                 input_tokens=self._last_input_tokens,
                 output_tokens=self._last_output_tokens,
                 model=self.model,
+                tokens_estimated=self._tokens_estimated,
                 success=True
             )
             
@@ -218,6 +223,7 @@ class OpenAIMemoryTool(MemoryTool):
                 input_tokens=0,
                 output_tokens=0,
                 model=self.model,
+                tokens_estimated=False,
                 success=False,
                 error_message=str(e)
             )

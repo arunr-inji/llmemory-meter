@@ -137,6 +137,11 @@ PerformanceMetrics (total_cost, cost/1K ops, per-action cost)
 JSON output + print_summary()
 ```
 
+**Token estimation notes:**
+- `tokens_estimated` is included per step in JSON output to indicate estimates.
+- Mem0/Zep can apply `token_overhead_ratio` in tool settings to model extra processing cost.
+- Use `token_overhead_ratio: 0.0` to disable overhead for comparison runs.
+
 #### 5. `accuracy` (optional) - Semantic similarity configuration
 
 ```yaml

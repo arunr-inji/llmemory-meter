@@ -280,6 +280,15 @@ output:          # Results handling
 general:         # Global settings
 ```
 
+```yaml
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: true
+  cost_analysis: true
+```
+
 ### 🔧 **Memory Tools Configuration**
 
 ```yaml
@@ -305,6 +314,10 @@ memory_tools:
       temperature: 0.3
       max_tokens: 300
 ```
+
+Notes:
+- `token_overhead_ratio` can be set in tool settings (Mem0/Zep) to tune estimated token overhead.
+- Step results include `tokens_estimated` when token counts are inferred.
 
 ### 📊 **Benchmarks Configuration**
 

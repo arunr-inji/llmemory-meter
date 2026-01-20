@@ -98,6 +98,7 @@ class MemoryTool(ABC):
                 input_tokens=0,
                 output_tokens=0,
                 model=self.model,
+                tokens_estimated=False,
                 success=True
             )
             
@@ -112,6 +113,7 @@ class MemoryTool(ABC):
                 input_tokens=0,
                 output_tokens=0,
                 model=self.model,
+                tokens_estimated=False,
                 success=False,
                 error_message=str(e)
             )

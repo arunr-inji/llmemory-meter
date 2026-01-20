@@ -42,6 +42,7 @@ class ClaudeMemoryTool(MemoryTool):
             self._last_tokens = 0  # Track token usage from last API call
             self._last_input_tokens = 0
             self._last_output_tokens = 0
+            self._tokens_estimated = False
             
         except ImportError:
             raise ImportError("anthropic package not installed. Install with: pip install anthropic")
@@ -54,6 +55,7 @@ class ClaudeMemoryTool(MemoryTool):
             self._last_tokens = 0
             self._last_input_tokens = 0
             self._last_output_tokens = 0
+            self._tokens_estimated = False
             return
 
         input_tokens = getattr(usage, "input_tokens", None)
@@ -65,6 +67,7 @@ class ClaudeMemoryTool(MemoryTool):
         self._last_input_tokens = input_tokens or 0
         self._last_output_tokens = output_tokens or 0
         self._last_tokens = total_tokens or (self._last_input_tokens + self._last_output_tokens)
+        self._tokens_estimated = False
     
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store memory by adding to conversation context."""
@@ -178,6 +181,7 @@ class ClaudeMemoryTool(MemoryTool):
         self._last_tokens = 0  # Reset before each call
         self._last_input_tokens = 0
         self._last_output_tokens = 0
+        self._tokens_estimated = False
         
         try:
             if step.action == "store":
@@ -200,6 +204,7 @@ class ClaudeMemoryTool(MemoryTool):
                 input_tokens=self._last_input_tokens,
                 output_tokens=self._last_output_tokens,
                 model=self.model,
+                tokens_estimated=self._tokens_estimated,
                 success=True
             )
             
@@ -214,6 +219,7 @@ class ClaudeMemoryTool(MemoryTool):
                 input_tokens=0,
                 output_tokens=0,
                 model=self.model,
+                tokens_estimated=False,
                 success=False,
                 error_message=str(e)
             )

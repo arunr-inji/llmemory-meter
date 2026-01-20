@@ -127,6 +127,13 @@ Cost estimation is skipped when a step has token usage but no model identifier.
 
 **Recommendation**: When a model isn't specified in config, attempt to infer it from API responses and attach it to `StepResult`.
 
+### Cost Analysis: Estimated Tokens for Mem0/Zep
+Mem0 and Zep currently estimate token usage (no API usage fields are exposed), and may apply overhead multipliers.
+
+**Impact**: Cost comparisons can be skewed relative to tools that return exact token usage.
+
+**Recommendation**: Use `token_overhead_ratio` to tune/disable overhead and treat estimates as approximate.
+
 ### Terminal Summary Aggregation
 The final terminal summary aggregates success rates across all benchmarks, which can hide individual benchmark failures.
 

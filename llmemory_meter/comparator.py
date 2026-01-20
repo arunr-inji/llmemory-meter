@@ -142,6 +142,7 @@ class MemoryComparator:
                     input_tokens=0,
                     output_tokens=0,
                     model=getattr(tool, "model", None),
+                    tokens_estimated=False,
                     success=False,
                     error_message=f"Operation timed out after {STEP_TIMEOUT/60:.0f} minutes"
                 )

@@ -23,6 +23,7 @@ class MemGPTTool(MemoryTool):
         self._last_tokens = 0  # Track token usage from last API call
         self._last_input_tokens = 0
         self._last_output_tokens = 0
+        self._tokens_estimated = False
         self.model = self.config.get("model", "gpt-4o-mini")
         
         # Create dedicated thread pool executor to avoid shared pool exhaustion
@@ -43,11 +44,13 @@ class MemGPTTool(MemoryTool):
 
         if input_tokens is None and output_tokens is None:
             input_tokens, output_tokens = split_tokens(total_tokens)
+            self._tokens_estimated = True
         else:
             if input_tokens is None and output_tokens is not None:
                 input_tokens = max(total_tokens - output_tokens, 0)
             if output_tokens is None and input_tokens is not None:
                 output_tokens = max(total_tokens - input_tokens, 0)
+            self._tokens_estimated = False
 
         self._last_input_tokens = input_tokens or 0
         self._last_output_tokens = output_tokens or 0
@@ -302,6 +305,7 @@ class MemGPTTool(MemoryTool):
         self._last_tokens = 0  # Reset before each call
         self._last_input_tokens = 0
         self._last_output_tokens = 0
+        self._tokens_estimated = False
         
         try:
             if step.action == "store":
@@ -324,7 +328,8 @@ class MemGPTTool(MemoryTool):
                 tokens_used=self._last_tokens,
                 input_tokens=self._last_input_tokens,
                 output_tokens=self._last_output_tokens,
-                model=self.model
+                model=self.model,
+                tokens_estimated=self._tokens_estimated
             )
         except Exception as e:
             latency_ms = (time.time() - start_time) * 1000
@@ -338,7 +343,8 @@ class MemGPTTool(MemoryTool):
                 tokens_used=self._last_tokens,
                 input_tokens=self._last_input_tokens,
                 output_tokens=self._last_output_tokens,
-                model=self.model
+                model=self.model,
+                tokens_estimated=self._tokens_estimated
             )
     
     async def clear_memory(self, session_id: Optional[str] = None) -> str:

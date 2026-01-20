@@ -29,7 +29,9 @@ class Mem0Tool(MemoryTool):
         self._last_tokens = 0  # Track token usage
         self._last_input_tokens = 0
         self._last_output_tokens = 0
+        self._tokens_estimated = True
         self.model = None
+        self.token_overhead_ratio = self.config.get("token_overhead_ratio", 0.5)
         
         # Create dedicated thread pool executor to avoid shared pool exhaustion
         self._executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="mem0_")
@@ -138,10 +140,11 @@ class Mem0Tool(MemoryTool):
             
             # Estimate tokens: input (content) + output (processing + response)
             input_tokens = self._estimate_tokens(content)
-            output_tokens = self._estimate_tokens(response) + int(input_tokens * 0.5)  # Mem0 processing overhead
+            output_tokens = self._estimate_tokens(response) + int(input_tokens * self.token_overhead_ratio)
             self._last_input_tokens = input_tokens
             self._last_output_tokens = output_tokens
             self._last_tokens = input_tokens + output_tokens
+            self._tokens_estimated = True
             
             return response
         except Exception as e:
@@ -190,6 +193,7 @@ class Mem0Tool(MemoryTool):
                     self._last_input_tokens = input_tokens
                     self._last_output_tokens = output_tokens
                     self._last_tokens = input_tokens + output_tokens
+                    self._tokens_estimated = True
                     return response
 
             # Estimate tokens even if no memories found
@@ -199,6 +203,7 @@ class Mem0Tool(MemoryTool):
             self._last_input_tokens = input_tokens
             self._last_output_tokens = output_tokens
             self._last_tokens = input_tokens + output_tokens
+            self._tokens_estimated = True
             return response
         except Exception as e:
             raise Exception(f"Mem0 retrieve failed: {e}")
@@ -236,6 +241,7 @@ class Mem0Tool(MemoryTool):
             self._last_input_tokens = input_tokens
             self._last_output_tokens = output_tokens
             self._last_tokens = input_tokens + output_tokens
+            self._tokens_estimated = True
             
             return response
         except Exception as e:
@@ -250,6 +256,7 @@ class Mem0Tool(MemoryTool):
         self._last_tokens = 0  # Reset before each call
         self._last_input_tokens = 0
         self._last_output_tokens = 0
+        self._tokens_estimated = True
         
         try:
             if step.action == "store":
@@ -273,6 +280,7 @@ class Mem0Tool(MemoryTool):
                 input_tokens=self._last_input_tokens,
                 output_tokens=self._last_output_tokens,
                 model=self.model,
+                tokens_estimated=self._tokens_estimated,
                 success=True
             )
             
@@ -287,6 +295,7 @@ class Mem0Tool(MemoryTool):
                 input_tokens=0,
                 output_tokens=0,
                 model=self.model,
+                tokens_estimated=True,
                 success=False,
                 error_message=str(e)
             )
