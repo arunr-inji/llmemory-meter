@@ -127,6 +127,27 @@ Cost estimation is skipped when a step has token usage but no model identifier.
 
 **Recommendation**: When a model isn't specified in config, attempt to infer it from API responses and attach it to `StepResult`.
 
+### Pricing Coverage Gaps
+The default pricing map does not include some commonly used models (e.g., GPT-4o variants, Claude 3 Opus/Sonnet, Gemini).
+
+**Impact**: Cost coverage may be incomplete out of the box for these models.
+
+**Recommendation**: Add pricing for commonly used models or override pricing in config.
+
+### Token Split Ratios Are Global Defaults
+Default input ratios (store=0.7, retrieve=0.4, chat=0.5) are global and may not match tool-specific patterns.
+
+**Impact**: Estimated cost splits can be off for some tools.
+
+**Recommendation**: Support per-tool ratio overrides in config (e.g., under each tool's settings).
+
+### Repeated Missing-Model Warnings
+Missing model warnings can repeat once per step for tools without a model identifier.
+
+**Impact**: Console output can become noisy for large workloads.
+
+**Recommendation**: Track warned models in a set and warn once per unique model.
+
 ### Terminal Summary Aggregation
 The final terminal summary aggregates success rates across all benchmarks, which can hide individual benchmark failures.
 
