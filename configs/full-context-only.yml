@@ -1,0 +1,35 @@
+# Full-Context Baseline Configuration
+# Tests "stuff everything into prompt" strategy
+# No API keys required
+
+memory_tools:
+- name: full_context
+  enabled: true
+  api_key_env: null
+  model: null
+  settings:
+    max_messages: null  # null = unlimited
+
+benchmarks:
+- name: Conversational AI Memory
+  enabled: true
+  settings: null
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: false
+  memory_quality: false
+
+output:
+  save_results: true
+  output_file: full_context_results.json
+  print_summary: true
+  detailed_logs: true
+
+general:
+  timeout: 60
+  max_retries: 2
+  concurrent_tools: false
+  debug: false

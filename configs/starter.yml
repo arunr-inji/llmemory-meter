@@ -22,6 +22,18 @@ memory_tools:
   settings:
     temperature: 0.3
     max_tokens: 300
+- name: baseline
+  enabled: true
+  api_key_env: null
+  model: null
+  settings:
+    k: 5
+- name: full_context
+  enabled: true
+  api_key_env: null
+  model: null
+  settings:
+    max_messages: null
 benchmarks:
 - name: Conversational AI Memory
   enabled: true

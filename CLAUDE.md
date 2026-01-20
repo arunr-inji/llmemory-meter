@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-LLMemoryMeter is a Python benchmarking framework for comparing AI memory systems (Mem0, OpenAI Memory, MemGPT, Claude Memory, Zep). It measures latency, accuracy, and memory quality using standardized workloads.
+LLMemoryMeter is a Python benchmarking framework for comparing AI memory systems (Mem0, OpenAI Memory, MemGPT, Claude Memory, Zep, Baseline). It measures latency, accuracy, and memory quality using standardized workloads.
 
 ## Common Commands
 
@@ -17,9 +17,14 @@ python llmemory run --config comprehensive
 
 # Single-tool testing
 python llmemory run --config mem0-only.yml
+python llmemory run --config baseline-only.yml
 
 # Debug with verbose output
 python llmemory run --verbose
+
+# Overnight runner with logging and notifications (preferred for testing)
+./run_overnight.sh configs/baseline-only.yml
+./run_overnight.sh configs/starter.yml
 
 # Prerequisites: Qdrant for Mem0
 docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
@@ -82,12 +87,77 @@ Results stored in `StepResult.accuracy_by_provider` with keys like `"exact_match
 4. Add elif branch in `comparator.py:_get_tool_instance()` (~line 31-42)
 5. Add tool config in YAML files
 
+### Baseline Tools
+
+**Purpose**: Simple baseline implementations for comparing memory products against basic context management strategies.
+
+**Implementations**: `llmemory_meter/memory_tools/baseline_tool.py`
+
+**Two Strategies**:
+
+1. **NoMemoryTool (baseline)**: Stores only last k messages
+   - Simulates "keep recent context" strategy
+   - Default: k=5
+   - Configuration: `settings.k`
+
+2. **FullContextTool (full_context)**: Stores ALL messages
+   - Simulates "stuff everything into prompt" strategy
+   - No message limit (optional safety limit: `max_messages`)
+   - Default: unlimited (max_messages=null)
+   - Configuration: `settings.max_messages`
+
+**Key Features**:
+- No API keys required (`api_key_env: null`)
+- No LLM calls (zero token usage)
+- Stores messages in Python lists (in-memory)
+- Zero latency (no network calls)
+- 100% success rate (no external dependencies)
+
+**Configuration Examples**:
+```yaml
+# Last k messages strategy
+- name: baseline
+  enabled: true
+  api_key_env: null
+  model: null
+  settings:
+    k: 5
+
+# Full context strategy
+- name: full_context
+  enabled: true
+  api_key_env: null
+  model: null
+  settings:
+    max_messages: null  # unlimited
+```
+
+**Use Cases**:
+- Smoke testing without API keys
+- Baseline comparisons ("is Mem0 better than full context?")
+- Validating framework changes without dependencies
+- Understanding memory vs context trade-offs
+- Comparing context management strategies
+
+**Testing**:
+```bash
+# Test individual baselines
+./run_overnight.sh configs/baseline-only.yml
+./run_overnight.sh configs/full-context-only.yml
+
+# Compare both strategies
+python llmemory run --config baseline-comparison.yml
+```
+
 ## Configuration
 
 Configs live in `configs/`. Key files:
-- `starter.yml` - Default (2 tools, 2 benchmarks)
+- `starter.yml` - Default (4 tools, 2 benchmarks)
 - `comprehensive.yml` - Full suite (all tools/benchmarks)
 - `*-only.yml` - Single-tool configs for focused testing
+- `baseline-only.yml` - Baseline tool only (no API keys required)
+- `full-context-only.yml` - Full-context baseline only (no API keys required)
+- `baseline-comparison.yml` - Compare both baseline strategies (no API keys required)
 - `test-exact-match.yml` - Workloads with exact match checks only
 
 Five YAML sections: `memory_tools`, `benchmarks`, `metrics`, `output`, `general`
@@ -129,6 +199,18 @@ See `KNOWN_ISSUES.md` for detailed issue tracking.
 No formal test suite. Validate changes with:
 
 ```bash
+# Quick validation (no API keys required)
+./run_overnight.sh configs/baseline-only.yml
+./run_overnight.sh configs/full-context-only.yml
+
+# Compare baseline strategies (no API keys required)
+./run_overnight.sh configs/baseline-comparison.yml
+
+# Standard validation (requires API keys)
 python llmemory run --config quick-test.yml   # Fast smoke test
 python llmemory run --config comprehensive.yml  # Full validation
+
+# Overnight runner with logging (preferred)
+./run_overnight.sh configs/starter.yml
+./run_overnight.sh configs/comprehensive.yml
 ```

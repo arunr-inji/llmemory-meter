@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
 
-from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool, MemGPTTool, ClaudeMemoryTool, ZepTool
+from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool, MemGPTTool, ClaudeMemoryTool, ZepTool, NoMemoryTool, FullContextTool
 from llmemory_meter.workload import Workload, WorkloadResult, StepResult, WorkloadStep
 from llmemory_meter.metrics import MetricsCalculator
 from llmemory_meter.config_parser import Config
@@ -32,6 +32,9 @@ class MemoryComparator:
     CONSISTENCY_GOOD_CORRELATION = 0.70      # Min correlation for good (Spearman's ρ)
 
     CONSISTENCY_MODERATE_AVG_DELTA = 0.15    # Average delta threshold for moderate
+
+    # Supported memory tools
+    SUPPORTED_TOOLS = ["mem0", "openai_memory", "memgpt", "claude_memory", "zep", "baseline", "full_context"]
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config_obj = None
@@ -84,8 +87,12 @@ class MemoryComparator:
                     self._tool_instances[tool_name] = ClaudeMemoryTool(self.config.get("claude_memory", {}))
                 elif tool_name == "zep":
                     self._tool_instances[tool_name] = ZepTool(self.config.get("zep", {}))
+                elif tool_name == "baseline":
+                    self._tool_instances[tool_name] = NoMemoryTool(self.config.get("baseline", {}))
+                elif tool_name == "full_context":
+                    self._tool_instances[tool_name] = FullContextTool(self.config.get("full_context", {}))
                 else:
-                    raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory, memgpt, claude_memory, zep")
+                    raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory, memgpt, claude_memory, zep, baseline, full_context")
             except (ValueError, ImportError) as e:
                 # Re-raise configuration and import errors
                 raise e
@@ -210,7 +217,7 @@ class MemoryComparator:
             cleaned = cleaned.split('|')[0].strip()
         
         return cleaned.strip()
-    
+
     def _evaluate_accuracy(self, step_results: List[StepResult], steps: List[WorkloadStep]) -> List[StepResult]:
         """Evaluate accuracy using embedding and/or exact match based on match_type.
 
@@ -354,7 +361,7 @@ class MemoryComparator:
         # This ensures workload isolation (prevents fact accumulation across workloads)
         if self._workload_count > 0:  # Only clear for 2nd+ workloads
             for tool_name in tools:
-                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep"]:
+                if tool_name in self.SUPPORTED_TOOLS:
                     try:
                         tool = self._get_tool_instance(tool_name)
                         await tool.clear_memory()
@@ -370,7 +377,7 @@ class MemoryComparator:
             # Run workload on all tools concurrently
             tasks = []
             for tool_name in tools:
-                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep"]:  # Supported tools
+                if tool_name in self.SUPPORTED_TOOLS:
                     task = self.run_workload_on_tool(workload, tool_name)
                     tasks.append((tool_name, task))
             
@@ -393,7 +400,7 @@ class MemoryComparator:
         else:
             # Run workload on tools sequentially (thread-safe)
             for tool_name in tools:
-                if tool_name in ["mem0", "openai_memory", "memgpt", "claude_memory", "zep"]:  # Supported tools
+                if tool_name in self.SUPPORTED_TOOLS:
                     try:
                         result = await self.run_workload_on_tool(workload, tool_name)
                         results[tool_name] = result
