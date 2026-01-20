@@ -248,6 +248,8 @@ class MetricsCalculator:
         for step in step_results:
             model = getattr(step, "model", None)
             if not model:
+                if step.tokens_used:
+                    print("⚠️ Cost estimation skipped: missing model for step with tokens.")
                 continue
             model_pricing = pricing.get(model)
             if not model_pricing:

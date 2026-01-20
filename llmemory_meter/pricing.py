@@ -16,6 +16,11 @@ PRICING: Dict[str, Dict[str, float]] = {
 }
 
 DEFAULT_INPUT_RATIO = 0.6
+DEFAULT_INPUT_RATIO_BY_ACTION = {
+    "store": 0.7,
+    "retrieve": 0.4,
+    "chat": 0.5,
+}
 
 
 def resolve_input_ratio(pricing_config: Optional[Dict[str, Any]], action: Optional[str]) -> float:
@@ -30,6 +35,8 @@ def resolve_input_ratio(pricing_config: Optional[Dict[str, Any]], action: Option
             ratio = by_action.get("default")
         if ratio is not None:
             return _clamp_ratio(ratio)
+    if action in DEFAULT_INPUT_RATIO_BY_ACTION:
+        return DEFAULT_INPUT_RATIO_BY_ACTION[action]
 
     ratio = pricing_config.get("input_ratio")
     if ratio is not None:

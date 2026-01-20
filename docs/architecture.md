@@ -124,7 +124,7 @@ pricing:
 - Parsed at `config_parser/manager.py:215`
 - Merged with defaults in `pricing.py`
 - Costs computed from `StepResult` input/output token splits (estimated when only totals are available)
-- When only total tokens are available, `input_ratio` or `input_ratio_by_action` is used (defaults to 0.6 input / 0.4 output)
+- When only total tokens are available, `input_ratio` or `input_ratio_by_action` is used. Defaults: store 0.7, retrieve 0.4, chat 0.5 (input ratios).
 
 **Cost analysis flow:**
 ```

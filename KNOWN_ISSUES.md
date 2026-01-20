@@ -120,6 +120,13 @@ With delays (actual):        ~6.3s avg  (4x higher)
 
 ## General Limitations
 
+### Cost Analysis: Missing Model Metadata
+Cost estimation is skipped when a step has token usage but no model identifier.
+
+**Impact**: Some tools may report tokens without a model, resulting in missing cost metrics.
+
+**Recommendation**: When a model isn't specified in config, attempt to infer it from API responses and attach it to `StepResult`.
+
 ### Terminal Summary Aggregation
 The final terminal summary aggregates success rates across all benchmarks, which can hide individual benchmark failures.
 
