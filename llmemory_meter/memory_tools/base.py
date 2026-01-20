@@ -12,6 +12,12 @@ from datetime import datetime
 
 from llmemory_meter.workload import WorkloadStep, StepResult
 
+try:
+    import tiktoken
+    _has_tiktoken = True
+except ImportError:
+    _has_tiktoken = False
+
 
 class MemoryTool(ABC):
     """Abstract base class for memory tools."""
@@ -19,6 +25,7 @@ class MemoryTool(ABC):
     def __init__(self, name: str, config: Optional[Dict[str, Any]] = None):
         self.name = name
         self.config = config or {}
+        self.model = self.config.get("model")
         self._reset_session()
 
     def _reset_session(self) -> None:
@@ -49,6 +56,21 @@ class MemoryTool(ABC):
         should override this to clear their user/agent state between workloads.
         """
         return "No memory clearing needed for this tool"
+
+    def _estimate_tokens(self, text: str) -> int:
+        """Estimate token count using tiktoken if available, fallback to heuristic.
+
+        Tools should call this helper instead of re-implementing token estimation.
+        """
+        if not text:
+            return 0
+        if _has_tiktoken:
+            try:
+                encoding = tiktoken.get_encoding("cl100k_base")  # GPT-4 tokenizer
+                return len(encoding.encode(text))
+            except Exception:
+                pass
+        return len(text) // 4
     
     async def execute_step(self, step: WorkloadStep, step_index: int) -> StepResult:
         """Execute a single workload step and measure performance."""
@@ -73,6 +95,9 @@ class MemoryTool(ABC):
                 response=response,
                 latency_ms=latency_ms,
                 tokens_used=tokens_used,
+                input_tokens=0,
+                output_tokens=0,
+                model=self.model,
                 success=True
             )
             
@@ -84,6 +109,9 @@ class MemoryTool(ABC):
                 response="",
                 latency_ms=latency_ms,
                 tokens_used=0,
+                input_tokens=0,
+                output_tokens=0,
+                model=self.model,
                 success=False,
                 error_message=str(e)
             )

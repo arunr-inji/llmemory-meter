@@ -23,6 +23,7 @@ metrics:
   token_usage: true
   accuracy: true
   memory_quality: false
+  cost_analysis: true
 
 accuracy:
   providers: [openai, local]

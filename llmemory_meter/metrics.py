@@ -1,9 +1,16 @@
 """Performance metrics calculation and analysis."""
 
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import statistics
 from llmemory_meter.workload import WorkloadResult
+from llmemory_meter.pricing import (
+    merge_pricing,
+    split_tokens,
+    calculate_cost_usd,
+    resolve_input_ratio,
+    normalize_token_split,
+)
 
 
 @dataclass
@@ -20,6 +27,11 @@ class PerformanceMetrics:
     avg_accuracy: float = None  # Average accuracy score (primary provider)
     accuracy_by_provider: Dict[str, float] = None  # Accuracy by embedding provider
     operation_metrics: Optional[Dict[str, Dict[str, Any]]] = None  # Per-action metrics
+    total_cost: Optional[float] = None
+    avg_cost_per_query: Optional[float] = None
+    cost_per_1k_ops: Optional[float] = None
+    cost_priced_queries: Optional[int] = None
+    cost_unpriced_models: Optional[List[str]] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert metrics to dictionary."""
@@ -44,6 +56,17 @@ class PerformanceMetrics:
 
         if self.operation_metrics:
             result["operation_metrics"] = self._format_operation_metrics(self.operation_metrics)
+
+        if self.cost_priced_queries is not None:
+            result["cost_priced_queries"] = self.cost_priced_queries
+            if self.cost_unpriced_models:
+                result["cost_unpriced_models"] = sorted(self.cost_unpriced_models)
+        if self.total_cost is not None:
+            result["total_cost_usd"] = round(self.total_cost, 6)
+            if self.avg_cost_per_query is not None:
+                result["avg_cost_per_query_usd"] = round(self.avg_cost_per_query, 6)
+            if self.cost_per_1k_ops is not None:
+                result["cost_per_1k_ops_usd"] = round(self.cost_per_1k_ops, 6)
         
         return result
 
@@ -61,6 +84,14 @@ class PerformanceMetrics:
                 "success_rate": round(metrics["success_rate"] * 100, 1),
                 "total_queries": metrics["total_queries"]
             }
+            if "total_cost" in metrics and metrics["total_cost"] is not None:
+                formatted[action]["total_cost_usd"] = round(metrics["total_cost"], 6)
+            if "avg_cost_per_query" in metrics and metrics["avg_cost_per_query"] is not None:
+                formatted[action]["avg_cost_per_query_usd"] = round(metrics["avg_cost_per_query"], 6)
+            if "cost_per_1k_ops" in metrics and metrics["cost_per_1k_ops"] is not None:
+                formatted[action]["cost_per_1k_ops_usd"] = round(metrics["cost_per_1k_ops"], 6)
+            if "cost_priced_queries" in metrics and metrics["cost_priced_queries"] is not None:
+                formatted[action]["cost_priced_queries"] = metrics["cost_priced_queries"]
         return formatted
 
 
@@ -68,7 +99,7 @@ class MetricsCalculator:
     """Calculate performance metrics from workload results."""
     
     @staticmethod
-    def calculate_metrics(results: List[WorkloadResult]) -> PerformanceMetrics:
+    def calculate_metrics(results: List[WorkloadResult], config: Optional[Dict[str, Any]] = None) -> PerformanceMetrics:
         """Calculate aggregated metrics from multiple workload results."""
         if not results:
             raise ValueError("No results provided")
@@ -81,9 +112,11 @@ class MetricsCalculator:
         all_accuracy_scores = []
         accuracy_by_provider = {}
         operation_buckets = {}
+        all_step_results = []
         
         for result in results:
             for step_result in result.step_results:
+                all_step_results.append(step_result)
                 all_latencies.append(step_result.latency_ms)
                 if step_result.tokens_used is not None:
                     all_tokens.append(step_result.tokens_used)
@@ -123,6 +156,31 @@ class MetricsCalculator:
         operation_metrics = {}
         for action, steps in operation_buckets.items():
             operation_metrics[action] = MetricsCalculator._calculate_operation_metrics(steps)
+
+        # Cost analysis
+        cost_total = None
+        avg_cost_per_query = None
+        cost_per_1k_ops = None
+        cost_priced_queries = None
+        cost_unpriced_models = None
+
+        metrics_config = (config or {}).get("metrics", {})
+        if metrics_config.get("cost_analysis", False):
+            pricing = merge_pricing((config or {}).get("pricing"))
+            (
+                cost_total,
+                cost_priced_queries,
+                cost_unpriced_models,
+                cost_by_action,
+            ) = MetricsCalculator._calculate_costs(all_step_results, pricing, (config or {}).get("pricing"))
+
+            if cost_priced_queries:
+                avg_cost_per_query = cost_total / cost_priced_queries
+                cost_per_1k_ops = avg_cost_per_query * 1000
+
+            for action, costs in cost_by_action.items():
+                operation_metrics.setdefault(action, {})
+                operation_metrics[action].update(costs)
         
         return PerformanceMetrics(
             tool_name=tool_name,
@@ -135,7 +193,12 @@ class MetricsCalculator:
             total_queries=total_queries,
             avg_accuracy=avg_accuracy,
             accuracy_by_provider=avg_accuracy_by_provider,
-            operation_metrics=operation_metrics
+            operation_metrics=operation_metrics,
+            total_cost=cost_total,
+            avg_cost_per_query=avg_cost_per_query,
+            cost_per_1k_ops=cost_per_1k_ops,
+            cost_priced_queries=cost_priced_queries,
+            cost_unpriced_models=sorted(cost_unpriced_models) if cost_unpriced_models else None
         )
 
     @staticmethod
@@ -169,6 +232,66 @@ class MetricsCalculator:
             "success_rate": successful / total if total > 0 else 0,
             "total_queries": total
         }
+
+    @staticmethod
+    def _calculate_costs(
+        step_results: List[Any],
+        pricing: Dict[str, Dict[str, float]],
+        pricing_config: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[Optional[float], int, List[str], Dict[str, Dict[str, Any]]]:
+        """Calculate cost totals and per-action cost metrics."""
+        total_cost = 0.0
+        priced_queries = 0
+        missing_models = set()
+        cost_by_action: Dict[str, Dict[str, Any]] = {}
+
+        for step in step_results:
+            model = getattr(step, "model", None)
+            if not model:
+                if step.tokens_used:
+                    print("⚠️ Cost estimation skipped: missing model for step with tokens.")
+                continue
+            model_pricing = pricing.get(model)
+            if not model_pricing:
+                if model not in missing_models:
+                    print(f"⚠️ No pricing for model: {model}")
+                missing_models.add(model)
+                continue
+
+            input_tokens = getattr(step, "input_tokens", None)
+            output_tokens = getattr(step, "output_tokens", None)
+            total_tokens = getattr(step, "tokens_used", None)
+
+            ratio = resolve_input_ratio(pricing_config, getattr(step, "action", None))
+            normalized = normalize_token_split(total_tokens, input_tokens, output_tokens, ratio)
+            if normalized is None:
+                continue
+            input_tokens, output_tokens = normalized
+
+            cost = calculate_cost_usd(input_tokens, output_tokens, model_pricing)
+            total_cost += cost
+            priced_queries += 1
+
+            action = getattr(step, "action", "unknown")
+            bucket = cost_by_action.setdefault(
+                action,
+                {"total_cost": 0.0, "cost_priced_queries": 0},
+            )
+            bucket["total_cost"] += cost
+            bucket["cost_priced_queries"] += 1
+
+        for action, bucket in cost_by_action.items():
+            if bucket["cost_priced_queries"]:
+                bucket["avg_cost_per_query"] = bucket["total_cost"] / bucket["cost_priced_queries"]
+                bucket["cost_per_1k_ops"] = bucket["avg_cost_per_query"] * 1000
+            else:
+                bucket["avg_cost_per_query"] = None
+                bucket["cost_per_1k_ops"] = None
+
+        if priced_queries == 0:
+            return None, 0, list(missing_models), {}
+
+        return total_cost, priced_queries, list(missing_models), cost_by_action
     
     @staticmethod
     def compare_metrics(metrics_list: List[PerformanceMetrics]) -> Dict[str, Any]:

@@ -24,12 +24,6 @@ from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.workload import WorkloadStep, StepResult
 import time
 
-# Try to import tiktoken for better token estimation
-try:
-    import tiktoken
-    _has_tiktoken = True
-except ImportError:
-    _has_tiktoken = False
 
 
 class ZepTool(MemoryTool):
@@ -60,9 +54,12 @@ class ZepTool(MemoryTool):
         # Session management
         # Zep's graph.add() stores at USER level, not thread level
         self.session_id = config.get("session_id", self._session_id)
+        self.model = self.config.get("model")
         
         # Token tracking
         self._last_tokens = 0
+        self._last_input_tokens = 0
+        self._last_output_tokens = 0
 
         # Create dedicated thread pool executor for Zep operations
         # This prevents thread pool exhaustion when multiple tools share event loop
@@ -185,6 +182,8 @@ class ZepTool(MemoryTool):
             # Estimate tokens: input (content) + output (processing + response)
             input_tokens = self._estimate_tokens(content)
             output_tokens = self._estimate_tokens(response) + int(input_tokens * 0.3)  # Zep processing overhead
+            self._last_input_tokens = input_tokens
+            self._last_output_tokens = output_tokens
             self._last_tokens = input_tokens + output_tokens
             
             return response
@@ -232,6 +231,8 @@ class ZepTool(MemoryTool):
                     response = f"Retrieved from Zep: {'; '.join(facts)}"
                     input_tokens = self._estimate_tokens(query)
                     output_tokens = self._estimate_tokens(response)
+                    self._last_input_tokens = input_tokens
+                    self._last_output_tokens = output_tokens
                     self._last_tokens = input_tokens + output_tokens
                     return response
             
@@ -258,6 +259,8 @@ class ZepTool(MemoryTool):
                         full_context = context_response.context if hasattr(context_response, 'context') else response
                         input_tokens = self._estimate_tokens(query)
                         output_tokens = self._estimate_tokens(full_context)
+                        self._last_input_tokens = input_tokens
+                        self._last_output_tokens = output_tokens
                         self._last_tokens = input_tokens + output_tokens
                         return response
                 
@@ -270,6 +273,8 @@ class ZepTool(MemoryTool):
                     # Count full original response for tokens
                     input_tokens = self._estimate_tokens(query)
                     output_tokens = self._estimate_tokens(context_text)
+                    self._last_input_tokens = input_tokens
+                    self._last_output_tokens = output_tokens
                     self._last_tokens = input_tokens + output_tokens
                     return response
 
@@ -277,6 +282,8 @@ class ZepTool(MemoryTool):
             response = "No relevant memories found in Zep."
             input_tokens = self._estimate_tokens(query)
             output_tokens = self._estimate_tokens(response)
+            self._last_input_tokens = input_tokens
+            self._last_output_tokens = output_tokens
             self._last_tokens = input_tokens + output_tokens
             return response
 
@@ -294,6 +301,8 @@ class ZepTool(MemoryTool):
                 response = "No relevant memories found in Zep (thread is new)."
                 input_tokens = self._estimate_tokens(query)
                 output_tokens = self._estimate_tokens(response)
+                self._last_input_tokens = input_tokens
+                self._last_output_tokens = output_tokens
                 self._last_tokens = input_tokens + output_tokens
                 return response
             
@@ -354,6 +363,8 @@ class ZepTool(MemoryTool):
             input_text = message + " " + context
             input_tokens = self._estimate_tokens(input_text)
             output_tokens = self._estimate_tokens(message) * 2  # Typical response is 1-2x input length
+            self._last_input_tokens = input_tokens
+            self._last_output_tokens = output_tokens
             self._last_tokens = input_tokens + output_tokens
 
             # Store assistant response
@@ -537,23 +548,12 @@ class ZepTool(MemoryTool):
             # Polling failed, fall back to static wait
             await asyncio.sleep(8)
     
-    def _estimate_tokens(self, text: str) -> int:
-        """Estimate token count using tiktoken if available, fallback to heuristic."""
-        if not text:
-            return 0
-        if _has_tiktoken:
-            try:
-                encoding = tiktoken.get_encoding("cl100k_base")  # GPT-4 tokenizer
-                return len(encoding.encode(text))
-            except:
-                pass
-        # Fallback: rough estimate (1 token ≈ 4 characters)
-        return len(text) // 4
-
     async def execute_step(self, step: WorkloadStep, step_index: int) -> StepResult:
         """Execute a single workload step and measure performance."""
         start_time = time.time()
         self._last_tokens = 0  # Reset before each call
+        self._last_input_tokens = 0
+        self._last_output_tokens = 0
         
         try:
             if step.action == "store":
@@ -573,6 +573,9 @@ class ZepTool(MemoryTool):
                 response=response,
                 latency_ms=latency_ms,
                 tokens_used=self._last_tokens,
+                input_tokens=self._last_input_tokens,
+                output_tokens=self._last_output_tokens,
+                model=self.model,
                 success=True
             )
             
@@ -584,6 +587,9 @@ class ZepTool(MemoryTool):
                 response="",
                 latency_ms=latency_ms,
                 tokens_used=0,
+                input_tokens=0,
+                output_tokens=0,
+                model=self.model,
                 success=False,
                 error_message=str(e)
             )
