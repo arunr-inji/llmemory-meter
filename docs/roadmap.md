@@ -35,6 +35,7 @@ Currently you only compare "memory products." Add baselines so practitioners can
 
 #### 1.2 Separate Write vs Read Cost Reporting
 **Priority: HIGH | Effort: Low | Impact: High**
+**Status: ✅ Complete**
 
 You already have raw data; just need to report it separately:
 
@@ -59,6 +60,7 @@ p95/p99 by operation type
 
 #### 1.3 Upgrade Scorer to Handle Exact Match + LLM-as-Judge
 **Priority: HIGH | Effort: Medium | Impact: High**
+**Status: ✅ Exact Match Complete | 📋 LLM-as-Judge Planned**
 
 Embedding similarity is vulnerable to:
 - Longer answers looking "more similar"
@@ -171,6 +173,7 @@ Add to output for reproducibility:
 
 #### 2.4 Cost Analysis ($/1K Operations)
 **Priority: MEDIUM | Effort: Low | Impact: High**
+**Status: ✅ Complete**
 
 Track tokens → translate to actual dollar costs:
 
@@ -290,10 +293,10 @@ Beyond Zep/Mem0/MemGPT, benchmark architectures practitioners actually ship:
 **Week 1-2: Core Infrastructure**
 | # | Feature | Effort | Why First |
 |---|---------|--------|-----------|
-| 1 | **Exact Match Scoring** | Low | Unblocks needle tasks, minimal code |
-| 2 | **Read/Write Cost Separation** | Low | Already have data, just report it |
-| 3 | **No-Memory Baseline** | Low | Trivial implementation, huge value |
-| 4 | **Full-Context Baseline** | Low | Simple list storage, no retrieval |
+| 1 | **Exact Match Scoring (✅ Complete)** | Low | Unblocks needle tasks, minimal code |
+| 2 | **Read/Write Cost Separation (✅ Complete)** | Low | Already have data, just report it |
+| 3 | **No-Memory Baseline (✅ Complete)** | Low | Trivial implementation, huge value |
+| 4 | **Full-Context Baseline (✅ Complete)** | Low | Simple list storage, no retrieval |
 
 **Week 2-3: Core Workloads**
 | # | Feature | Effort | Why Now |
@@ -305,7 +308,7 @@ Beyond Zep/Mem0/MemGPT, benchmark architectures practitioners actually ship:
 **Week 3-4: Polish**
 | # | Feature | Effort | Why Now |
 |---|---------|--------|---------|
-| 8 | **Cost Analysis ($/1K ops)** | Low | Practitioners care most about this |
+| 8 | **Cost Analysis ($/1K ops) (✅ Complete)** | Low | Practitioners care most about this |
 | 9 | **RAG Baseline** | Medium | Most common production pattern |
 | 10 | **Summarize-then-Append Baseline** | Medium | Cost-conscious deployments |
 
@@ -340,10 +343,10 @@ Beyond Zep/Mem0/MemGPT, benchmark architectures practitioners actually ship:
 
 By end of Week 4, you'll have:
 
-✅ **4 baseline tools**: No-Memory, Full-Context, RAG, Summarize-then-Append
+✅ **2 baseline tools**: No-Memory, Full-Context
 ✅ **Read/write cost separation**: store vs retrieve vs chat latency/tokens
 ✅ **Exact-match scoring**: For needle tasks alongside embedding similarity
-✅ **3 new workloads**: Conflict resolution, Abstention, Temporal reasoning
+📋 **3 new workloads**: Conflict resolution, Abstention, Temporal reasoning
 ✅ **Cost analysis**: $/1K operations per tool
 
 This gives you:
