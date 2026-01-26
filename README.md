@@ -418,6 +418,75 @@ llmemory run  # Now uses comprehensive by default
 llmemory run --verbose
 ```
 
+## Configuration Validation
+
+LLMemoryMeter validates your configuration before running benchmarks and provides helpful error messages:
+
+### Accuracy Validation
+
+When `metrics.accuracy: true`, the tool validates:
+
+- **Valid provider names**: Only `openai` and `local` are supported
+- **Model lists are non-empty**: Each provider must specify at least one model
+- **Correct format**: `providers` must be a dict of lists
+
+**Example error:**
+
+```bash
+❌ Configuration validation failed:
+
+Invalid accuracy provider: 'openai-custom'.
+Supported providers: 'openai', 'local'
+```
+
+**Recommended fix:**
+
+```yaml
+accuracy:
+  providers:
+    openai:
+      - text-embedding-3-small
+    local:
+      - all-mpnet-base-v2
+```
+
+### Tool-Specific Validation
+
+#### Mem0: Vector Store Requirement
+
+Mem0 requires `vector_store` configuration to avoid SQLite threading issues.
+
+**Example error:**
+
+```bash
+❌ Configuration validation failed:
+
+Mem0 requires 'vector_store' configuration to avoid threading issues.
+Add to your config file under mem0 settings:
+
+  settings:
+    vector_store:
+      provider: qdrant
+      host: localhost
+      port: 6333
+      collection_name: llmemory_benchmarks
+
+Note: Without this, Mem0 uses local SQLite which causes threading errors.
+```
+
+### API Key Validation
+
+The tool checks for required API keys and provides clear guidance:
+
+```bash
+❌ Configuration validation failed:
+
+Missing API key: OPENAI_API_KEY for tool 'openai_memory'
+Missing LLM API key: OPENAI_API_KEY for Mem0
+```
+
+**Fix:** Ensure all required keys are set in your `.env` file.
+
 ## Example Results
 
 ```text

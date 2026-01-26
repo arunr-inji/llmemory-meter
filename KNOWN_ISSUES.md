@@ -256,6 +256,10 @@ Current benchmarks are **inspired by** MSC/PersonaChat but are **not** the actua
 **Issue**: Concurrent access to default SQLite storage  
 **Fix**: Create new Memory() instances per operation
 
+**Enhanced in**: Current version  
+**Validation**: Config parser now requires `vector_store` configuration for Mem0 to prevent SQLite issues  
+**Recommendation**: Always configure Qdrant or another thread-safe vector store for Mem0
+
 ---
 
 ## Schema & Reporting Issues
