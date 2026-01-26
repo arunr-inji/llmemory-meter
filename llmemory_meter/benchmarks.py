@@ -149,6 +149,141 @@ class StandardBenchmarks:
             ]
         )
         workloads.append(persona_workload)
+
+        # Conflict resolution workloads (overwrite + reasoning, benchmark-aligned variants)
+        conflict_overwrite_workload = Workload(
+            name="Conflict Resolution: Overwrite + Reasoning",
+            description="Overwrites a fact, then requires direct recall and multi-hop reasoning over the updated graph.",
+            steps=[
+                WorkloadStep(action="store", content="Alice's manager is Bob."),
+                WorkloadStep(action="store", content="Update: Alice's manager is Carol."),
+                WorkloadStep(action="store", content="Carol reports to Dave."),
+                WorkloadStep(
+                    action="retrieve",
+                    content="Who is Alice's manager? Return only the name.",
+                    ground_truth="Carol",
+                    match_type="exact_case_insensitive",
+                    metadata={"scenario": "conflict_resolution", "metric": "overwrite_correctness"}
+                ),
+                WorkloadStep(
+                    action="chat",
+                    content="Who is Alice's manager's boss? Return only the name.",
+                    ground_truth="Dave",
+                    match_type="exact_case_insensitive",
+                    metadata={"scenario": "conflict_resolution", "metric": "multi_hop_reasoning"}
+                )
+            ]
+        )
+        workloads.append(conflict_overwrite_workload)
+
+        factconsolidation_sh_workload = Workload(
+            name="Conflict Resolution: FactConsolidation-SH",
+            description="Single-hop overwrite tasks where the latest contradictory fact should be returned.",
+            steps=[
+                WorkloadStep(action="store", content="The capital of Freedonia is Alton."),
+                WorkloadStep(action="store", content="Update: The capital of Freedonia is Belltown."),
+                WorkloadStep(
+                    action="retrieve",
+                    content="What is the capital of Freedonia? Return only the city.",
+                    ground_truth="Belltown",
+                    match_type="exact_case_insensitive",
+                    metadata={"scenario": "factconsolidation_sh", "metric": "overwrite_correctness"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="Name Freedonia's capital city. Return only the city.",
+                    ground_truth="Belltown",
+                    match_type="exact_case_insensitive",
+                    metadata={"scenario": "factconsolidation_sh", "metric": "overwrite_correctness"}
+                ),
+                WorkloadStep(action="store", content="The CEO of BlueRiver is Maya Chen."),
+                WorkloadStep(action="store", content="Update: The CEO of BlueRiver is Luis Ortega."),
+                WorkloadStep(
+                    action="retrieve",
+                    content="Who is the CEO of BlueRiver? Return only the name.",
+                    ground_truth="Luis Ortega",
+                    match_type="exact_case_insensitive",
+                    metadata={"scenario": "factconsolidation_sh", "metric": "overwrite_correctness"}
+                )
+            ]
+        )
+        workloads.append(factconsolidation_sh_workload)
+
+        factconsolidation_mh_workload = Workload(
+            name="Conflict Resolution: FactConsolidation-MH",
+            description="Multi-hop reasoning where one hop depends on the updated fact.",
+            steps=[
+                WorkloadStep(action="store", content="Nora's mentor is Ethan."),
+                WorkloadStep(action="store", content="Update: Nora's mentor is Priya."),
+                WorkloadStep(action="store", content="Priya works at Zephyr Labs."),
+                WorkloadStep(
+                    action="retrieve",
+                    content="Who is Nora's mentor? Return only the name.",
+                    ground_truth="Priya",
+                    match_type="exact_case_insensitive",
+                    metadata={"scenario": "factconsolidation_mh", "metric": "overwrite_correctness"}
+                ),
+                WorkloadStep(
+                    action="chat",
+                    content="Where does Nora's mentor work? Return only the organization.",
+                    ground_truth="Zephyr Labs",
+                    match_type="exact_case_insensitive",
+                    metadata={"scenario": "factconsolidation_mh", "metric": "multi_hop_reasoning"}
+                )
+            ]
+        )
+        workloads.append(factconsolidation_mh_workload)
+
+        knowledge_update_workload = Workload(
+            name="Conflict Resolution: Knowledge Update (Temporal)",
+            description="Sequential updates across time; requires current and previous value recall.",
+            steps=[
+                WorkloadStep(action="store", content="In 2021, I lived in Austin."),
+                WorkloadStep(action="store", content="In 2023, I moved to Denver."),
+                WorkloadStep(action="store", content="In 2024, I moved to Boston."),
+                WorkloadStep(
+                    action="retrieve",
+                    content="Where do I live now? Return only the city.",
+                    ground_truth="Boston",
+                    match_type="exact_case_insensitive",
+                    metadata={"scenario": "knowledge_update", "metric": "overwrite_correctness"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="Where did I live before Boston? Return only the city.",
+                    ground_truth="Denver",
+                    match_type="exact_case_insensitive",
+                    metadata={"scenario": "knowledge_update", "metric": "temporal_ordering"}
+                )
+            ]
+        )
+        workloads.append(knowledge_update_workload)
+
+        interference_workload = Workload(
+            name="Conflict Resolution: Interference Check",
+            description="Multiple conflicting pairs; verify latest fact per entity with no cross-entity contamination.",
+            steps=[
+                WorkloadStep(action="store", content="Project Orion lead is Alice."),
+                WorkloadStep(action="store", content="Update: Project Orion lead is Ben."),
+                WorkloadStep(action="store", content="Project Atlas lead is Carol."),
+                WorkloadStep(action="store", content="Update: Project Atlas lead is Dana."),
+                WorkloadStep(
+                    action="retrieve",
+                    content="Who leads Project Orion? Return only the name.",
+                    ground_truth="Ben",
+                    match_type="exact_case_insensitive",
+                    metadata={"scenario": "interference", "metric": "overwrite_correctness"}
+                ),
+                WorkloadStep(
+                    action="retrieve",
+                    content="Who leads Project Atlas? Return only the name.",
+                    ground_truth="Dana",
+                    match_type="exact_case_insensitive",
+                    metadata={"scenario": "interference", "metric": "overwrite_correctness"}
+                )
+            ]
+        )
+        workloads.append(interference_workload)
         
         return BenchmarkSuite(
             name="Conversational AI Memory",

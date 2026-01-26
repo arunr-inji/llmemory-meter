@@ -19,12 +19,25 @@ memory_tools:
       provider: qdrant
       host: localhost
       port: 6333
-      collection_name: llmemory_benchmarks
+      collection_name: conflict_resolution
+- name: openai_memory
+  enabled: true
+  api_key_env: OPENAI_API_KEY
+  model: gpt-4o-mini
+  settings:
+    temperature: 0.3
+    max_tokens: 200
 
 benchmarks:
 - name: Conversational AI Memory
   enabled: true
   settings: null
+  workloads:
+    - "Conflict Resolution: Overwrite + Reasoning"
+    - "Conflict Resolution: FactConsolidation-SH"
+    - "Conflict Resolution: FactConsolidation-MH"
+    - "Conflict Resolution: Knowledge Update (Temporal)"
+    - "Conflict Resolution: Interference Check"
 
 metrics:
   latency: true
@@ -32,14 +45,16 @@ metrics:
   token_usage: true
   accuracy: true
   memory_quality: true
+  cost_analysis: true
 
 accuracy:
-  providers: [openai, local]
-  openai:
-    model: text-embedding-3-small
+  providers: [local]
   local:
     model: all-mpnet-base-v2
 
 output:
-  output_file: mem0_results.json
-  verbose: true
+  save_results: true
+  output_file: conflict_resolution_results.json
+  print_summary: true
+  detailed_logs: false
+

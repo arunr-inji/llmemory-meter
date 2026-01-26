@@ -28,6 +28,11 @@ This directory contains YAML configuration files for LLMemoryMeter benchmarks.
 - Requires GOOGLE_API_KEY and MEM0_API_KEY
 - Demonstrates multi-LLM provider setup
 
+### ⚔️ **conflict-resolution.yml**
+- Focused run for conflict-resolution workloads (overwrite + multi-hop + temporal updates)
+- Runs only the conflict-resolution workloads in the Conversational AI suite
+- Useful for validating latest-fact behavior and scenario metrics
+
 ## Creating Your Own Config
 
 1. **Copy a template**:

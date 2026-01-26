@@ -230,6 +230,8 @@ general:
 - Define test scenarios (conversations, persona tests, stress tests)
 - Provide ground truth for accuracy evaluation
 - Organize steps into meaningful sequences
+- Include conflict-resolution workloads (overwrite + multi-hop) with exact-match
+  scoring to verify the latest-fact update behavior
 
 **Integration:**
 - `StandardBenchmarks.get_all_suites()` returns all 6 suites
