@@ -206,6 +206,27 @@ async def run_benchmarks(config_file: str = None, verbose: bool = False):
             if summary_results:
                 comparator.print_summary(summary_results)
         
+        # Print error summary if any steps failed
+        total_failures = 0
+        for benchmark_name, suite_results in all_results.items():
+            # Skip benchmarks that had errors during execution
+            if isinstance(suite_results, dict) and "error" in suite_results:
+                continue
+            
+            # Check standard_results structure
+            if isinstance(suite_results, dict) and "standard_results" in suite_results:
+                workload_results_dict = suite_results["standard_results"].get("workload_results", {})
+                for workload_name, tools_dict in workload_results_dict.items():
+                    if isinstance(tools_dict, dict):
+                        for tool_name, tool_results in tools_dict.items():
+                            if hasattr(tool_results, 'step_results'):
+                                failed_steps = [sr for sr in tool_results.step_results if not sr.success]
+                                total_failures += len(failed_steps)
+        
+        if total_failures > 0:
+            print(f"\n⚠️  {total_failures} step(s) failed during benchmark execution.")
+            print(f"   See detailed errors above and in the JSON results file.")
+        
         print(f"\n✅ Benchmarking complete!")
         return True
         

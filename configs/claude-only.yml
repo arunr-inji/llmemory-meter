@@ -27,11 +27,11 @@ metrics:
   memory_quality: false
 
 accuracy:
-  providers: [openai, local]
-  openai:
-    model: text-embedding-3-small
-  local:
-    model: all-mpnet-base-v2
+  providers:
+    openai:
+      - text-embedding-3-small
+    local:
+      - all-mpnet-base-v2
 
 output:
   output_file: claude_results.json

@@ -16,8 +16,8 @@ from llmemory_meter.config_parser import Config
 class Mem0Tool(MemoryTool):
     """Mem0 memory tool implementation with real API calls."""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__("mem0", config)
+    def __init__(self, config: Optional[Dict[str, Any]] = None, debug: bool = False):
+        super().__init__("mem0", config, debug)
         
         # Require API keys
         if not Config.MEM0_API_KEY:
@@ -134,7 +134,12 @@ class Mem0Tool(MemoryTool):
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(self._executor, self._sync_add, content, metadata)
             memory_id = result.get('id', 'unknown') if isinstance(result, dict) else str(result)
-            response = f"Stored in Mem0 (ID: {memory_id}): {content}"
+            
+            # Only add tool prefix in debug mode
+            if self.debug:
+                response = f"[mem0] Stored (ID: {memory_id}): {content}"
+            else:
+                response = content
             
             # Estimate tokens: input (content) + output (processing + response)
             input_tokens = self._estimate_tokens(content)
@@ -183,7 +188,12 @@ class Mem0Tool(MemoryTool):
                         memories.append(f"[Score: {score:.3f}] {memory_text}")
 
                 if memories:
-                    response = f"Retrieved from Mem0 for '{query}': " + " | ".join(memories)
+                    # Only add tool prefix in debug mode
+                    if self.debug:
+                        response = f"[mem0] Retrieved for '{query}': " + " | ".join(memories)
+                    else:
+                        response = " | ".join(memories)
+                    
                     # Estimate tokens: input (query) + output (retrieved memories)
                     input_tokens = self._estimate_tokens(query)
                     output_tokens = self._estimate_tokens(response)
@@ -227,7 +237,11 @@ class Mem0Tool(MemoryTool):
                         memory_texts.append(memory_text)
                 context = "Relevant memories: " + " | ".join(memory_texts)
             
-            response = f"Mem0 chat response to '{message}' (with {len(memories)} memories): Based on your memories, I can help you with this request. {context}"
+            # Only add tool prefix in debug mode
+            if self.debug:
+                response = f"[mem0] Chat response to '{message}' (with {len(memories)} memories): {context}"
+            else:
+                response = context if context else "No relevant memories found."
             
             # Estimate tokens: input (message + context) + output (response)
             input_text = message + " " + context

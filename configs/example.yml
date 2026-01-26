@@ -41,8 +41,6 @@ benchmarks:
     enabled: false
   - name: Technical Performance
     enabled: false
-  - name: Memory Stress Testing
-    enabled: false
   - name: Domain-Specific Applications
     enabled: false
 

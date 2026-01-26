@@ -29,8 +29,8 @@ import time
 class ZepTool(MemoryTool):
     """Zep memory tool implementation."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__("zep", config)
+    def __init__(self, config: Optional[Dict[str, Any]] = None, debug: bool = False):
+        super().__init__("zep", config, debug)
 
         if not ZEP_AVAILABLE:
             raise ImportError(
@@ -177,7 +177,10 @@ class ZepTool(MemoryTool):
             # Poll until processing completes (max 30 seconds timeout)
             await self._wait_for_processing(task_id, episode_uuid, timeout=30, message_uuid=message_uuid)
 
-            response = f"Successfully stored memory: {content}"
+            if self.debug:
+                response = f"[zep] Successfully stored memory: {content}"
+            else:
+                response = content
             
             # Estimate tokens: input (content) + output (processing + response)
             input_tokens = self._estimate_tokens(content)
@@ -228,7 +231,10 @@ class ZepTool(MemoryTool):
                         facts.append(edge.fact)
                 
                 if facts:
-                    response = f"Retrieved from Zep: {'; '.join(facts)}"
+                    if self.debug:
+                        response = f"[zep] Retrieved: {'; '.join(facts)}"
+                    else:
+                        response = '; '.join(facts)
                     input_tokens = self._estimate_tokens(query)
                     output_tokens = self._estimate_tokens(response)
                     self._last_input_tokens = input_tokens
@@ -254,7 +260,10 @@ class ZepTool(MemoryTool):
                 if hasattr(context_response, 'facts') and context_response.facts:
                     relevant_memories = [fact.fact for fact in context_response.facts[:5]]
                     if relevant_memories:
-                        response = f"Retrieved from Zep: {'; '.join(relevant_memories)}"
+                        if self.debug:
+                            response = f"[zep] Retrieved: {'; '.join(relevant_memories)}"
+                        else:
+                            response = '; '.join(relevant_memories)
                         # Count full context for tokens (users pay for entire context Zep returns)
                         full_context = context_response.context if hasattr(context_response, 'context') else response
                         input_tokens = self._estimate_tokens(query)
@@ -269,7 +278,10 @@ class ZepTool(MemoryTool):
                     context_text = context_response.context
                     # Extract just the facts for cleaner responses (better for accuracy)
                     facts = self._extract_facts_from_context(context_text)
-                    response = f"Retrieved from Zep: {facts}"
+                    if self.debug:
+                        response = f"[zep] Retrieved: {facts}"
+                    else:
+                        response = facts
                     # Count full original response for tokens
                     input_tokens = self._estimate_tokens(query)
                     output_tokens = self._estimate_tokens(context_text)
@@ -354,7 +366,10 @@ class ZepTool(MemoryTool):
 
             # For this implementation, we'll return context-aware response
             # In a real implementation, you'd integrate with an LLM here
-            response = f"Based on context: {context}. Responding to: {message}"
+            if self.debug:
+                response = f"[zep] Chat response: {context}. Responding to: {message}"
+            else:
+                response = context if context else "No relevant memories found."
 
             # Count tokens realistically:
             # - Input: message + context (what gets passed to LLM)

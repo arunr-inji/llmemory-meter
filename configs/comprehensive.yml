@@ -74,9 +74,6 @@ benchmarks:
 - name: Technical Performance
   enabled: true
   settings: null
-- name: Memory Stress Testing
-  enabled: true
-  settings: null
 - name: Domain-Specific Applications
   enabled: true
   settings: null
@@ -89,11 +86,11 @@ metrics:
   memory_quality: true
 
 accuracy:
-  providers: [openai, local]
-  openai:
-    model: text-embedding-3-small
-  local:
-    model: all-mpnet-base-v2
+  providers:
+    openai:
+      - text-embedding-3-small
+    local:
+      - all-mpnet-base-v2
 
 output:
   save_results: true

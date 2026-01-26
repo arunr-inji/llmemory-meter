@@ -1,0 +1,52 @@
+# Multi-Model Accuracy Validation Config
+# Tests multiple embedding models from different providers
+# Uses baseline tools (no API keys required)
+
+general:
+  timeout: 30
+  debug: false
+  concurrent_tools: false
+
+memory_tools:
+  - name: baseline
+    enabled: true
+    api_key_env: null
+    model: null
+    settings:
+      k: 5
+
+  - name: full_context
+    enabled: true
+    api_key_env: null
+    model: null
+    settings:
+      max_messages: null
+
+benchmarks:
+  - name: Conversational AI Memory
+    enabled: true
+    settings:
+      workloads:
+        - Multi-Session Memory Retention  # Single workload for faster testing
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: true  # Enable accuracy evaluation
+
+# Multi-provider, multi-model accuracy configuration
+accuracy:
+  providers:
+    openai:
+      - text-embedding-3-small
+      - text-embedding-3-large
+    local:
+      - all-mpnet-base-v2
+      - all-MiniLM-L6-v2
+
+output:
+  save_results: true
+  output_file: test_multi_model_results.json
+  print_summary: true
+

@@ -136,6 +136,47 @@ With delays (actual):        ~6.3s avg  (4x higher)
 
 ## General Limitations
 
+### Chat Operations Return Memory Context, Not LLM Responses
+
+**Status**: ⚠️ Architectural Limitation
+
+**Description**: The `chat` operation in most memory tools currently returns raw memory context instead of generating actual conversational responses via an LLM.
+
+**Details**:
+
+- **Current behavior**: `chat(message)` searches for relevant memories and returns them as formatted text
+- **Expected behavior**: Should call an LLM with the memory context to generate a natural conversational response
+- **Affected tools**: Mem0, baseline (other tools may vary)
+- **Difference from `retrieve`**: Minimal - chat excludes similarity scores but otherwise identical
+
+**Current Implementation**:
+```python
+# What chat() currently does:
+memories = search(message)
+return "Relevant memories: " + format(memories)
+
+# What chat() should do:
+memories = search(message)
+context = format(memories)
+return llm.chat(message, context=context)  # Generate response
+```
+
+**Impact**:
+
+- ✅ Accuracy evaluation works (comparing memory retrieval)
+- ⚠️ Not testing true conversational capabilities
+- ❌ Benchmark results don't reflect chat quality/coherence
+
+**Workarounds**:
+
+1. Interpret `chat` results as "memory retrieval for chat" rather than actual responses
+2. Use workloads with `retrieve` operations for memory-focused benchmarks
+3. Add custom chat implementations that call LLMs if needed
+
+**Future Enhancement**: Implement proper LLM-based chat for all tools with configurable models (tracked separately).
+
+---
+
 ### Cost Analysis: Missing Model Metadata
 
 Cost estimation is skipped when a step has token usage but no model identifier.
@@ -214,6 +255,10 @@ Current benchmarks are **inspired by** MSC/PersonaChat but are **not** the actua
 **Fixed in**: v0.1.0  
 **Issue**: Concurrent access to default SQLite storage  
 **Fix**: Create new Memory() instances per operation
+
+**Enhanced in**: Current version  
+**Validation**: Config parser now requires `vector_store` configuration for Mem0 to prevent SQLite issues  
+**Recommendation**: Always configure Qdrant or another thread-safe vector store for Mem0
 
 ---
 

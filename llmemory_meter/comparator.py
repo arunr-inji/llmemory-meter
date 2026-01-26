@@ -79,21 +79,22 @@ class MemoryComparator:
     def _get_tool_instance(self, tool_name: str) -> MemoryTool:
         """Get or create a tool instance."""
         if tool_name not in self._tool_instances:
+            debug_mode = self.config.get('general', {}).get('debug', False)
             try:
                 if tool_name == "mem0":
-                    self._tool_instances[tool_name] = Mem0Tool(self.config.get("mem0", {}))
+                    self._tool_instances[tool_name] = Mem0Tool(self.config.get("mem0", {}), debug=debug_mode)
                 elif tool_name == "openai_memory":
-                    self._tool_instances[tool_name] = OpenAIMemoryTool(self.config.get("openai_memory", {}))
+                    self._tool_instances[tool_name] = OpenAIMemoryTool(self.config.get("openai_memory", {}), debug=debug_mode)
                 elif tool_name == "memgpt":
-                    self._tool_instances[tool_name] = MemGPTTool(self.config.get("memgpt", {}))
+                    self._tool_instances[tool_name] = MemGPTTool(self.config.get("memgpt", {}), debug=debug_mode)
                 elif tool_name == "claude_memory":
-                    self._tool_instances[tool_name] = ClaudeMemoryTool(self.config.get("claude_memory", {}))
+                    self._tool_instances[tool_name] = ClaudeMemoryTool(self.config.get("claude_memory", {}), debug=debug_mode)
                 elif tool_name == "zep":
-                    self._tool_instances[tool_name] = ZepTool(self.config.get("zep", {}))
+                    self._tool_instances[tool_name] = ZepTool(self.config.get("zep", {}), debug=debug_mode)
                 elif tool_name == "baseline":
-                    self._tool_instances[tool_name] = NoMemoryTool(self.config.get("baseline", {}))
+                    self._tool_instances[tool_name] = NoMemoryTool(self.config.get("baseline", {}), debug=debug_mode)
                 elif tool_name == "full_context":
-                    self._tool_instances[tool_name] = FullContextTool(self.config.get("full_context", {}))
+                    self._tool_instances[tool_name] = FullContextTool(self.config.get("full_context", {}), debug=debug_mode)
                 else:
                     raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory, memgpt, claude_memory, zep, baseline, full_context")
             except (ValueError, ImportError) as e:
@@ -154,6 +155,16 @@ class MemoryComparator:
                 if step_result.metadata:
                     combined_metadata.update(step_result.metadata)
                 step_result.metadata = combined_metadata
+            
+            # Print errors immediately for visibility
+            if not step_result.success:
+                error_msg = step_result.error_message or "Unknown error"
+                if "timed out" in error_msg.lower():
+                    # Timeout already printed above, don't duplicate
+                    pass
+                else:
+                    print(f"❌ [{tool_name}] Step {i} ({step.action}) failed: {error_msg}")
+            
             step_results.append(step_result)
         
         total_end_time = datetime.now()
@@ -281,37 +292,49 @@ class MemoryComparator:
         # Evaluate embedding-based steps
         if embedding_indices:
             accuracy_config = self.config.get('accuracy', {})
-            providers = accuracy_config.get('providers', ['openai'])
-            if isinstance(providers, str):
-                providers = [providers]
+            providers_config = accuracy_config.get('providers', {})
+            
+            # Expect dict format: providers: { openai: [model1, model2], local: [model3] }
+            if isinstance(providers_config, dict):
+                providers_dict = providers_config
+            else:
+                # Invalid format - print error and use fallback
+                print(f"❌ Error: Invalid accuracy providers format. Expected dict, got {type(providers_config).__name__}")
+                print("   Expected format:")
+                print("   accuracy:")
+                print("     providers:")
+                print("       openai:")
+                print("         - text-embedding-3-small")
+                print("       local:")
+                print("         - all-mpnet-base-v2")
+                providers_dict = {'openai': ['text-embedding-3-small']}
 
-            for provider in providers:
-                try:
-                    # Get model config
-                    if provider == 'openai':
-                        model = accuracy_config.get('openai', {}).get('model', 'text-embedding-3-small')
-                    elif provider == 'local':
-                        model = accuracy_config.get('local', {}).get('model', 'all-mpnet-base-v2')
-                    else:
-                        model = None
+            # Iterate through all provider-model combinations
+            for provider, models in providers_dict.items():
+                if not isinstance(models, list):
+                    models = [models]
+                
+                for model in models:
+                    try:
+                        # Create evaluator
+                        evaluator = AccuracyEvaluator(provider=provider, model=model)
 
-                    # Create evaluator
-                    evaluator = AccuracyEvaluator(provider=provider, model=model)
+                        # Evaluate only embedding indices
+                        embedding_responses = [responses[i] for i in embedding_indices]
+                        embedding_ground_truths = [ground_truths[i] for i in embedding_indices]
 
-                    # Evaluate only embedding indices
-                    embedding_responses = [responses[i] for i in embedding_indices]
-                    embedding_ground_truths = [ground_truths[i] for i in embedding_indices]
+                        accuracy_scores = evaluator.evaluate_batch(embedding_responses, embedding_ground_truths)
 
-                    accuracy_scores = evaluator.evaluate_batch(embedding_responses, embedding_ground_truths)
+                        # Store scores with provider_model key
+                        provider_model_key = f"{provider}_{model}"
+                        for idx, score in zip(embedding_indices, accuracy_scores):
+                            step_results[idx].accuracy_by_provider[provider_model_key] = score
 
-                    # Store scores
-                    for idx, score in zip(embedding_indices, accuracy_scores):
-                        step_results[idx].accuracy_by_provider[provider] = score
-
-                except Exception as e:
-                    print(f"Warning: Failed to evaluate accuracy with {provider}: {e}")
-                    for idx in embedding_indices:
-                        step_results[idx].accuracy_by_provider[provider] = None
+                    except Exception as e:
+                        print(f"Warning: Failed to evaluate accuracy with {provider}/{model}: {e}")
+                        provider_model_key = f"{provider}_{model}"
+                        for idx in embedding_indices:
+                            step_results[idx].accuracy_by_provider[provider_model_key] = None
 
         # Evaluate exact-match steps
         if exact_match_indices:
@@ -339,19 +362,35 @@ class MemoryComparator:
                             step_results[idx].accuracy_by_provider[f"exact_match_{match_type}"] = None
 
         # Set primary accuracy field
-        # Priority: first embedding provider > first exact match type
+        # Priority: first provider's first model > first exact match type
         accuracy_config = self.config.get('accuracy', {})
-        providers = accuracy_config.get('providers', ['openai'])
-        if isinstance(providers, str):
-            providers = [providers]
-
+        providers_config = accuracy_config.get('providers', {})
+        
+        # Determine primary provider_model key from first provider's first model
+        primary_key = None
+        if isinstance(providers_config, dict):
+            for provider, models in providers_config.items():
+                if isinstance(models, list) and models:
+                    primary_key = f"{provider}_{models[0]}"
+                    break
+                elif models:  # Single model as string
+                    primary_key = f"{provider}_{models}"
+                    break
+        
         for sr in step_results:
             # Try embedding providers first
             primary_set = False
-            if providers:
-                for provider in providers:
-                    if provider in sr.accuracy_by_provider and sr.accuracy_by_provider[provider] is not None:
-                        sr.accuracy = sr.accuracy_by_provider[provider]
+            
+            # Try primary key first
+            if primary_key and primary_key in sr.accuracy_by_provider and sr.accuracy_by_provider[primary_key] is not None:
+                sr.accuracy = sr.accuracy_by_provider[primary_key]
+                primary_set = True
+            
+            # Fallback to any embedding provider
+            if not primary_set:
+                for key in sr.accuracy_by_provider:
+                    if not key.startswith("exact_match_") and sr.accuracy_by_provider[key] is not None:
+                        sr.accuracy = sr.accuracy_by_provider[key]
                         primary_set = True
                         break
 

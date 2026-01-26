@@ -68,6 +68,26 @@ docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
 - `contains`: Ground truth substring in response
 - `regex`: Ground truth as regex pattern
 
+**Multi-Provider, Multi-Model Support:**
+
+Evaluate responses with multiple embedding models simultaneously:
+
+```yaml
+metrics:
+  accuracy: true
+
+accuracy:
+  providers:
+    openai:
+      - text-embedding-3-small
+      - text-embedding-3-large
+    local:
+      - all-mpnet-base-v2
+      - all-MiniLM-L6-v2
+```
+
+Each step stores accuracy scores for all configured models in `StepResult.accuracy_by_provider` with keys like `"openai_text-embedding-3-small"`, `"local_all-mpnet-base-v2"`. The primary accuracy score (used in summaries) is from the first provider's first model.
+
 **Integration:** Set `match_type` field on WorkloadStep:
 
 ```python
@@ -79,7 +99,7 @@ WorkloadStep(
 )
 ```
 
-Results stored in `StepResult.accuracy_by_provider` with keys like `"exact_match_exact"`.
+Results stored in `StepResult.accuracy_by_provider` with keys like `"exact_match_exact"` or `"openai_text-embedding-3-small"`.
 
 ### Adding a New Memory Tool
 
@@ -166,10 +186,33 @@ Configs live in `configs/`. Key files:
 - `full-context-only.yml` - Full-context baseline only (no API keys required)
 - `baseline-comparison.yml` - Compare both baseline strategies (no API keys required)
 - `test-exact-match.yml` - Workloads with exact match checks only
+- `test-multi-model.yml` - Multi-model accuracy validation (no API keys required)
 
 Five YAML sections: `memory_tools`, `benchmarks`, `metrics`, `output`, `general`
 
 Required env vars: `MEM0_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` (tool-dependent)
+
+### Debug Mode
+
+Control whether memory tool responses include tool-specific prefixes via the `debug` flag in the `general` section:
+
+```yaml
+general:
+  debug: false  # Production mode (default): clean responses
+  # debug: true  # Development mode: responses prefixed with [tool_name]
+```
+
+**Debug Mode OFF (debug: false)**:
+- Clean responses without prefixes
+- Suitable for production benchmarks and accuracy evaluation
+- Example: `"Hi! I'm Sarah, a software engineer..."`
+
+**Debug Mode ON (debug: true)**:
+- Responses prefixed with `[tool_name]`
+- Useful for development, debugging, and understanding tool behavior
+- Example: `"[mem0] Stored (ID: abc123): Hi! I'm Sarah, a software engineer..."`
+
+All memory tools (mem0, openai_memory, memgpt, claude_memory, zep, baseline) support the debug flag.
 
 ### Workload Filtering
 
@@ -213,6 +256,9 @@ No formal test suite. Validate changes with:
 
 # Compare baseline strategies (no API keys required)
 ./run_overnight.sh configs/baseline-comparison.yml
+
+# Multi-model accuracy validation (no API keys required, requires OpenAI for embeddings)
+python llmemory run --config test-multi-model.yml
 
 # Standard validation (requires API keys)
 python llmemory run --config quick-test.yml   # Fast smoke test

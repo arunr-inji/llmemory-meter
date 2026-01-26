@@ -13,7 +13,7 @@ This directory contains YAML configuration files for LLMemoryMeter benchmarks.
 ### 🔬 **comprehensive.yml** (For Tech Articles & Research)
 - **Complete evaluation** setup with all memory tools and benchmarks
 - Memory Tools: Mem0, OpenAI Memory, MemGPT, Claude Memory (+ Zep optional)
-- All 6 benchmarks enabled for thorough comparison
+- All 5 benchmarks enabled for thorough comparison
 - Full quality analysis (accuracy, memory_quality metrics)
 - Perfect for tech journal articles, research papers, vendor evaluation
 
@@ -69,6 +69,14 @@ metrics:         # What to measure
   latency: true
   success_rate: true
   token_usage: true
+  accuracy: true
+
+accuracy:        # Multi-provider accuracy evaluation
+  providers:
+    openai:
+      - text-embedding-3-small
+    local:
+      - all-mpnet-base-v2
 
 output:          # Results handling
   save_results: true
@@ -76,8 +84,12 @@ output:          # Results handling
 
 general:         # Global settings
   timeout: 30
-  debug: false
+  debug: false   # false: clean responses | true: prefixed responses for debugging
 ```
+
+**Debug Mode:**
+- `debug: false` - Production mode with clean responses (recommended for benchmarks)
+- `debug: true` - Development mode with `[tool_name]` prefixes for debugging
 
 ## Quick Commands
 

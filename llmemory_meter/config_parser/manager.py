@@ -262,6 +262,72 @@ class ConfigManager:
             if output_dir and not os.path.exists(output_dir):
                 issues.append(f"Output directory does not exist: {output_dir}")
         
+        # Validate accuracy configuration if accuracy metric is enabled
+        metrics = config.metrics
+        if metrics.accuracy:
+            accuracy_config = config.accuracy
+            if not accuracy_config:
+                issues.append(
+                    "metrics.accuracy is enabled but 'accuracy' section is missing.\n"
+                    "Add to your config:\n\n"
+                    "  accuracy:\n"
+                    "    providers:\n"
+                    "      openai:\n"
+                    "        - text-embedding-3-small"
+                )
+            elif not accuracy_config.get("providers"):
+                issues.append(
+                    "metrics.accuracy is enabled but 'accuracy.providers' is missing.\n"
+                    "Recommended configuration:\n\n"
+                    "  accuracy:\n"
+                    "    providers:\n"
+                    "      openai:\n"
+                    "        - text-embedding-3-small"
+                )
+            else:
+                providers = accuracy_config.get("providers", {})
+                if not isinstance(providers, dict):
+                    issues.append(
+                        "accuracy.providers must be a dictionary.\n"
+                        "Format:\n"
+                        "  providers:\n"
+                        "    openai: [model1, model2]\n"
+                        "    local: [model1, model2]"
+                    )
+                else:
+                    for provider, models in providers.items():
+                        if provider not in ["openai", "local"]:
+                            issues.append(
+                                f"Invalid accuracy provider: '{provider}'.\n"
+                                f"Supported providers: 'openai', 'local'"
+                            )
+                        if not isinstance(models, list) or not models:
+                            issues.append(
+                                f"accuracy.providers.{provider} must be a non-empty list of model names"
+                            )
+                        else:
+                            for model in models:
+                                if not isinstance(model, str) or not model.strip():
+                                    issues.append(
+                                        f"Invalid model in accuracy.providers.{provider}: must be non-empty string"
+                                    )
+        
+        # Validate Mem0 vector_store configuration (to avoid SQLite threading issues)
+        for tool in enabled_tools:
+            if tool.name == "mem0":
+                if not tool.settings or "vector_store" not in tool.settings:
+                    issues.append(
+                        "Mem0 requires 'vector_store' configuration to avoid threading issues.\n"
+                        "Add to your config file under mem0 settings:\n\n"
+                        "  settings:\n"
+                        "    vector_store:\n"
+                        "      provider: qdrant\n"
+                        "      host: localhost\n"
+                        "      port: 6333\n"
+                        "      collection_name: llmemory_benchmarks\n\n"
+                        "Note: Without this, Mem0 uses local SQLite which causes threading errors."
+                    )
+        
         return issues
     
     @staticmethod

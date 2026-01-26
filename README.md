@@ -78,13 +78,32 @@ LLMemoryMeter measures comprehensive performance across multiple dimensions:
 LLMemoryMeter supports multiple accuracy evaluation modes:
 
 - **Embedding similarity**: Cosine similarity (0.0-1.0) for semantic matching
-  - OpenAI embeddings (text-embedding-3-small)
-  - Local embeddings (all-mpnet-base-v2)
+  - OpenAI embeddings (text-embedding-3-small, text-embedding-3-large, etc.)
+  - Local embeddings (all-mpnet-base-v2, all-MiniLM-L6-v2, etc.)
 - **Exact match**: Binary scoring (1.0/0.0) for precise answers
   - `exact`: Case-sensitive exact match
   - `exact_case_insensitive`: Case-insensitive match
   - `contains`: Ground truth substring in response
   - `regex`: Ground truth as regex pattern
+
+##### Multi-Provider Accuracy Evaluation
+
+Evaluate responses using multiple embedding models simultaneously for robust measurement:
+
+```yaml
+accuracy:
+  providers:
+    openai:
+      - text-embedding-3-small  # Fast, cost-effective
+      - text-embedding-3-large  # Higher quality
+    local:
+      - all-mpnet-base-v2      # Best local model
+      - all-MiniLM-L6-v2       # Faster alternative
+```
+
+Results include scores for each provider-model combination in `accuracy_by_provider`, with the first provider's first model as the primary `accuracy` score.
+
+##### Custom Match Types
 
 Set `match_type` on WorkloadStep to override default embedding evaluation:
 
@@ -136,7 +155,7 @@ LLMemoryMeter offers **tiered configurations** for different use cases:
 ### 🔬 **Comprehensive Configuration**
 
 - **Tools**: Mem0 + OpenAI + MemGPT + Claude + Zep + Baseline + Full-Context (7 tools)
-- **Benchmarks**: All 6 scenarios enabled
+- **Benchmarks**: All 5 scenarios enabled
 - **Runtime**: ~15-20 minutes
 - **Use Case**: Research, tech articles, vendor evaluation
 - **Command**: `llmemory run --config comprehensive`
@@ -304,6 +323,35 @@ output: # Results handling
 general: # Global settings
 ```
 
+### ⚙️ **General Settings**
+
+Configure global benchmark behavior:
+
+```yaml
+general:
+  timeout: 60        # Max seconds per operation
+  max_retries: 2     # Retries for failed operations
+  concurrent_tools: false  # Run tools sequentially
+  debug: false       # Debug mode (see below)
+```
+
+#### Debug Mode
+
+Control whether tool responses include identification prefixes:
+
+-  **`debug: false`** (Production/Benchmarking):
+   - Tool responses are clean, without prefixes
+   - Example: `"User prefers dark mode"`
+   - Best for accuracy evaluation and production use
+
+- **`debug: true`** (Development/Troubleshooting):
+   - Tool responses include `[tool_name]` prefix
+   - Example: `"[mem0] User prefers dark mode"`
+   - Helps identify which tool generated each response
+   - Useful for debugging and development
+
+**Important**: Always use `debug: false` for benchmark comparisons to ensure fair accuracy evaluation.
+
 ### 🔧 **Memory Tools Configuration**
 
 ```yaml
@@ -369,6 +417,129 @@ llmemory run  # Now uses comprehensive by default
 # Verbose output for debugging
 llmemory run --verbose
 ```
+
+## Configuration Validation
+
+LLMemoryMeter validates your configuration before running benchmarks and provides helpful error messages:
+
+### Accuracy Validation
+
+When `metrics.accuracy: true`, the tool validates:
+
+- **Valid provider names**: Only `openai` and `local` are supported
+- **Model lists are non-empty**: Each provider must specify at least one model
+- **Correct format**: `providers` must be a dict of lists
+
+**Example error:**
+
+```bash
+❌ Configuration validation failed:
+
+Invalid accuracy provider: 'openai-custom'.
+Supported providers: 'openai', 'local'
+```
+
+**Recommended fix:**
+
+```yaml
+accuracy:
+  providers:
+    openai:
+      - text-embedding-3-small
+    local:
+      - all-mpnet-base-v2
+```
+
+### Tool-Specific Validation
+
+#### Mem0: Vector Store Requirement
+
+Mem0 requires `vector_store` configuration to avoid SQLite threading issues.
+
+**Example error:**
+
+```bash
+❌ Configuration validation failed:
+
+Mem0 requires 'vector_store' configuration to avoid threading issues.
+Add to your config file under mem0 settings:
+
+  settings:
+    vector_store:
+      provider: qdrant
+      host: localhost
+      port: 6333
+      collection_name: llmemory_benchmarks
+
+Note: Without this, Mem0 uses local SQLite which causes threading errors.
+```
+
+### API Key Validation
+
+The tool checks for required API keys and provides clear guidance:
+
+```bash
+❌ Configuration validation failed:
+
+Missing API key: OPENAI_API_KEY for tool 'openai_memory'
+Missing LLM API key: OPENAI_API_KEY for Mem0
+```
+
+**Fix:** Ensure all required keys are set in your `.env` file.
+
+## Error Handling and Debugging
+
+### Real-Time Error Visibility
+
+Errors are printed to console immediately as they occur during benchmark execution:
+
+```bash
+Running workload: Multi-Session Memory Retention
+  → mem0 starting...
+  ❌ [mem0] Step 3 (retrieve) failed: Connection timeout after 30s
+  → openai_memory starting...
+  ⏱️ Timeout: Step 5 (chat) exceeded 5 minutes - marking as failed
+  ✓ openai_memory completed (10 steps, 45000ms)
+```
+
+**Error Indicators:**
+- `❌` - Step failure (API error, exception, etc.)
+- `⏱️` - Step timeout (exceeded configured timeout)
+- `✓` - Successful completion
+
+### Error Summary
+
+After all benchmarks complete, a summary shows total failures:
+
+```bash
+⚠️  3 step(s) failed during benchmark execution.
+   See detailed errors above and in the JSON results file.
+
+✅ Benchmarking complete!
+```
+
+### Detailed Error Information
+
+For full error details, check the JSON results file:
+
+```bash
+cat benchmark_results.json | jq '.results."Benchmark Name".standard_results.workload_results."Workload Name".tool_name.step_results[] | select(.success == false)'
+```
+
+This shows:
+- `error_message`: Detailed error description
+- `step_index`: Which step failed
+- `action`: What operation was attempted
+- `latency_ms`: Time spent before failure
+
+### Common Error Patterns
+
+| Error Type | Likely Cause | Solution |
+|-----------|--------------|----------|
+| Connection timeout | API rate limiting, network issues | Increase timeout, add retry logic |
+| Step timeout (5min) | Long-running operation | Check for hanging operations |
+| API key error | Missing or invalid credentials | Verify `.env` file |
+| SQLite threading | Mem0 without vector_store | Add Qdrant configuration |
 
 ## Example Results
 
