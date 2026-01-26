@@ -12,8 +12,8 @@ from llmemory_meter.pricing import split_tokens
 class MemGPTTool(MemoryTool):
     """MemGPT/Letta memory tool implementation using the Letta Python client."""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__("memgpt", config)
+    def __init__(self, config: Optional[Dict[str, Any]] = None, debug: bool = False):
+        super().__init__("memgpt", config, debug)
         
         # Require Letta API key
         if not Config.MEMGPT_API_KEY:

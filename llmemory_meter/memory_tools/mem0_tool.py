@@ -16,8 +16,8 @@ from llmemory_meter.config_parser import Config
 class Mem0Tool(MemoryTool):
     """Mem0 memory tool implementation with real API calls."""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__("mem0", config)
+    def __init__(self, config: Optional[Dict[str, Any]] = None, debug: bool = False):
+        super().__init__("mem0", config, debug)
         
         # Require API keys
         if not Config.MEM0_API_KEY:

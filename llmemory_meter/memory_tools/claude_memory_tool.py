@@ -9,8 +9,8 @@ from llmemory_meter.config_parser.env import Config
 class ClaudeMemoryTool(MemoryTool):
     """Claude Memory API tool implementation with real API calls."""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__("claude_memory", config)
+    def __init__(self, config: Optional[Dict[str, Any]] = None, debug: bool = False):
+        super().__init__("claude_memory", config, debug)
         
         # Require Anthropic API key
         if not Config.ANTHROPIC_API_KEY:

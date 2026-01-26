@@ -29,8 +29,8 @@ import time
 class ZepTool(MemoryTool):
     """Zep memory tool implementation."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__("zep", config)
+    def __init__(self, config: Optional[Dict[str, Any]] = None, debug: bool = False):
+        super().__init__("zep", config, debug)
 
         if not ZEP_AVAILABLE:
             raise ImportError(

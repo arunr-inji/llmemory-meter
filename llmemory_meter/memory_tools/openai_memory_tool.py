@@ -15,8 +15,8 @@ from llmemory_meter.config_parser import Config
 class OpenAIMemoryTool(MemoryTool):
     """OpenAI Memory tool implementation with real API calls."""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__("openai_memory", config)
+    def __init__(self, config: Optional[Dict[str, Any]] = None, debug: bool = False):
+        super().__init__("openai_memory", config, debug)
         
         # Require API key
         if not Config.OPENAI_API_KEY:

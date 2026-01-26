@@ -264,7 +264,7 @@ class ConfigManager:
         
         # Validate accuracy configuration if accuracy metric is enabled
         metrics = config.metrics
-        if metrics.get('accuracy', False):
+        if metrics.accuracy:
             accuracy_config = config.accuracy
             if not accuracy_config:
                 issues.append(

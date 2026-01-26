@@ -21,8 +21,8 @@ class NoMemoryTool(MemoryTool):
     across all operations.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__("baseline", config)
+    def __init__(self, config: Optional[Dict[str, Any]] = None, debug: bool = False):
+        super().__init__("baseline", config, debug)
 
         # Configuration
         self.k = self.config.get("k", 5)
@@ -109,8 +109,8 @@ class FullContextTool(MemoryTool):
     across all operations. Optional max_messages provides safety limit.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        super().__init__("full_context", config)
+    def __init__(self, config: Optional[Dict[str, Any]] = None, debug: bool = False):
+        super().__init__("full_context", config, debug)
 
         # Configuration
         self.max_messages = self.config.get("max_messages", None)  # None = unlimited
