@@ -190,5 +190,72 @@ Current benchmarks are **inspired by** MSC/PersonaChat but are **not** the actua
 
 ---
 
-*Last Updated: December 11, 2024*
+## Schema & Reporting Issues
+
+### Workload Metadata Schema Is Inconsistent (Issue #6)
+**Status**: ⚠️ Known Limitation
+
+**Description**: `WorkloadStep.metadata` is an unstructured dict with no required keys.
+Conflict-resolution workloads use `scenario`/`metric` keys, while other workloads
+use unrelated keys like `type`, `session`, `expected`, etc. Store steps often have
+no scenario/metric tags at all.
+
+**Details**:
+- `WorkloadStep.metadata` is typed as `Optional[Dict[str, Any]]` in `llmemory_meter/workload.py`.
+- Scenario metrics aggregation in `llmemory_meter/metrics.py` only looks for
+  `metadata["scenario"]` and `metadata["metric"]` when `accuracy` is present.
+- Store steps never have `accuracy` and typically lack `scenario`/`metric`, so they
+  are excluded from scenario metrics by design.
+
+**Impact**:
+- Inconsistent metadata schema makes it harder to build general-purpose analysis tools.
+- Scenario metrics only reflect tagged retrieve/chat steps; missing or malformed metadata
+  silently drops from aggregation.
+
+**Recommendation**:
+- Define a dedicated metadata dataclass (required + optional fields) and standardize keys.
+- At minimum, document the schema in `llmemory_meter/workload.py` or `docs/architecture.md`.
+- Consider adding explicit `scenario` tags to existing workloads for consistent filtering.
+
+---
+
+## Configuration Issues
+
+### Legacy `general.concurrent` Key in Configs (Issue #7)
+**Status**: ✅ Fixed (2026-01-26)
+
+**Description**: Several configs used `general.concurrent`, but the code reads
+`general.concurrent_tools` (`llmemory_meter/comparator.py`) and the default config
+in `llmemory_meter/config_parser/manager.py` uses `concurrent_tools`.
+
+**Impact**:
+- `general.concurrent` was ignored, defaulting to `concurrent_tools=True`,
+  causing unintended parallel execution for those configs.
+
+**Fix Applied**:
+- Updated configs to use `general.concurrent_tools` consistently:
+  `configs/mem0-only.yml`, `configs/openai-only.yml`, `configs/claude-only.yml`,
+  `configs/zep-only.yml`, `configs/memgpt-only.yml`, `configs/memgpt-quick-test.yml`.
+
+---
+
+## Repository Hygiene
+
+### Example/Test Scripts Need Pruning (Issue #8)
+**Status**: ⚠️ Backlog
+
+**Description**: The repo includes multiple demo/test scripts that overlap in purpose
+and add noise (`benchmark_demo.py`, `benchmark_example.py`, `simple_example.py`, etc.).
+
+**Impact**:
+- Harder to determine the canonical entrypoint for users.
+- Increases maintenance burden and confusion for benchmarking workflows.
+
+**Recommendation**:
+- Archive deprecated examples under `docs/archived/` or `examples/archived/`.
+- Keep a single, documented demo path in `README.md` and remove redundant scripts.
+
+---
+
+*Last Updated: January 26, 2026*
 *Version: 0.1.1*
