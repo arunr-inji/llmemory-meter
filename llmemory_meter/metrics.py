@@ -26,6 +26,7 @@ class PerformanceMetrics:
     total_queries: int
     avg_accuracy: float = None  # Average accuracy score (primary provider)
     accuracy_by_provider: Dict[str, float] = None  # Accuracy by embedding provider
+    scenario_metrics: Optional[Dict[str, Dict[str, float]]] = None  # Scenario-specific accuracy metrics
     operation_metrics: Optional[Dict[str, Dict[str, Any]]] = None  # Per-action metrics
     total_cost: Optional[float] = None
     avg_cost_per_query: Optional[float] = None
@@ -52,6 +53,11 @@ class PerformanceMetrics:
         if self.accuracy_by_provider:
             result["accuracy_by_provider"] = {
                 provider: round(score, 3) for provider, score in self.accuracy_by_provider.items()
+            }
+        if self.scenario_metrics:
+            result["scenario_metrics"] = {
+                scenario: {metric: round(score, 3) for metric, score in metrics.items()}
+                for scenario, metrics in self.scenario_metrics.items()
             }
 
         if self.operation_metrics:
@@ -111,6 +117,7 @@ class MetricsCalculator:
         total_queries = 0
         all_accuracy_scores = []
         accuracy_by_provider = {}
+        scenario_buckets: Dict[str, Dict[str, List[float]]] = {}
         operation_buckets = {}
         all_step_results = []
         
@@ -135,6 +142,13 @@ class MetricsCalculator:
                     for provider, score in step_result.accuracy_by_provider.items():
                         if score is not None:
                             accuracy_by_provider.setdefault(provider, []).append(score)
+
+                # Collect scenario-specific accuracy buckets
+                if step_result.metadata and step_result.accuracy is not None:
+                    scenario = step_result.metadata.get("scenario")
+                    metric = step_result.metadata.get("metric")
+                    if scenario and metric:
+                        scenario_buckets.setdefault(scenario, {}).setdefault(metric, []).append(step_result.accuracy)
         
         # Calculate percentiles
         sorted_latencies = sorted(all_latencies)
@@ -156,6 +170,17 @@ class MetricsCalculator:
         operation_metrics = {}
         for action, steps in operation_buckets.items():
             operation_metrics[action] = MetricsCalculator._calculate_operation_metrics(steps)
+
+        # Aggregate scenario metrics
+        scenario_metrics = None
+        if scenario_buckets:
+            scenario_metrics = {
+                scenario: {
+                    metric: statistics.mean(scores)
+                    for metric, scores in metrics.items()
+                }
+                for scenario, metrics in scenario_buckets.items()
+            }
 
         # Cost analysis
         cost_total = None
@@ -193,6 +218,7 @@ class MetricsCalculator:
             total_queries=total_queries,
             avg_accuracy=avg_accuracy,
             accuracy_by_provider=avg_accuracy_by_provider,
+            scenario_metrics=scenario_metrics,
             operation_metrics=operation_metrics,
             total_cost=cost_total,
             avg_cost_per_query=avg_cost_per_query,

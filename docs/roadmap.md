@@ -200,6 +200,7 @@ Report: cost per store, cost per retrieve, cost per chat, total cost.
 These align with MemoryAgentBench, LongMemEval, and modern research:
 
 #### 3.1 Conflict Resolution with Overwrite + Reasoning
+**Status: ✅ Complete**
 ```python
 # Does the system use the *latest* fact and reason with it?
 WorkloadStep(action="store", content="Alice's manager is Bob.")
@@ -301,7 +302,7 @@ Beyond Zep/Mem0/MemGPT, benchmark architectures practitioners actually ship:
 **Week 2-3: Core Workloads**
 | # | Feature | Effort | Why Now |
 |---|---------|--------|---------|
-| 5 | **Conflict Resolution Workload** | Medium | Aligns with MemoryAgentBench |
+| 5 | **Conflict Resolution Workload (✅ Complete)** | Medium | Aligns with MemoryAgentBench |
 | 6 | **Abstention Workload** | Medium | Aligns with LongMemEval |
 | 7 | **Temporal Reasoning Workload** | Medium | Core research competency |
 
@@ -346,7 +347,8 @@ By end of Week 4, you'll have:
 ✅ **2 baseline tools**: No-Memory, Full-Context
 ✅ **Read/write cost separation**: store vs retrieve vs chat latency/tokens
 ✅ **Exact-match scoring**: For needle tasks alongside embedding similarity
-📋 **3 new workloads**: Conflict resolution, Abstention, Temporal reasoning
+✅ **1 new workload**: Conflict resolution
+📋 **2 new workloads**: Abstention, Temporal reasoning
 ✅ **Cost analysis**: $/1K operations per tool
 
 This gives you:

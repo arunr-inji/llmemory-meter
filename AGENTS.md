@@ -9,13 +9,9 @@
 - `results/`, `logs/`, `quick-test/`, `comprehensive/`: generated outputs from runs.
 
 ## Build, Test, and Development Commands
-- `pip install -r requirements.txt`: install dependencies.
-- `python llmemory run`: run default benchmarks (`configs/starter.yml`).
-- `python llmemory run --config comprehensive`: full suite (longer runtime).
-- `python llmemory run --config quick-test.yml`: fast smoke test.
-- `python llmemory create-config --output my_experiment.yml`: generate a new config in `configs/`.
-- `python benchmark_demo.py`: run the demo script.
+- `python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`: install dependencies.
 - `docker run -d --name qdrant -p 6333:6333 qdrant/qdrant`: required for Mem0 local vector store.
+- `./run_overnight.sh configs/<config-name>.yml`: run benchmarks with specified config.
 
 ## Coding Style & Naming Conventions
 - Python, 4-space indentation, follow existing module patterns in `llmemory_meter/`.

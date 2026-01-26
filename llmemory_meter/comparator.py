@@ -143,8 +143,17 @@ class MemoryComparator:
                     output_tokens=0,
                     model=getattr(tool, "model", None),
                     success=False,
-                    error_message=f"Operation timed out after {STEP_TIMEOUT/60:.0f} minutes"
+                    error_message=f"Operation timed out after {STEP_TIMEOUT/60:.0f} minutes",
+                    metadata=step.metadata
                 )
+            # Preserve step metadata for downstream scenario metrics
+            if step_result.metadata or step.metadata:
+                combined_metadata = {}
+                if step.metadata:
+                    combined_metadata.update(step.metadata)
+                if step_result.metadata:
+                    combined_metadata.update(step_result.metadata)
+                step_result.metadata = combined_metadata
             step_results.append(step_result)
         
         total_end_time = datetime.now()
@@ -824,6 +833,15 @@ class MemoryComparator:
                         match_strs = [f"{p.replace('exact_match_', '')}: {s*100:.1f}%"
                                      for p, s in exact_match_evaluators.items()]
                         print(f"  • Accuracy (Exact Match): {' | '.join(match_strs)}")
+
+                if "scenario_metrics" in metrics and metrics["scenario_metrics"]:
+                    print("  • Scenario Metrics:")
+                    for scenario, scenario_metrics in metrics["scenario_metrics"].items():
+                        metric_strs = [
+                            f"{metric}: {score*100:.1f}%"
+                            for metric, score in scenario_metrics.items()
+                        ]
+                        print(f"    - {scenario}: " + " | ".join(metric_strs))
                 
                 print(f"  • Avg Tokens/Query: {metrics['avg_tokens_per_query']}")
                 if "cost_priced_queries" in metrics:
