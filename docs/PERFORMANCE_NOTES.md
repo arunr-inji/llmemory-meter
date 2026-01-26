@@ -8,24 +8,28 @@
 
 **Why So High?**
 MemGPT is an **agentic memory system** that includes:
+
 - Internal reasoning and planning
 - Function call overhead
 - Extended context maintenance
 - Multi-step processing
 
 **Cost Implications**:
-```
+
+```text
 Per 1,000 queries (at 4K tokens avg):
 - With GPT-4o-mini ($0.15/$0.60 per 1M): ~$1.50
 - With GPT-4 ($2.50/$10 per 1M):        ~$25
 ```
 
-**Best For**: 
+**Best For**:
+
 - Research and prototyping
 - Complex reasoning tasks
 - Applications where quality > cost
 
 **Avoid For**:
+
 - High-volume production (cost scales linearly)
 - Cost-sensitive applications
 - Simple memory retrieval
@@ -37,6 +41,7 @@ Per 1,000 queries (at 4K tokens avg):
 **Measured Latency**: ~6.3s average (includes processing delays)
 
 **Architecture**:
+
 - Stores messages in thread (instant)
 - Processes into knowledge graph (async, ~8s)
 - Extracts facts, entities, episodes
@@ -46,6 +51,7 @@ Per 1,000 queries (at 4K tokens avg):
 **Design Decision**: We include 8-second delays to ensure graph processing completes before next operation. This is **intentional** for benchmark consistency.
 
 **Production Recommendation**:
+
 - Use async processing (don't block on graph updates)
 - Actual user-facing latency can be ~1-2s
 - Graph enrichment happens in background
@@ -57,6 +63,7 @@ Per 1,000 queries (at 4K tokens avg):
 **Token Range**: 41 tokens per query average
 
 **Why So Low?**
+
 - Lightweight API responses
 - Minimal context wrapping
 - Efficient vector similarity search
@@ -71,6 +78,7 @@ Per 1,000 queries (at 4K tokens avg):
 ### OpenAI Memory: Best Balanced Performance
 
 **Metrics**:
+
 - **Latency**: 1.6s (fastest)
 - **Tokens**: 375 (reasonable)
 - **Reliability**: 100%
@@ -82,13 +90,15 @@ Per 1,000 queries (at 4K tokens avg):
 ### Claude Memory: Fast but Token-Heavy
 
 **Metrics**:
+
 - **Latency**: 2.0s (2nd fastest)
 - **Tokens**: 3,617 (9.6x more than OpenAI)
 - **Reliability**: 97.2% overall (rate limiting under stress)
 
 **Best For**: Real-time applications with moderate volume
 
-**Limitations**: 
+**Limitations**:
+
 - Higher token costs than OpenAI
 - Rate limiting issues with >20 rapid operations
 
@@ -99,6 +109,7 @@ Per 1,000 queries (at 4K tokens avg):
 ### Memory Stress Testing (55 operations)
 
 **Speed Rankings** (store operations):
+
 1. OpenAI: 1.1s ⚡ (9x faster than Mem0)
 2. Claude: 1.4s
 3. Zep: 7.4s (includes graph delays)
@@ -120,6 +131,7 @@ We count **full tokens as they would be billed in production**:
 3. **Zep**: Count full context returned (reflects LLM cost when used)
 
 **Why count Zep's full context?**
+
 - In production, users pass Zep context to LLM (GPT-4, Claude)
 - LLM bills for entire context including Zep's verbose formatting
 - ~500-600 tokens per retrieve reflects **real cost**, not Zep API cost
@@ -135,15 +147,14 @@ We count **full tokens as they would be billed in production**:
 
 ## Recommendations by Use Case
 
-| Priority | Best Tool | Runner-Up | Notes |
-|----------|-----------|-----------|-------|
-| **Speed** | OpenAI (1.6s) | Claude (2.0s) | Real-time ready |
-| **Cost** | Mem0 (41 tokens) | OpenAI (375 tokens) | 9x cheaper |
-| **Reliability** | Mem0/OpenAI/MemGPT/Zep | Claude | All 100% except Claude under stress |
-| **Bulk Ops** | OpenAI (1.1s stores) | Claude | Avoid Mem0 (9.1s) |
-| **Self-Hosted** | Mem0 or Zep | - | Open source friendly |
+| Priority        | Best Tool              | Runner-Up           | Notes                               |
+| --------------- | ---------------------- | ------------------- | ----------------------------------- |
+| **Speed**       | OpenAI (1.6s)          | Claude (2.0s)       | Real-time ready                     |
+| **Cost**        | Mem0 (41 tokens)       | OpenAI (375 tokens) | 9x cheaper                          |
+| **Reliability** | Mem0/OpenAI/MemGPT/Zep | Claude              | All 100% except Claude under stress |
+| **Bulk Ops**    | OpenAI (1.1s stores)   | Claude              | Avoid Mem0 (9.1s)                   |
+| **Self-Hosted** | Mem0 or Zep            | -                   | Open source friendly                |
 
 ---
 
-*For detailed issue tracking, see [KNOWN_ISSUES.md](../KNOWN_ISSUES.md)*
-
+_For detailed issue tracking, see [KNOWN_ISSUES.md](../KNOWN_ISSUES.md)_

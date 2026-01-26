@@ -26,22 +26,26 @@ A comprehensive Python tool for benchmarking and comparing AI memory systems lik
 LLMemoryMeter includes **two baseline implementations** to help you understand the value of memory systems compared to basic context management:
 
 **1. Baseline (NoMemoryTool)** - Last k messages strategy:
+
 - Stores only the last k messages (default k=5)
 - Simulates "keep recent context" approach
 - Answers: "Is memory better than just keeping recent messages?"
 
 **2. Full-Context (FullContextTool)** - All messages strategy:
+
 - Stores ALL messages without limit
 - Simulates "stuff everything into prompt" approach
 - Answers: "Is memory better than just keeping all context?"
 
 **Common Features**:
+
 - **No API Keys**: Runs without any external dependencies or API keys
 - **Zero Token Usage**: No LLM calls, so no API costs
 - **Instant Response**: Sub-millisecond latency (no network calls)
 - **100% Reliability**: No external service failures
 
 **Quick Tests (no API keys needed):**
+
 ```bash
 # Test individual baselines
 ./run_overnight.sh configs/baseline-only.yml
@@ -56,12 +60,14 @@ llmemory run --config baseline-comparison.yml
 LLMemoryMeter measures comprehensive performance across multiple dimensions:
 
 ### 🚀 **Performance Metrics**
+
 - **Latency**: Response time for memory operations (avg, P95, P99)
 - **Throughput**: Operations per second under load
 - **Success Rate**: Percentage of operations that complete successfully
 - **Token Usage**: API token consumption and cost efficiency
 
 ### 🎯 **Memory Quality Metrics**
+
 - **Accuracy**: How well retrieved information matches queries
 - **Consistency**: Reliability of responses across repeated queries
 - **Retention**: Information persistence across sessions
@@ -81,6 +87,7 @@ LLMemoryMeter supports multiple accuracy evaluation modes:
   - `regex`: Ground truth as regex pattern
 
 Set `match_type` on WorkloadStep to override default embedding evaluation:
+
 ```python
 WorkloadStep(
     action="retrieve",
@@ -91,6 +98,7 @@ WorkloadStep(
 ```
 
 ### 📊 **Benchmark Categories**
+
 - **Conversational AI**: Multi-session chat, persona consistency (MSC, PersonaChat)
 - **Long Context**: Document processing, needle-in-haystack tests (LongBench style)
 - **Technical Performance**: Stress testing, capacity limits, concurrent access
@@ -101,6 +109,7 @@ WorkloadStep(
 LLMemoryMeter offers **tiered configurations** for different use cases:
 
 ### 🚀 **Starter Configuration (Default)**
+
 - **Tools**: Mem0 + OpenAI Memory + Baseline + Full-Context (4 tools)
 - **Benchmarks**: 2 basic scenarios
 - **Runtime**: ~2-3 minutes
@@ -108,6 +117,7 @@ LLMemoryMeter offers **tiered configurations** for different use cases:
 - **Command**: `llmemory run` (uses `configs/starter.yml`)
 
 ### 🧪 **Baseline-Only Configuration**
+
 - **Tools**: Baseline only (no API keys required)
 - **Benchmarks**: 1 scenario (Conversational AI Memory)
 - **Runtime**: < 1 second
@@ -115,6 +125,7 @@ LLMemoryMeter offers **tiered configurations** for different use cases:
 - **Command**: `./run_overnight.sh configs/baseline-only.yml`
 
 ### 📊 **Baseline Comparison**
+
 - **Tools**: Baseline (last k) + Full-Context (all messages)
 - **Benchmarks**: Conversational AI Memory + Long Context Memory
 - **Runtime**: < 2 seconds
@@ -123,6 +134,7 @@ LLMemoryMeter offers **tiered configurations** for different use cases:
 - **Files**: `configs/baseline-comparison.yml`, `configs/full-context-only.yml`
 
 ### 🔬 **Comprehensive Configuration**
+
 - **Tools**: Mem0 + OpenAI + MemGPT + Claude + Zep + Baseline + Full-Context (7 tools)
 - **Benchmarks**: All 6 scenarios enabled
 - **Runtime**: ~15-20 minutes
@@ -133,7 +145,8 @@ LLMemoryMeter offers **tiered configurations** for different use cases:
 
 ### 🚀 **Option 1: CLI with YAML Configuration (Recommended)**
 
-1. **Set up Python environment** (optional but recommended):
+#### 1. Set up Python environment (optional but recommended)
+
 ```bash
 # Create virtual environment
 python3 -m venv .venv
@@ -148,12 +161,14 @@ source .venv/bin/activate
 # deactivate
 ```
 
-2. **Install dependencies**:
+#### 2. Install dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **Start Qdrant vector database (required for Mem0)**:
+#### 3. Start Qdrant vector database (required for Mem0)
+
 ```bash
 # Using Docker (recommended)
 docker run -d --name qdrant -p 6333:6333 -p 6334:6334 \
@@ -167,18 +182,21 @@ docker start qdrant
 curl http://localhost:6333
 ```
 
-4. **Create default configuration**:
+#### 4. Create default configuration
+
 ```bash
 python llmemory create-config
 ```
 
-5. **Set up API keys**:
+#### 5. Set up API keys
+
 ```bash
 cp .env.example .env
 # Add your MEM0_API_KEY and OPENAI_API_KEY
 ```
 
-6. **Run benchmarks**:
+#### 6. Run benchmarks
+
 ```bash
 # Quick test without API keys (baseline tool only)
 ./run_overnight.sh configs/baseline-only.yml
@@ -192,6 +210,7 @@ python llmemory run
 1. Install dependencies and set up API keys (steps 1-5 above)
 
 2. Run the simple comparison:
+
 ```bash
 python simple_example.py
 ```
@@ -199,6 +218,7 @@ python simple_example.py
 ## Basic Usage
 
 ### Custom Workload Testing
+
 ```python
 from llmemory_meter import MemoryComparator
 
@@ -218,6 +238,7 @@ print(results)
 ```
 
 ### Industry-Standard Benchmarks
+
 ```python
 from llmemory_meter import MemoryComparator, StandardBenchmarks
 
@@ -230,7 +251,7 @@ print("Available benchmarks:", benchmarks)
 
 # Run a specific benchmark suite
 results = await comparator.run_benchmark_suite(
-    "Conversational AI Memory", 
+    "Conversational AI Memory",
     ["mem0", "openai_memory"]
 )
 
@@ -251,19 +272,22 @@ LLMemoryMeter uses YAML configuration files stored in the `configs/` folder:
 
 ### 🎯 **Creating Custom Configs**
 
-**Option 1: Use the CLI**
+#### Option 1: Use the CLI
+
 ```bash
 llmemory create-config --output my_experiment.yml
 # Creates configs/my_experiment.yml
 ```
 
-**Option 2: Copy and modify existing configs**
+#### Option 2: Copy and modify existing configs
+
 ```bash
 cp configs/starter.yml configs/my_config.yml
 # Edit configs/my_config.yml as needed
 ```
 
-**Option 3: Create directly in configs/ folder**
+#### Option 3: Create directly in configs/ folder
+
 - Always place custom configs in the `configs/` directory
 - Use `.yml` extension for consistency
 - The tool automatically finds configs in this folder
@@ -273,11 +297,11 @@ cp configs/starter.yml configs/my_config.yml
 Each YAML config has 5 main sections:
 
 ```yaml
-memory_tools:    # Tools to compare
-benchmarks:      # Test suites to run  
-metrics:         # What to measure
-output:          # Results handling
-general:         # Global settings
+memory_tools: # Tools to compare
+benchmarks: # Test suites to run
+metrics: # What to measure
+output: # Results handling
+general: # Global settings
 ```
 
 ### 🔧 **Memory Tools Configuration**
@@ -312,10 +336,10 @@ memory_tools:
 benchmarks:
   - name: Conversational AI Memory
     enabled: true
-  - name: Long Context Memory  
+  - name: Long Context Memory
     enabled: true
   - name: Persona Consistency
-    enabled: false    # Skip this benchmark
+    enabled: false # Skip this benchmark
 ```
 
 ### 📈 **CLI Commands**
@@ -348,7 +372,7 @@ llmemory run --verbose
 
 ## Example Results
 
-```
+```text
 🧠 LLMemoryMeter - Benchmark Results Summary
 ============================================================
 
@@ -376,21 +400,25 @@ llmemory run --verbose
 ## Available Benchmark Suites
 
 ### 🗣️ **Conversational AI Benchmarks**
+
 - **Multi-Session Memory Retention**: Tests memory across conversation sessions
 - **Persona Consistency**: Evaluates consistent character/role maintenance
 - Based on MSC (Multi-Session Chat) and PersonaChat datasets
 
-### 📚 **Long Context Benchmarks** 
+### 📚 **Long Context Benchmarks**
+
 - **Long Document Memory**: Information retention over extended text
 - **Needle-in-Haystack**: Specific fact retrieval from large contexts
 - Based on LongBench and InfiniteBench methodologies
 
 ### ⚡ **Technical Performance Benchmarks**
+
 - **Memory Stress Testing**: High-frequency operations and capacity limits
 - **Concurrent Access**: Multi-user scenarios and race conditions
 - Based on AdaptMemBench and AISBench approaches
 
 ### 🏢 **Domain-Specific Benchmarks**
+
 - **Customer Service**: Support ticket context and resolution tracking
 - **Research Assistant**: Knowledge accumulation and synthesis
 - **Personal Assistant**: Preference management and scheduling
@@ -400,6 +428,7 @@ llmemory run --verbose
 ⚠️ **Note**: The current implementation uses **mock APIs** for demonstration. To get real performance data:
 
 1. **Set up API keys** in `.env` file:
+
    ```bash
    MEM0_API_KEY=your_mem0_api_key
    OPENAI_API_KEY=your_openai_api_key
@@ -412,6 +441,7 @@ llmemory run --verbose
 ## Quick Demo
 
 Run the benchmark demo to see the framework in action:
+
 ```bash
 python benchmark_demo.py
 ```
@@ -444,6 +474,7 @@ docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
 ## Contributing
 
 We welcome contributions! Areas where help is needed:
+
 - Additional memory tools (LangMem, custom implementations)
 - New benchmark scenarios and datasets
 - Enhanced memory quality evaluation metrics
