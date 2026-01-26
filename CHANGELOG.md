@@ -17,8 +17,9 @@
 
 - **Removed Memory Stress Testing benchmark**: Empty suite consolidated into Technical Performance
 - **Updated .gitignore**: Now excludes `results/` directory (already present in remote)
-- **Accuracy configuration format**: Changed from `providers: [list]` to `providers: {dict of lists}` for multi-model support
+- **Accuracy configuration format**: Now requires `providers: {dict of lists}` format only (all config files updated)
 - **All 6 memory tools updated**: Added conditional debug prefixes (mem0, openai_memory, memgpt, claude_memory, zep, baseline)
+- **Removed backwards compatibility**: Old accuracy config format (`providers: [list]`) no longer supported; invalid formats now print clear error messages
 
 ### Fixed
 

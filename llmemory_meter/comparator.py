@@ -294,23 +294,19 @@ class MemoryComparator:
             accuracy_config = self.config.get('accuracy', {})
             providers_config = accuracy_config.get('providers', {})
             
-            # Support both old format (list) and new format (dict of lists)
-            if isinstance(providers_config, list):
-                # Old format: providers: [openai, local]
-                providers_dict = {}
-                for provider in providers_config:
-                    if provider == 'openai':
-                        model = accuracy_config.get('openai', {}).get('model', 'text-embedding-3-small')
-                    elif provider == 'local':
-                        model = accuracy_config.get('local', {}).get('model', 'all-mpnet-base-v2')
-                    else:
-                        model = None
-                    providers_dict[provider] = [model] if model else []
-            elif isinstance(providers_config, dict):
-                # New format: providers: {openai: [model1, model2], local: [model1, model2]}
+            # Expect dict format: providers: { openai: [model1, model2], local: [model3] }
+            if isinstance(providers_config, dict):
                 providers_dict = providers_config
             else:
-                # Fallback to openai with default model
+                # Invalid format - print error and use fallback
+                print(f"❌ Error: Invalid accuracy providers format. Expected dict, got {type(providers_config).__name__}")
+                print("   Expected format:")
+                print("   accuracy:")
+                print("     providers:")
+                print("       openai:")
+                print("         - text-embedding-3-small")
+                print("       local:")
+                print("         - all-mpnet-base-v2")
                 providers_dict = {'openai': ['text-embedding-3-small']}
 
             # Iterate through all provider-model combinations
