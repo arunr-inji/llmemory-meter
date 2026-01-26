@@ -56,10 +56,12 @@ docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
 **Two-Phase Design:** Performance measurement (latency/tokens) happens first, then accuracy evaluation post-hoc.
 
 **Evaluation Modes:**
+
 - **Embedding-based** (`AccuracyEvaluator`): Cosine similarity (0.0-1.0) for semantic matching
 - **Exact match** (`ExactMatchEvaluator`): Binary (0.0/1.0) for precise answers
 
 **Match Types:**
+
 - `embedding` (default): Semantic similarity
 - `exact`: Case-sensitive exact match
 - `exact_case_insensitive`: Case-insensitive exact match
@@ -107,6 +109,7 @@ Results stored in `StepResult.accuracy_by_provider` with keys like `"exact_match
    - Configuration: `settings.max_messages`
 
 **Key Features**:
+
 - No API keys required (`api_key_env: null`)
 - No LLM calls (zero token usage)
 - Stores messages in Python lists (in-memory)
@@ -114,6 +117,7 @@ Results stored in `StepResult.accuracy_by_provider` with keys like `"exact_match
 - 100% success rate (no external dependencies)
 
 **Configuration Examples**:
+
 ```yaml
 # Last k messages strategy
 - name: baseline
@@ -129,10 +133,11 @@ Results stored in `StepResult.accuracy_by_provider` with keys like `"exact_match
   api_key_env: null
   model: null
   settings:
-    max_messages: null  # unlimited
+    max_messages: null # unlimited
 ```
 
 **Use Cases**:
+
 - Smoke testing without API keys
 - Baseline comparisons ("is Mem0 better than full context?")
 - Validating framework changes without dependencies
@@ -140,6 +145,7 @@ Results stored in `StepResult.accuracy_by_provider` with keys like `"exact_match
 - Comparing context management strategies
 
 **Testing**:
+
 ```bash
 # Test individual baselines
 ./run_overnight.sh configs/baseline-only.yml
@@ -152,6 +158,7 @@ python llmemory run --config baseline-comparison.yml
 ## Configuration
 
 Configs live in `configs/`. Key files:
+
 - `starter.yml` - Default (4 tools, 2 benchmarks)
 - `comprehensive.yml` - Full suite (all tools/benchmarks)
 - `*-only.yml` - Single-tool configs for focused testing
@@ -170,13 +177,14 @@ Benchmark configs support filtering to specific workloads within a suite:
 
 ```yaml
 benchmarks:
-- name: Long Context Memory
-  enabled: true
-  workloads:  # Optional: omit to run all workloads in suite
-    - Information Needle Test
+  - name: Long Context Memory
+    enabled: true
+    workloads: # Optional: omit to run all workloads in suite
+      - Information Needle Test
 ```
 
 Available workloads per benchmark:
+
 - **Conversational AI Memory**: Multi-Session Memory Retention, Persona Consistency Test
 - **Long Context Memory**: Long Document Memory, Information Needle Test
 - **Persona Consistency**: Professional Persona Consistency
