@@ -84,8 +84,12 @@ output:          # Results handling
 
 general:         # Global settings
   timeout: 30
-  debug: false
+  debug: false   # false: clean responses | true: prefixed responses for debugging
 ```
+
+**Debug Mode:**
+- `debug: false` - Production mode with clean responses (recommended for benchmarks)
+- `debug: true` - Development mode with `[tool_name]` prefixes for debugging
 
 ## Quick Commands
 

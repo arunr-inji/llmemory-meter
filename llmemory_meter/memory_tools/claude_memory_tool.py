@@ -98,7 +98,10 @@ class ClaudeMemoryTool(MemoryTool):
             # Track token usage (Claude API format)
             self._set_last_usage(getattr(response, "usage", None))
             
-            return f"Stored in Claude Memory: {content}"
+            if self.debug:
+                return f"[claude_memory] Stored: {content}"
+            else:
+                return content
         except Exception as e:
             raise Exception(f"Claude Memory store failed: {e}")
     
@@ -124,7 +127,10 @@ class ClaudeMemoryTool(MemoryTool):
             
             if response.content and len(response.content) > 0:
                 response_text = response.content[0].text
-                return f"Retrieved from Claude Memory for '{query}': {response_text}"
+                if self.debug:
+                    return f"[claude_memory] Retrieved for '{query}': {response_text}"
+                else:
+                    return response_text
             
             return f"No relevant memories found in Claude Memory for query: '{query}'"
         except Exception as e:
@@ -163,7 +169,10 @@ class ClaudeMemoryTool(MemoryTool):
                     "content": response_text
                 })
                 
-                return f"Claude Memory chat response to '{message}': {response_text}"
+                if self.debug:
+                    return f"[claude_memory] Chat response to '{message}': {response_text}"
+                else:
+                    return response_text
             
             return f"Claude Memory chat response to '{message}': [No response received]"
         except Exception as e:

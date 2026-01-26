@@ -145,7 +145,10 @@ class MemGPTTool(MemoryTool):
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(self._executor, self._sync_send_message, content)
             
-            return f"Stored in Letta: {content}"
+            if self.debug:
+                return f"[memgpt] Stored: {content}"
+            else:
+                return content
         except Exception as e:
             raise Exception(f"Error storing memory: {e}")
     
@@ -196,7 +199,10 @@ class MemGPTTool(MemoryTool):
                                 'assistant' in msg.message_type.lower()]
                 if assistant_msgs and hasattr(assistant_msgs[-1], 'content'):
                     response_text = assistant_msgs[-1].content
-                    return f"Retrieved from Letta: {response_text}"  # No truncation
+                    if self.debug:
+                        return f"[memgpt] Retrieved: {response_text}"
+                    else:
+                        return response_text
             
             return f"Retrieved from Letta for query: {query}"
         except Exception as e:
@@ -253,11 +259,22 @@ class MemGPTTool(MemoryTool):
                     last_msg = assistant_msgs[-1]
                     # Check for 'content' field (Letta uses 'content', not 'text')
                     if hasattr(last_msg, 'content'):
-                        return last_msg.content
+                        response_text = last_msg.content
                     elif hasattr(last_msg, 'text'):
-                        return last_msg.text
+                        response_text = last_msg.text
+                    else:
+                        response_text = "Received response from Letta agent."
+                    
+                    if self.debug:
+                        return f"[memgpt] Response: {response_text}"
+                    else:
+                        return response_text
             
-            return "Received response from Letta agent."
+            # Fallback if no assistant messages
+            if self.debug:
+                return "[memgpt] Received response from Letta agent."
+            else:
+                return "Received response from Letta agent."
         except Exception as e:
             raise Exception(f"Error in chat: {e}")
     

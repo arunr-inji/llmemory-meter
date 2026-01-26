@@ -22,10 +22,11 @@ except ImportError:
 class MemoryTool(ABC):
     """Abstract base class for memory tools."""
     
-    def __init__(self, name: str, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, name: str, config: Optional[Dict[str, Any]] = None, debug: bool = False):
         self.name = name
         self.config = config or {}
         self.model = self.config.get("model")
+        self.debug = debug
         self._reset_session()
 
     def _reset_session(self) -> None:

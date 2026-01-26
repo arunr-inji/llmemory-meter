@@ -323,6 +323,35 @@ output: # Results handling
 general: # Global settings
 ```
 
+### ⚙️ **General Settings**
+
+Configure global benchmark behavior:
+
+```yaml
+general:
+  timeout: 60        # Max seconds per operation
+  max_retries: 2     # Retries for failed operations
+  concurrent_tools: false  # Run tools sequentially
+  debug: false       # Debug mode (see below)
+```
+
+#### Debug Mode
+
+Control whether tool responses include identification prefixes:
+
+-  **`debug: false`** (Production/Benchmarking):
+   - Tool responses are clean, without prefixes
+   - Example: `"User prefers dark mode"`
+   - Best for accuracy evaluation and production use
+
+- **`debug: true`** (Development/Troubleshooting):
+   - Tool responses include `[tool_name]` prefix
+   - Example: `"[mem0] User prefers dark mode"`
+   - Helps identify which tool generated each response
+   - Useful for debugging and development
+
+**Important**: Always use `debug: false` for benchmark comparisons to ensure fair accuracy evaluation.
+
 ### 🔧 **Memory Tools Configuration**
 
 ```yaml

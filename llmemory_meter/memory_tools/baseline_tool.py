@@ -40,7 +40,10 @@ class NoMemoryTool(MemoryTool):
         if len(self.stored_messages) > self.k:
             self.stored_messages = self.stored_messages[-self.k:]
 
-        return f"Baseline stored (last {self.k}): {content[:50]}..."
+        if self.debug:
+            return f"[baseline] Stored (last {self.k}): {content[:50]}..."
+        else:
+            return content
 
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve last k stored messages."""
@@ -53,7 +56,10 @@ class NoMemoryTool(MemoryTool):
             for i, msg in enumerate(self.stored_messages)
         ])
 
-        return f"Baseline retrieved (last {len(self.stored_messages)} messages) for '{query}':\n{formatted}"
+        if self.debug:
+            return f"[baseline] Retrieved (last {len(self.stored_messages)} messages) for '{query}':\n{formatted}"
+        else:
+            return formatted
 
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Chat using last k messages as context."""
@@ -65,9 +71,12 @@ class NoMemoryTool(MemoryTool):
         # Build context from stored messages
         if self.stored_messages:
             context = " | ".join([msg[:50] for msg in self.stored_messages])
-            response = f"Baseline response to '{message}' (using {len(self.stored_messages)} messages as context): Based on context [{context}], here is the response."
+            if self.debug:
+                response = f"[baseline] Response to '{message}' (using {len(self.stored_messages)} messages as context): {context}"
+            else:
+                response = context
         else:
-            response = f"Baseline response to '{message}': No prior context available."
+            response = "No prior context available."
 
         # Update conversation history
         self.conversation_history.append({"role": "user", "content": message})

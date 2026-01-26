@@ -213,7 +213,10 @@ general:
 
 - **concurrent_tools**: Parallel vs sequential tool execution (affects resource usage)
 - **stress_test_random_seed**: Reproducibility vs randomness in stress tests
-- **debug**: Logging verbosity
+- **debug**: Tool response prefixing mode
+  - `false` (production): Clean responses without tool prefixes - e.g., `"User prefers dark mode"`
+  - `true` (development): Prefixed responses for debugging - e.g., `"[mem0] User prefers dark mode"`
+  - **Important**: Always use `false` for benchmarks to ensure fair accuracy evaluation
 
 **Note:** `timeout` and `max_retries` are defined but not currently used. Per-step timeout is hardcoded to 300s at `comparator.py:72`.
 

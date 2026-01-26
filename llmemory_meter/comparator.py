@@ -79,21 +79,22 @@ class MemoryComparator:
     def _get_tool_instance(self, tool_name: str) -> MemoryTool:
         """Get or create a tool instance."""
         if tool_name not in self._tool_instances:
+            debug_mode = self.config.get('general', {}).get('debug', False)
             try:
                 if tool_name == "mem0":
-                    self._tool_instances[tool_name] = Mem0Tool(self.config.get("mem0", {}))
+                    self._tool_instances[tool_name] = Mem0Tool(self.config.get("mem0", {}), debug=debug_mode)
                 elif tool_name == "openai_memory":
-                    self._tool_instances[tool_name] = OpenAIMemoryTool(self.config.get("openai_memory", {}))
+                    self._tool_instances[tool_name] = OpenAIMemoryTool(self.config.get("openai_memory", {}), debug=debug_mode)
                 elif tool_name == "memgpt":
-                    self._tool_instances[tool_name] = MemGPTTool(self.config.get("memgpt", {}))
+                    self._tool_instances[tool_name] = MemGPTTool(self.config.get("memgpt", {}), debug=debug_mode)
                 elif tool_name == "claude_memory":
-                    self._tool_instances[tool_name] = ClaudeMemoryTool(self.config.get("claude_memory", {}))
+                    self._tool_instances[tool_name] = ClaudeMemoryTool(self.config.get("claude_memory", {}), debug=debug_mode)
                 elif tool_name == "zep":
-                    self._tool_instances[tool_name] = ZepTool(self.config.get("zep", {}))
+                    self._tool_instances[tool_name] = ZepTool(self.config.get("zep", {}), debug=debug_mode)
                 elif tool_name == "baseline":
-                    self._tool_instances[tool_name] = NoMemoryTool(self.config.get("baseline", {}))
+                    self._tool_instances[tool_name] = NoMemoryTool(self.config.get("baseline", {}), debug=debug_mode)
                 elif tool_name == "full_context":
-                    self._tool_instances[tool_name] = FullContextTool(self.config.get("full_context", {}))
+                    self._tool_instances[tool_name] = FullContextTool(self.config.get("full_context", {}), debug=debug_mode)
                 else:
                     raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory, memgpt, claude_memory, zep, baseline, full_context")
             except (ValueError, ImportError) as e:

@@ -96,7 +96,10 @@ class OpenAIMemoryTool(MemoryTool):
             # Track token usage
             self._set_last_usage(response.usage)
             
-            return f"Stored in OpenAI Memory: {content} (Summary: {summary})"
+            if self.debug:
+                return f"[openai_memory] Stored: {content} (Summary: {summary})"
+            else:
+                return content
         except Exception as e:
             raise Exception(f"OpenAI store failed: {e}")
     
@@ -127,7 +130,10 @@ class OpenAIMemoryTool(MemoryTool):
             # Track token usage
             self._set_last_usage(response.usage)
             
-            return f"Retrieved from OpenAI Memory for '{query}': {answer}"
+            if self.debug:
+                return f"[openai_memory] Retrieved for '{query}': {answer}"
+            else:
+                return answer
         except Exception as e:
             raise Exception(f"OpenAI retrieve failed: {e}")
     
@@ -170,7 +176,10 @@ class OpenAIMemoryTool(MemoryTool):
                 {"role": "assistant", "content": answer}
             ])
             
-            return f"OpenAI Memory response: {answer}"
+            if self.debug:
+                return f"[openai_memory] Response: {answer}"
+            else:
+                return answer
         except Exception as e:
             raise Exception(f"OpenAI chat failed: {e}")
     
