@@ -1,5 +1,40 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Multi-provider, multi-model accuracy evaluation**: Support for evaluating responses with multiple embedding models simultaneously from different providers (OpenAI, local sentence-transformers)
+- **Debug flag for response prefixes**: Conditional `[tool_name]` prefixes in responses (debug: true for development, false for production benchmarks)
+- **Enhanced configuration validation**: Early validation catches invalid accuracy providers, missing Mem0 vector_store, and other config errors with helpful error messages
+- **Real-time error visibility**: Immediate console printing of step failures and timeouts with emoji indicators (❌ for failures, ⏱️ for timeouts)
+- **Error summary reporting**: Post-benchmark summary showing total failures with guidance to detailed logs
+- **Configuration Validation section** in README.md with examples
+- **Error Handling and Debugging section** in README.md with common patterns
+- **Chat operation limitation** documented in KNOWN_ISSUES.md (chat returns memory context, not LLM-generated responses)
+
+### Changed
+
+- **Removed Memory Stress Testing benchmark**: Empty suite consolidated into Technical Performance
+- **Updated .gitignore**: Now excludes `results/` directory (already present in remote)
+- **Accuracy configuration format**: Changed from `providers: [list]` to `providers: {dict of lists}` for multi-model support
+- **All 6 memory tools updated**: Added conditional debug prefixes (mem0, openai_memory, memgpt, claude_memory, zep, baseline)
+
+### Fixed
+
+- **Prevented silent failures**: Invalid accuracy provider configurations now caught at validation time
+- **Mem0 SQLite threading prevention**: Early validation requires `vector_store` configuration
+- **Improved accuracy evaluation**: First provider's first model becomes primary accuracy score, with all scores in `accuracy_by_provider`
+
+### Documentation
+
+- Updated README.md: Multi-provider accuracy, debug mode, configuration validation, error handling
+- Updated configs/README.md: Debug flag documentation
+- Updated docs/architecture.md: Accuracy evaluation flow, debug mode behavior
+- Updated KNOWN_ISSUES.md: Chat operation limitations, Mem0 validation enhancements
+
+---
+
 ## [0.1.1] - 2024-12-11
 
 ### Fixed
