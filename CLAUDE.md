@@ -257,6 +257,9 @@ No formal test suite. Validate changes with:
 # Compare baseline strategies (no API keys required)
 ./run_overnight.sh configs/baseline-comparison.yml
 
+# Multi-model accuracy validation (no API keys required, requires OpenAI for embeddings)
+python llmemory run --config test-multi-model.yml
+
 # Standard validation (requires API keys)
 python llmemory run --config quick-test.yml   # Fast smoke test
 python llmemory run --config comprehensive.yml  # Full validation
