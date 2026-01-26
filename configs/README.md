@@ -13,7 +13,7 @@ This directory contains YAML configuration files for LLMemoryMeter benchmarks.
 ### 🔬 **comprehensive.yml** (For Tech Articles & Research)
 - **Complete evaluation** setup with all memory tools and benchmarks
 - Memory Tools: Mem0, OpenAI Memory, MemGPT, Claude Memory (+ Zep optional)
-- All 6 benchmarks enabled for thorough comparison
+- All 5 benchmarks enabled for thorough comparison
 - Full quality analysis (accuracy, memory_quality metrics)
 - Perfect for tech journal articles, research papers, vendor evaluation
 

@@ -74,9 +74,6 @@ benchmarks:
 - name: Technical Performance
   enabled: true
   settings: null
-- name: Memory Stress Testing
-  enabled: true
-  settings: null
 - name: Domain-Specific Applications
   enabled: true
   settings: null

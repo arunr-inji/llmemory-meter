@@ -136,7 +136,7 @@ LLMemoryMeter offers **tiered configurations** for different use cases:
 ### 🔬 **Comprehensive Configuration**
 
 - **Tools**: Mem0 + OpenAI + MemGPT + Claude + Zep + Baseline + Full-Context (7 tools)
-- **Benchmarks**: All 6 scenarios enabled
+- **Benchmarks**: All 5 scenarios enabled
 - **Runtime**: ~15-20 minutes
 - **Use Case**: Research, tech articles, vendor evaluation
 - **Command**: `llmemory run --config comprehensive`

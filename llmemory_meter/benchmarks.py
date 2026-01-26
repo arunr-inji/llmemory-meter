@@ -805,27 +805,6 @@ class StandardBenchmarks:
             metrics=["exact_match_accuracy", "pattern_recognition", "case_handling"]
         )
 
-    @staticmethod
-    def memory_stress_suite() -> BenchmarkSuite:
-        """Memory stress testing benchmark suite.
-        
-        Note: The main stress/capacity test is now in technical_performance_suite()
-        as "Memory Load & Retention Test". This suite is kept for potential future
-        stress-specific workloads.
-        """
-        workloads = []
-        
-        # Future stress test workloads can be added here
-        # Currently consolidated into Technical Performance suite
-        
-        return BenchmarkSuite(
-            name="Memory Stress Testing",
-            description="Stress testing for memory system limits and performance",
-            category="technical",
-            workloads=workloads,
-            reference="Memory system stress testing methodologies",
-            metrics=["capacity_limit", "retention_accuracy", "performance_degradation"]
-        )
 
 
 class BenchmarkRunner:

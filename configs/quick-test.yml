@@ -49,9 +49,6 @@ benchmarks:
 - name: Technical Performance
   enabled: false  # Skip for quick test
   settings: null
-- name: Memory Stress Testing
-  enabled: false  # Skip for quick test
-  settings: null
 - name: Domain-Specific Applications
   enabled: false  # Skip for quick test
   settings: null
