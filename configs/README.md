@@ -69,6 +69,14 @@ metrics:         # What to measure
   latency: true
   success_rate: true
   token_usage: true
+  accuracy: true
+
+accuracy:        # Multi-provider accuracy evaluation
+  providers:
+    openai:
+      - text-embedding-3-small
+    local:
+      - all-mpnet-base-v2
 
 output:          # Results handling
   save_results: true

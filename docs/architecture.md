@@ -152,11 +152,13 @@ JSON output + print_summary()
 
 ```yaml
 accuracy:
-  providers: [openai, local] # Which embedding models to use
-  openai:
-    model: text-embedding-3-small
-  local:
-    model: all-mpnet-base-v2 # Sentence-transformers model
+  providers:  # Dict mapping provider to list of models
+    openai:
+      - text-embedding-3-small  # Fast, cost-effective
+      - text-embedding-3-large  # Optional: higher quality
+    local:
+      - all-mpnet-base-v2  # Best local model (sentence-transformers)
+      - all-MiniLM-L6-v2   # Optional: faster alternative
 ```
 
 **What it tunes:**
@@ -168,10 +170,12 @@ accuracy:
 
 **How it maps to execution:**
 
-- Parsed at `config_parser/manager.py:211-212`
-- Passed to `AccuracyEvaluator` in `comparator._evaluate_accuracy()` at line 181-200
+- Parsed at `config_parser/manager.py`
+- Passed to `AccuracyEvaluator` in `comparator._evaluate_accuracy()`
+- Iterates through all provider-model combinations
 - Calculates cosine similarity between responses and ground truth
-- Stores per-provider scores in `StepResult.accuracy_by_provider`
+- Stores scores in `StepResult.accuracy_by_provider` with keys like `openai_text-embedding-3-small`
+- First provider's first model becomes the primary `StepResult.accuracy` score
 
 #### 6. `output` - Results saving and display
 

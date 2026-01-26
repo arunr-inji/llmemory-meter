@@ -28,11 +28,11 @@ metrics:
   memory_quality: true
 
 accuracy:
-  providers: [openai, local]
-  openai:
-    model: text-embedding-3-small
-  local:
-    model: all-mpnet-base-v2
+  providers:
+    openai:
+      - text-embedding-3-small
+    local:
+      - all-mpnet-base-v2
 
 output:
   output_file: memgpt_results.json

@@ -78,13 +78,32 @@ LLMemoryMeter measures comprehensive performance across multiple dimensions:
 LLMemoryMeter supports multiple accuracy evaluation modes:
 
 - **Embedding similarity**: Cosine similarity (0.0-1.0) for semantic matching
-  - OpenAI embeddings (text-embedding-3-small)
-  - Local embeddings (all-mpnet-base-v2)
+  - OpenAI embeddings (text-embedding-3-small, text-embedding-3-large, etc.)
+  - Local embeddings (all-mpnet-base-v2, all-MiniLM-L6-v2, etc.)
 - **Exact match**: Binary scoring (1.0/0.0) for precise answers
   - `exact`: Case-sensitive exact match
   - `exact_case_insensitive`: Case-insensitive match
   - `contains`: Ground truth substring in response
   - `regex`: Ground truth as regex pattern
+
+##### Multi-Provider Accuracy Evaluation
+
+Evaluate responses using multiple embedding models simultaneously for robust measurement:
+
+```yaml
+accuracy:
+  providers:
+    openai:
+      - text-embedding-3-small  # Fast, cost-effective
+      - text-embedding-3-large  # Higher quality
+    local:
+      - all-mpnet-base-v2      # Best local model
+      - all-MiniLM-L6-v2       # Faster alternative
+```
+
+Results include scores for each provider-model combination in `accuracy_by_provider`, with the first provider's first model as the primary `accuracy` score.
+
+##### Custom Match Types
 
 Set `match_type` on WorkloadStep to override default embedding evaluation:
 

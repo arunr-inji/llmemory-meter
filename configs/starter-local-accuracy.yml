@@ -60,6 +60,6 @@ output:
   detailed_logs: false
 
 accuracy:
-  providers: [local]
-  local:
-    model: all-MiniLM-L6-v2
+  providers:
+    local:
+      - all-MiniLM-L6-v2
