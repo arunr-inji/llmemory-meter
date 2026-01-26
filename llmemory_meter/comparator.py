@@ -366,14 +366,9 @@ class MemoryComparator:
         accuracy_config = self.config.get('accuracy', {})
         providers_config = accuracy_config.get('providers', {})
         
-        # Determine primary provider_model key
+        # Determine primary provider_model key from first provider's first model
         primary_key = None
-        if isinstance(providers_config, list):
-            # Old format: use first provider
-            if providers_config:
-                primary_key = providers_config[0]
-        elif isinstance(providers_config, dict):
-            # New format: use first provider's first model
+        if isinstance(providers_config, dict):
             for provider, models in providers_config.items():
                 if isinstance(models, list) and models:
                     primary_key = f"{provider}_{models[0]}"
