@@ -487,6 +487,60 @@ Missing LLM API key: OPENAI_API_KEY for Mem0
 
 **Fix:** Ensure all required keys are set in your `.env` file.
 
+## Error Handling and Debugging
+
+### Real-Time Error Visibility
+
+Errors are printed to console immediately as they occur during benchmark execution:
+
+```bash
+Running workload: Multi-Session Memory Retention
+  → mem0 starting...
+  ❌ [mem0] Step 3 (retrieve) failed: Connection timeout after 30s
+  → openai_memory starting...
+  ⏱️ Timeout: Step 5 (chat) exceeded 5 minutes - marking as failed
+  ✓ openai_memory completed (10 steps, 45000ms)
+```
+
+**Error Indicators:**
+- `❌` - Step failure (API error, exception, etc.)
+- `⏱️` - Step timeout (exceeded configured timeout)
+- `✓` - Successful completion
+
+### Error Summary
+
+After all benchmarks complete, a summary shows total failures:
+
+```bash
+⚠️  3 step(s) failed during benchmark execution.
+   See detailed errors above and in the JSON results file.
+
+✅ Benchmarking complete!
+```
+
+### Detailed Error Information
+
+For full error details, check the JSON results file:
+
+```bash
+cat benchmark_results.json | jq '.results."Benchmark Name".standard_results.workload_results."Workload Name".tool_name.step_results[] | select(.success == false)'
+```
+
+This shows:
+- `error_message`: Detailed error description
+- `step_index`: Which step failed
+- `action`: What operation was attempted
+- `latency_ms`: Time spent before failure
+
+### Common Error Patterns
+
+| Error Type | Likely Cause | Solution |
+|-----------|--------------|----------|
+| Connection timeout | API rate limiting, network issues | Increase timeout, add retry logic |
+| Step timeout (5min) | Long-running operation | Check for hanging operations |
+| API key error | Missing or invalid credentials | Verify `.env` file |
+| SQLite threading | Mem0 without vector_store | Add Qdrant configuration |
+
 ## Example Results
 
 ```text

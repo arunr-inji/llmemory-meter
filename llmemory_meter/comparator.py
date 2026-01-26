@@ -155,6 +155,16 @@ class MemoryComparator:
                 if step_result.metadata:
                     combined_metadata.update(step_result.metadata)
                 step_result.metadata = combined_metadata
+            
+            # Print errors immediately for visibility
+            if not step_result.success:
+                error_msg = step_result.error_message or "Unknown error"
+                if "timed out" in error_msg.lower():
+                    # Timeout already printed above, don't duplicate
+                    pass
+                else:
+                    print(f"❌ [{tool_name}] Step {i} ({step.action}) failed: {error_msg}")
+            
             step_results.append(step_result)
         
         total_end_time = datetime.now()
