@@ -25,31 +25,6 @@
 
 ---
 
-### MemGPT: Token Usage Growth (Issue #2)
-
-**Status**: ✅ Fixed (v0.1.1)
-
-**Description**: MemGPT token usage grew 11x across benchmarks (3.4K → 38K) due to context accumulation.
-
-**Root Cause**: Same agent was reused across all benchmarks, accumulating conversation history.
-
-**Fix Applied**: Each benchmark run now creates a unique agent (user_id with timestamp).
-
-**Before Fix**:
-
-```text
-Conversational AI:     3,413 tokens
-Domain-Specific:      38,092 tokens  (11x growth!)
-```
-
-**After Fix** (expected):
-
-```text
-All benchmarks:    ~3,000-5,000 tokens (consistent)
-```
-
----
-
 ### Zep: Artificial Processing Delays (Issue #4)
 
 **Status**: ⚠️ By Design
@@ -96,41 +71,6 @@ With delays (actual):        ~6.3s avg  (4x higher)
 - ⚠️ Misleading chat response context count
 
 **Recommendation**: Align token accounting to a single source of truth and normalize result parsing across dict/list responses.
-
----
-
-## Data Format Issues
-
-### JSON Serialization (Issue #3)
-
-**Status**: ✅ Fixed (v0.1.1)
-
-**Description**: Benchmark results were stored as string representations instead of structured JSON.
-
-**Before**:
-
-```json
-{
-  "workload_results": {
-    "mem0": "WorkloadResult(tool_name='mem0', ...)"
-  }
-}
-```
-
-**After**:
-
-```json
-{
-  "workload_results": {
-    "mem0": {
-      "tool_name": "mem0",
-      "step_results": [...]
-    }
-  }
-}
-```
-
-**Impact**: Results are now programmatically parseable without regex.
 
 ---
 
@@ -244,11 +184,92 @@ Current benchmarks are **inspired by** MSC/PersonaChat but are **not** the actua
 
 ## Fixed Issues
 
+### MemGPT: Token Usage Growth (Issue #2)
+
+**Fixed in**: v0.1.1
+
+**Description**: MemGPT token usage grew 11x across benchmarks (3.4K → 38K) due to context accumulation.
+
+**Root Cause**: Same agent was reused across all benchmarks, accumulating conversation history.
+
+**Fix Applied**: Each benchmark run now creates a unique agent (user_id with timestamp).
+
+**Before Fix**:
+
+```text
+Conversational AI:     3,413 tokens
+Domain-Specific:      38,092 tokens  (11x growth!)
+```
+
+**After Fix** (expected):
+
+```text
+All benchmarks:    ~3,000-5,000 tokens (consistent)
+```
+
+---
+
+### JSON Serialization (Issue #3)
+
+**Fixed in**: v0.1.1
+
+**Description**: Benchmark results were stored as string representations instead of structured JSON.
+
+**Before**:
+
+```json
+{
+  "workload_results": {
+    "mem0": "WorkloadResult(tool_name='mem0', ...)"
+  }
+}
+```
+
+**After**:
+
+```json
+{
+  "workload_results": {
+    "mem0": {
+      "tool_name": "mem0",
+      "step_results": [...]
+    }
+  }
+}
+```
+
+**Impact**: Results are now programmatically parseable without regex.
+
+---
+
+### Legacy `general.concurrent` Key in Configs (Issue #7)
+
+**Fixed in**: 2026-01-26
+
+**Description**: Several configs used `general.concurrent`, but the code reads
+`general.concurrent_tools` (`llmemory_meter/comparator.py`) and the default config
+in `llmemory_meter/config_parser/manager.py` uses `concurrent_tools`.
+
+**Impact**:
+
+- `general.concurrent` was ignored, defaulting to `concurrent_tools=True`,
+  causing unintended parallel execution for those configs.
+
+**Fix Applied**:
+
+- Updated configs to use `general.concurrent_tools` consistently:
+  `configs/mem0-only.yml`, `configs/openai-only.yml`, `configs/claude-only.yml`,
+  `configs/zep-only.yml`, `configs/memgpt-only.yml`, `configs/memgpt-quick-test.yml`.
+
+---
+
 ### Zep: Knowledge Graph Accumulation
 
 **Fixed in**: v0.1.0  
 **Issue**: Same user across runs led to 22x context growth  
 **Fix**: Unique user_id per run
+
+---
 
 ### Mem0: SQLite Threading Issues
 
@@ -292,29 +313,6 @@ no scenario/metric tags at all.
 - Define a dedicated metadata dataclass (required + optional fields) and standardize keys.
 - At minimum, document the schema in `llmemory_meter/workload.py` or `docs/architecture.md`.
 - Consider adding explicit `scenario` tags to existing workloads for consistent filtering.
-
----
-
-## Configuration Issues
-
-### Legacy `general.concurrent` Key in Configs (Issue #7)
-
-**Status**: ✅ Fixed (2026-01-26)
-
-**Description**: Several configs used `general.concurrent`, but the code reads
-`general.concurrent_tools` (`llmemory_meter/comparator.py`) and the default config
-in `llmemory_meter/config_parser/manager.py` uses `concurrent_tools`.
-
-**Impact**:
-
-- `general.concurrent` was ignored, defaulting to `concurrent_tools=True`,
-  causing unintended parallel execution for those configs.
-
-**Fix Applied**:
-
-- Updated configs to use `general.concurrent_tools` consistently:
-  `configs/mem0-only.yml`, `configs/openai-only.yml`, `configs/claude-only.yml`,
-  `configs/zep-only.yml`, `configs/memgpt-only.yml`, `configs/memgpt-quick-test.yml`.
 
 ---
 
