@@ -180,6 +180,19 @@ Current benchmarks are **inspired by** MSC/PersonaChat but are **not** the actua
 - Position as "tool contribution + comparative study"
 - Note Phase 2B plan for standard benchmark support
 
+### Industry Benchmarks (LongMemEval, MemBench)
+
+**LongMemEval data size**: `longmemeval_m_cleaned.json` is ~2.7GB. Downloads can be slow and require significant disk space.
+
+**MemBench download**: The MemBench dataset is distributed via Google Drive/Baidu links and may require manual download if the automated fetch fails.
+
+**LongMemEval evaluation dependencies**:
+
+- Official `evaluate_qa.py` script requires `openai`, `backoff`, `tqdm`, and `numpy`
+- GPT-4o judge requires `OPENAI_API_KEY` (and optional `OPENAI_ORGANIZATION`)
+
+**Cost warning**: LongMemEval GPT-4o evaluation adds extra cost beyond store/retrieve runs.
+
 ---
 
 ## Fixed Issues
@@ -258,8 +271,7 @@ in `llmemory_meter/config_parser/manager.py` uses `concurrent_tools`.
 **Fix Applied**:
 
 - Updated configs to use `general.concurrent_tools` consistently:
-  `configs/mem0-only.yml`, `configs/openai-only.yml`, `configs/claude-only.yml`,
-  `configs/zep-only.yml`, `configs/memgpt-only.yml`, `configs/memgpt-quick-test.yml`.
+  Legacy configs now live under `configs/archived/` (e.g., `mem0-only.yml`, `zep-only.yml`).
 
 ---
 

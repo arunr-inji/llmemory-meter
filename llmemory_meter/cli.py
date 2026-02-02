@@ -6,11 +6,13 @@ Provides a simple CLI to run benchmarks using YAML configuration.
 
 import argparse
 import asyncio
+import json
 import sys
 from pathlib import Path
 
 from llmemory_meter.config_parser import ConfigManager
 from llmemory_meter.comparator import MemoryComparator
+from llmemory_meter.hybrid_evaluator import HybridEvaluator
 
 
 async def run_benchmarks(config_file: str = None, verbose: bool = False):
@@ -259,6 +261,89 @@ def create_config_command(args):
         return False
 
 
+def evaluate_command(args):
+    """Run hybrid evaluation using official benchmark scripts."""
+    results_path = Path(args.results or "benchmark_results.json")
+    if not results_path.exists():
+        print(f"❌ Results file not found: {results_path}")
+        return False
+
+    benchmark_name = args.benchmark
+    judge = args.judge
+    config = ConfigManager.load_config(args.config) if args.config else None
+    benchmark_config = None
+    if config:
+        benchmark_config = ConfigManager.get_benchmark_config(config, benchmark_name)
+
+    with results_path.open("r", encoding="utf-8") as f:
+        results_data = json.load(f)
+
+    all_benchmarks = results_data.get("results", {})
+    benchmark_results = all_benchmarks.get(benchmark_name)
+    if not benchmark_results:
+        for name in all_benchmarks.keys():
+            if name.lower() == benchmark_name.lower():
+                benchmark_name = name
+                benchmark_results = all_benchmarks[name]
+                break
+    if not benchmark_results:
+        print(f"❌ Benchmark '{benchmark_name}' not found in results file.")
+        return False
+
+    workload_results = benchmark_results.get("standard_results", {}).get("workload_results")
+    if not workload_results:
+        print(f"❌ No workload results found for benchmark '{benchmark_name}'.")
+        return False
+
+    tools = sorted({tool for data in workload_results.values() for tool in data.keys()})
+    if not tools:
+        print(f"❌ No tools found for benchmark '{benchmark_name}'.")
+        return False
+
+    evaluator = HybridEvaluator()
+    evaluations = []
+
+    if benchmark_name.lower() == "longmemeval":
+        config_subset = None
+        if benchmark_config and benchmark_config.settings:
+            config_subset = benchmark_config.settings.get("subset")
+        subset = args.subset or config_subset or "S"
+        for tool_name in tools:
+            evaluations.append(
+                evaluator.evaluate_longmemeval(
+                    tool_name=tool_name,
+                    workload_results=workload_results,
+                    subset=subset,
+                    judge_model=judge,
+                )
+            )
+    elif benchmark_name.lower() == "membench":
+        eval_script = Path(args.eval_script) if args.eval_script else None
+        for tool_name in tools:
+            evaluations.append(
+                evaluator.evaluate_membench(
+                    tool_name=tool_name,
+                    workload_results=workload_results,
+                    eval_script=eval_script,
+                )
+            )
+    else:
+        print(f"❌ Hybrid evaluation not supported for benchmark '{benchmark_name}'.")
+        return False
+
+    print("\n📊 Hybrid Evaluation Results:")
+    for result in evaluations:
+        if result.error:
+            print(f"  • {result.tool_name}: error - {result.error}")
+            continue
+        if result.accuracy is not None:
+            print(f"  • {result.tool_name}: {result.accuracy*100:.2f}% accuracy")
+        else:
+            print(f"  • {result.tool_name}: evaluation complete (see logs)")
+
+    return True
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -266,14 +351,14 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  llmemory run                          # Run with default config (starter.yml)
-  llmemory run --config comprehensive   # Run comprehensive evaluation  
+  llmemory run                          # Run with default config (industry-benchmarks.yml)
+  llmemory run --config longmemeval-only.yml  # LongMemEval-only run
   llmemory run --config my_config.yml  # Run with custom config
   llmemory create-config                # Create default config file
   llmemory create-config --output custom.yml # Create custom config file
 
 Environment Variables:
-  LLMEMORY_DEFAULT_CONFIG=comprehensive.yml  # Change default config
+  LLMEMORY_DEFAULT_CONFIG=configs/industry-benchmarks.yml  # Change default config
         """
     )
     
@@ -288,6 +373,15 @@ Environment Variables:
     config_parser = subparsers.add_parser('create-config', help='Create default configuration file')
     config_parser.add_argument('--output', '-o', help='Output file path')
     config_parser.add_argument('--force', '-f', action='store_true', help='Overwrite existing file')
+
+    # Evaluate command
+    evaluate_parser = subparsers.add_parser('evaluate', help='Run hybrid benchmark evaluation')
+    evaluate_parser.add_argument('--benchmark', '-b', required=True, help='Benchmark name (LongMemEval, MemBench)')
+    evaluate_parser.add_argument('--judge', default='gpt-4o', help='Judge model (LongMemEval only)')
+    evaluate_parser.add_argument('--results', '-r', help='Results JSON file path')
+    evaluate_parser.add_argument('--config', '-c', help='Config file (for benchmark settings)')
+    evaluate_parser.add_argument('--subset', help='LongMemEval subset (S, M, oracle)')
+    evaluate_parser.add_argument('--eval-script', help='MemBench eval script path')
     
     args = parser.parse_args()
     
@@ -297,6 +391,10 @@ Environment Variables:
     
     elif args.command == 'create-config':
         success = create_config_command(args)
+        sys.exit(0 if success else 1)
+
+    elif args.command == 'evaluate':
+        success = evaluate_command(args)
         sys.exit(0 if success else 1)
     
     else:

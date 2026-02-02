@@ -21,13 +21,49 @@ Config (YAML) → CLI → MemoryComparator → MemoryTools → Results
 
 ---
 
+## Industry Benchmarks (Phase 1)
+
+Phase 1 adds **external datasets** (LongMemEval, MemBench) and a store/retrieve-only mode.
+
+```mermaid
+flowchart LR
+    ConfigYaml["Config YAML"] --> BenchmarkLoader
+    BenchmarkLoader --> Workloads
+    Workloads --> MemoryComparator
+    MemoryComparator --> MemoryTools
+    MemoryTools --> ResultsJson["Results JSON"]
+    ResultsJson --> HybridEvaluator
+```
+
+**Key additions:**
+
+- `BenchmarkLoader` downloads and converts LongMemEval/MemBench into `Workload` objects
+- `store_retrieve_only` skips chat steps to measure memory systems directly
+- `HybridEvaluator` runs official benchmark evaluation scripts (e.g., LongMemEval GPT-4o judge)
+
+---
+
+## Planned (Phase 2 - Not Implemented Yet)
+
+Phase 2 introduces a **Unified LLM handler** to compare Memory+LLM vs Pure LLM baselines.
+
+```mermaid
+flowchart LR
+    MemoryTools --> UnifiedLLMHandler
+    UnifiedLLMHandler --> LLMResponses
+```
+
+This phase is documented in the roadmap but intentionally not implemented yet.
+
+---
+
 ## Configuration System
 
 **Location:** `configs/*.yml`
 
 **How benchmarks start from config:**
 
-1. User runs: `python llmemory run --config starter.yml`
+1. User runs: `python llmemory run --config industry-benchmarks.yml`
 2. CLI loads YAML via `ConfigManager.load_config()` (`config_parser/manager.py:168`)
 3. Auto-resolves paths (tries `configs/` if file not found directly)
 4. Converts to `LLMemoryMeterConfig` dataclass with validation
@@ -481,8 +517,9 @@ Output (JSON file + console summary)
 **Configuration:**
 
 - `llmemory_meter/config_parser/manager.py:150-259` - Config loading/validation
-- `configs/starter.yml` - Default config
-- `configs/comprehensive.yml` - Full suite
+- `configs/industry-benchmarks.yml` - Default Phase 1 config
+- `configs/longmemeval-only.yml` - LongMemEval-only config
+- Legacy configs moved to `configs/archived/`
 - `configs/example.yml` - Documented example
 
 ---

@@ -37,6 +37,8 @@ class StandardBenchmarks:
         return [
             StandardBenchmarks.conversational_ai_suite(),
             StandardBenchmarks.long_context_suite(),
+            StandardBenchmarks.longmemeval_suite(),
+            StandardBenchmarks.membench_suite(),
             StandardBenchmarks.persona_consistency_suite(),
             StandardBenchmarks.technical_performance_suite(config),
             StandardBenchmarks.domain_specific_suite(),
@@ -287,7 +289,7 @@ class StandardBenchmarks:
         
         return BenchmarkSuite(
             name="Conversational AI Memory",
-            description="Benchmarks based on conversational AI datasets (MSC, PersonaChat)",
+            description="Legacy synthetic benchmarks based on conversational AI datasets (MSC, PersonaChat)",
             category="conversational",
             workloads=workloads,
             reference="Xu et al. 2021 (MSC), Zhang et al. 2018 (PersonaChat)",
@@ -378,11 +380,35 @@ class StandardBenchmarks:
         
         return BenchmarkSuite(
             name="Long Context Memory",
-            description="Benchmarks for long-context memory retention (LongBench/InfiniteBench style)",
+            description="Legacy synthetic benchmarks for long-context memory retention (LongBench/InfiniteBench style)",
             category="long_context",
             workloads=workloads,
             reference="Bai et al. 2023 (LongBench), Zhang et al. 2024 (InfiniteBench)",
             metrics=["retrieval_accuracy", "context_retention", "information_synthesis"]
+        )
+
+    @staticmethod
+    def longmemeval_suite() -> BenchmarkSuite:
+        """Placeholder suite for LongMemEval (workloads loaded on-demand)."""
+        return BenchmarkSuite(
+            name="LongMemEval",
+            description="LongMemEval long-term memory benchmark (external dataset)",
+            category="long_context",
+            workloads=[],
+            reference="Wu et al. 2024 (LongMemEval)",
+            metrics=["long_term_memory", "abstention", "temporal_reasoning"]
+        )
+
+    @staticmethod
+    def membench_suite() -> BenchmarkSuite:
+        """Placeholder suite for MemBench (workloads loaded on-demand)."""
+        return BenchmarkSuite(
+            name="MemBench",
+            description="MemBench memory benchmark (external dataset)",
+            category="domain_specific",
+            workloads=[],
+            reference="MemBench (ACL 2025 Findings)",
+            metrics=["effectiveness", "efficiency", "capacity"]
         )
     
     @staticmethod
@@ -425,7 +451,7 @@ class StandardBenchmarks:
         
         return BenchmarkSuite(
             name="Persona Consistency",
-            description="Benchmarks for maintaining consistent persona and identity",
+            description="Legacy synthetic benchmarks for maintaining consistent persona and identity",
             category="conversational",
             workloads=workloads,
             reference="Character consistency evaluation frameworks",
@@ -540,7 +566,7 @@ class StandardBenchmarks:
         
         return BenchmarkSuite(
             name="Technical Performance",
-            description="Technical benchmarks for memory system performance evaluation",
+            description="Legacy synthetic benchmarks for memory system performance evaluation",
             category="technical",
             workloads=workloads,
             reference="AdaptMemBench, AISBench methodologies",
@@ -586,7 +612,7 @@ class StandardBenchmarks:
         
         return BenchmarkSuite(
             name="Domain-Specific Applications",
-            description="Real-world domain-specific memory scenarios",
+            description="Legacy synthetic real-world domain-specific memory scenarios",
             category="domain_specific",
             workloads=workloads,
             reference="Industry-specific use case analysis",
@@ -798,7 +824,7 @@ class StandardBenchmarks:
 
         return BenchmarkSuite(
             name="Exact Match Evaluation",
-            description="Benchmarks for testing exact match evaluation methods (exact, case-insensitive, regex)",
+            description="Legacy synthetic benchmarks for testing exact match evaluation methods (exact, case-insensitive, regex)",
             category="technical",
             workloads=workloads,
             reference="Exact match evaluation testing framework",

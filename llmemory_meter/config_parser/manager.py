@@ -59,12 +59,12 @@ class ConfigManager:
     
     @classmethod
     def get_default_config_file(cls) -> str:
-        """Get default config file from environment or fallback to starter.yml."""
+        """Get default config file from environment or fallback to industry-benchmarks.yml."""
         import os
-        return os.getenv("LLMEMORY_DEFAULT_CONFIG", "configs/starter.yml")
+        return os.getenv("LLMEMORY_DEFAULT_CONFIG", "configs/industry-benchmarks.yml")
     
     # Set default config file
-    DEFAULT_CONFIG_FILE = "configs/starter.yml"  # Will be overridden by get_default_config_file() when called
+    DEFAULT_CONFIG_FILE = "configs/industry-benchmarks.yml"  # Will be overridden by get_default_config_file() when called
     
     @staticmethod
     def create_default_config() -> LLMemoryMeterConfig:

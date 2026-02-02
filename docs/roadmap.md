@@ -9,6 +9,33 @@ Your two objectives:
 
 ---
 
+## Current Work (Phase 1) - Industry Benchmarks
+
+Focus: **store/retrieve only** comparison for Mem0, Zep, and MemGPT using industry benchmarks.
+
+**Scope:**
+
+- Integrate **LongMemEval** and **MemBench** datasets
+- Add `store_retrieve_only` mode to skip chat steps
+- Track latency, cost, and token usage per system
+- Run **official benchmark evaluation** (e.g., LongMemEval GPT-4o judge)
+
+**Cost target:** ~$5-15 (plus LongMemEval GPT-4o judge cost)
+
+---
+
+## Planned (Phase 2) - Unified LLM Chat Layer (DO NOT IMPLEMENT YET)
+
+Future work to compare **Memory+LLM vs Pure LLM**:
+
+- Unified LLM handler (GPT-4.1-nano) for chat across Mem0/Zep/MemGPT
+- Convert OpenAI/Claude tools to **pure no-memory baselines**
+- Full comparison: Memory+LLM vs Pure LLM baselines
+
+**Cost target:** additional ~$20-50
+
+---
+
 ## Prioritized Feature Roadmap
 
 ### Tier 1: High ROI / Publication-Critical (Do First)
