@@ -10,6 +10,7 @@ import zipfile
 import tarfile
 
 import httpx
+from tqdm import tqdm
 
 from llmemory_meter.workload import Workload, WorkloadStep
 
@@ -381,10 +382,17 @@ class BenchmarkLoader:
 
         with httpx.stream("GET", url, follow_redirects=True, timeout=120) as response:
             response.raise_for_status()
-            with target_path.open("wb") as f:
+            total = int(response.headers.get("content-length", 0))
+            with target_path.open("wb") as f, tqdm(
+                total=total,
+                unit="B",
+                unit_scale=True,
+                desc=f"Downloading {target_path.name}",
+            ) as pbar:
                 for chunk in response.iter_bytes():
                     if chunk:
                         f.write(chunk)
+                        pbar.update(len(chunk))
 
     @classmethod
     def _download_membench_archive(cls, target_dir: Path) -> None:

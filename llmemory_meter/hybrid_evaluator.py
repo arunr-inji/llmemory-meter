@@ -70,6 +70,12 @@ class LongMemEvalEvaluator:
     _EVAL_SCRIPT_URL = (
         "https://raw.githubusercontent.com/xiaowu0162/LongMemEval/main/src/evaluation/evaluate_qa.py"
     )
+    _ALLOWED_JUDGE_MODELS = {
+        "gpt-4o",
+        "gpt-4",
+        "gpt-3.5-turbo",
+        "claude-3-sonnet",
+    }
 
     def __init__(self, data_dir: Optional[Path] = None):
         self.data_dir = data_dir
@@ -87,6 +93,7 @@ class LongMemEvalEvaluator:
         judge_model: str,
         output_dir: Optional[Path],
     ) -> HybridEvalResult:
+        self._validate_judge_model(judge_model)
         output_path = output_dir or (BenchmarkLoader.data_dir() / "hybrid_eval")
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -133,6 +140,7 @@ class LongMemEvalEvaluator:
             )
 
     def _run_eval_script(self, judge_model: str, hypothesis_file: Path, ref_file: Path) -> None:
+        self._validate_judge_model(judge_model)
         result = subprocess.run(
             [
                 "python",
@@ -149,6 +157,12 @@ class LongMemEvalEvaluator:
                 "LongMemEval evaluation failed: "
                 f"{result.stderr.strip() or result.stdout.strip()}"
             )
+
+    @classmethod
+    def _validate_judge_model(cls, model: str) -> None:
+        if model not in cls._ALLOWED_JUDGE_MODELS:
+            allowed = ", ".join(sorted(cls._ALLOWED_JUDGE_MODELS))
+            raise ValueError(f"Invalid judge model: {model}. Allowed: {allowed}")
 
     @staticmethod
     def _extract_hypotheses(workload_results: Dict[str, Any], tool_name: str) -> List[Dict[str, Any]]:
