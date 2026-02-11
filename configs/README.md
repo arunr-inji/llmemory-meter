@@ -4,40 +4,22 @@ This directory contains YAML configuration files for LLMemoryMeter benchmarks.
 
 ## Available Configurations
 
-### 🚀 **starter.yml** (Default - Recommended for Beginners)
-- **Production-ready** configuration with 100% success rate
-- Both Mem0 (with Qdrant vector store) and OpenAI Memory enabled
-- Optimized settings: sequential execution, proper timeouts
-- Runs basic conversational and long-context benchmarks
+### 🚀 **industry-benchmarks.yml** (Default - Phase 1)
+- Store/retrieve-only comparison for Mem0, Zep, and MemGPT
+- Runs LongMemEval + MemBench (industry datasets)
+- Optimized for latency/cost measurement without chat steps
 
-### 🔬 **comprehensive.yml** (For Tech Articles & Research)
-- **Complete evaluation** setup with all memory tools and benchmarks
-- Memory Tools: Mem0, OpenAI Memory, MemGPT, Claude Memory (+ Zep optional)
-- All 5 benchmarks enabled for thorough comparison
-- Full quality analysis (accuracy, memory_quality metrics)
-- Perfect for tech journal articles, research papers, vendor evaluation
+### 🧪 **longmemeval-only.yml**
+- LongMemEval-only run (store/retrieve only)
+- Useful for isolated LongMemEval evaluation + GPT-4o judging
 
-### 📝 **example.yml**
-- Alternative configuration showing different options
-- OpenAI Memory only setup (for users with just OpenAI API key)
-- Includes detailed comments explaining each option
-- Shows how to enable/disable specific benchmarks
-
-### 🔬 **gemini.yml**
-- Mem0 with Google Gemini LLM instead of OpenAI
-- Requires GOOGLE_API_KEY and MEM0_API_KEY
-- Demonstrates multi-LLM provider setup
-
-### ⚔️ **conflict-resolution.yml**
-- Focused run for conflict-resolution workloads (overwrite + multi-hop + temporal updates)
-- Runs only the conflict-resolution workloads in the Conversational AI suite
-- Useful for validating latest-fact behavior and scenario metrics
+Legacy configs are available in `configs/archived/` for reference.
 
 ## Creating Your Own Config
 
 1. **Copy a template**:
 ```bash
-cp configs/default.yml my_config.yml
+cp configs/industry-benchmarks.yml my_config.yml
 ```
 
 2. **Edit settings**:
@@ -62,7 +44,8 @@ memory_tools:    # Which tools to test
     settings: {...}
 
 benchmarks:      # Which test suites to run
-  - name: Conversational AI Memory
+  - name: LongMemEval
+  - name: MemBench
     enabled: true
 
 metrics:         # What to measure
@@ -84,6 +67,7 @@ output:          # Results handling
 
 general:         # Global settings
   timeout: 30
+  store_retrieve_only: true
   debug: false   # false: clean responses | true: prefixed responses for debugging
 ```
 
@@ -94,21 +78,21 @@ general:         # Global settings
 ## Quick Commands
 
 ```bash
-# Basic benchmarking (uses starter.yml by default)
+# Basic benchmarking (uses industry-benchmarks.yml by default)
 llmemory run
 
-# Comprehensive evaluation (for articles/research)
-llmemory run --config comprehensive
+# LongMemEval only
+llmemory run --config longmemeval-only.yml
 
 # Set your preferred default config  
-export LLMEMORY_DEFAULT_CONFIG=comprehensive.yml
-llmemory run  # Now uses comprehensive.yml by default
+export LLMEMORY_DEFAULT_CONFIG=configs/industry-benchmarks.yml
+llmemory run  # Now uses industry-benchmarks.yml by default
 
 # Create new config from default
 llmemory create-config --output my_config.yml
 
 # Run with specific config (auto-checks configs/ folder)
-llmemory run --config example
+llmemory run --config industry-benchmarks
 llmemory run --config my_config.yml
 
 # Run with default config

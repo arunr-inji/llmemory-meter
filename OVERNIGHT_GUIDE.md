@@ -1,4 +1,4 @@
-# Running Benchmarks Overnight 😴
+# Running Benchmarks Overnight
 
 ## Quick Start (3 steps)
 
@@ -12,11 +12,11 @@ chmod +x run_overnight.sh
 
 ```bash
 # Use nohup so it keeps running even if you close terminal/logout
-nohup ./run_overnight.sh configs/comprehensive.yml &
+nohup ./run_overnight.sh configs/industry-benchmarks.yml &
 
 # Alternative: use screen (allows you to reattach later)
 screen -S benchmark
-./run_overnight.sh configs/comprehensive.yml
+./run_overnight.sh configs/industry-benchmarks.yml
 # Press Ctrl+A then D to detach
 ```
 
@@ -65,10 +65,10 @@ tail -50 logs/benchmark_*.log
 
 ```bash
 # View in terminal
-cat results/comprehensive_*.json | python3 -m json.tool | less
+cat results/industry_benchmarks_*.json | python3 -m json.tool | less
 
 # Or use VSCode
-code results/comprehensive_*.json
+code results/industry_benchmarks_*.json
 ```
 
 ---
@@ -194,7 +194,7 @@ grep -i "killed\|oom" /var/log/system.log
 1. **Test first**: Run with a small config to verify everything works
 
    ```bash
-   ./run_overnight.sh configs/quick-test.yml
+   ./run_overnight.sh configs/industry-benchmarks.yml
    ```
 
 2. **Monitor resource usage**:
@@ -213,11 +213,8 @@ grep -i "killed\|oom" /var/log/system.log
 4. **Multiple runs**: Use different configs
 
    ```bash
-   # Run 1: Just Zep
-   nohup ./run_overnight.sh configs/zep-only.yml &
-
-   # Run 2: Just mem0
-   nohup ./run_overnight.sh configs/mem0-only.yml &
+   # Run 1: Industry benchmarks
+   nohup ./run_overnight.sh configs/industry-benchmarks.yml &
    ```
 
 ---
@@ -229,8 +226,8 @@ llmemory_meter/
 ├── logs/
 │   └── benchmark_20241219_143022.log  # Full output
 ├── results/
-│   └── comprehensive_20241219_143022.json  # Results with timestamp
-└── comprehensive_results.json  # Latest results (overwritten)
+│   └── industry_benchmarks_20241219_143022.json  # Results with timestamp
+└── industry_benchmarks_results.json  # Latest results (overwritten)
 ```
 
-All results are saved automatically! Just check the files when you wake up. ☕📊
+All results are saved automatically! Just check the files when you wake up.

@@ -10,6 +10,7 @@ from llmemory_meter.workload import Workload, WorkloadResult, StepResult, Worklo
 from llmemory_meter.metrics import MetricsCalculator
 from llmemory_meter.config_parser import Config
 from llmemory_meter.benchmarks import StandardBenchmarks, BenchmarkRunner
+from llmemory_meter.benchmark_loader import BenchmarkLoader
 
 
 class MemoryComparator:
@@ -112,15 +113,22 @@ class MemoryComparator:
         tool = self._get_tool_instance(tool_name)
         step_results = []
         total_start_time = datetime.now()
+        store_retrieve_only = self.config.get("general", {}).get("store_retrieve_only", False)
+
+        steps_to_run = []
+        for step_index, step in enumerate(workload.steps):
+            if store_retrieve_only and step.action == "chat":
+                continue
+            steps_to_run.append((step_index, step))
         
         # Phase 1: Run benchmark (pure performance measurement)
-        for i, step in enumerate(workload.steps):
+        for progress_index, (step_index, step) in enumerate(steps_to_run):
             # Progress print every 10 steps
-            if i > 0 and i % 10 == 0:
+            if progress_index > 0 and progress_index % 10 == 0:
                 from datetime import timezone, timedelta
                 pst = timezone(timedelta(hours=-8))
                 timestamp = datetime.now(pst).strftime("%H:%M:%S")
-                print(f"    [{tool_name}] Progress: {i}/{len(workload.steps)} steps @ {timestamp} PST")
+                print(f"    [{tool_name}] Progress: {progress_index}/{len(steps_to_run)} steps @ {timestamp} PST")
             
             try:
                 # Add timeout per step to prevent indefinite hangs (especially for Zep)
@@ -128,14 +136,14 @@ class MemoryComparator:
                 # Prevents deadlocks while allowing legitimate slow operations
                 STEP_TIMEOUT = 300.0  # 5 minutes
                 step_result = await asyncio.wait_for(
-                    tool.execute_step(step, i),
+                    tool.execute_step(step, step_index),
                     timeout=STEP_TIMEOUT
                 )
             except asyncio.TimeoutError:
                 # Step timed out - mark as failed
-                print(f"⏱️ Timeout: Step {i} ({step.action}) exceeded {STEP_TIMEOUT/60:.0f} minutes - marking as failed")
+                print(f"⏱️ Timeout: Step {step_index} ({step.action}) exceeded {STEP_TIMEOUT/60:.0f} minutes - marking as failed")
                 step_result = StepResult(
-                    step_index=i,
+                    step_index=step_index,
                     action=step.action,
                     response="",
                     latency_ms=STEP_TIMEOUT * 1000,
@@ -163,7 +171,7 @@ class MemoryComparator:
                     # Timeout already printed above, don't duplicate
                     pass
                 else:
-                    print(f"❌ [{tool_name}] Step {i} ({step.action}) failed: {error_msg}")
+                    print(f"❌ [{tool_name}] Step {step_index} ({step.action}) failed: {error_msg}")
             
             step_results.append(step_result)
         
@@ -172,7 +180,8 @@ class MemoryComparator:
         
         # Phase 2: Evaluate accuracy post-hoc (doesn't affect latency/tokens)
         if self.config.get('metrics', {}).get('accuracy', False):
-            step_results = self._evaluate_accuracy(step_results, workload.steps)
+            steps_for_accuracy = [step for _, step in steps_to_run]
+            step_results = self._evaluate_accuracy(step_results, steps_for_accuracy)
         
         # Calculate aggregated metrics
         successful_steps = sum(1 for r in step_results if r.success)
@@ -699,6 +708,12 @@ class MemoryComparator:
         if not suite:
             raise ValueError(f"Benchmark suite '{suite_name}' not found. Available suites: {[s.name for s in all_suites]}")
 
+        if suite.name not in {"LongMemEval", "MemBench"}:
+            print(
+                "⚠️  Warning: Running legacy synthetic benchmark suite. "
+                "These suites are deprecated in favor of LongMemEval/MemBench."
+            )
+
         # Get benchmark config to check for workload filtering
         if self.config_obj is not None:
             from llmemory_meter.config_parser.manager import ConfigManager
@@ -708,10 +723,22 @@ class MemoryComparator:
 
         # Filter workloads if specific ones are requested
         workloads_to_run = suite.workloads
+
+        # Load external benchmark workloads on-demand
+        if suite.name == "LongMemEval":
+            settings = benchmark_config.settings if benchmark_config else {}
+            subset = settings.get("subset", "S")
+            limit = settings.get("limit")
+            workloads_to_run = BenchmarkLoader.load_longmemeval(subset=subset, limit=limit)
+        elif suite.name == "MemBench":
+            settings = benchmark_config.settings if benchmark_config else {}
+            categories = settings.get("categories")
+            limit = settings.get("limit")
+            workloads_to_run = BenchmarkLoader.load_membench(categories=categories, limit=limit)
         if benchmark_config and benchmark_config.workloads:
             # Filter to only the requested workloads
             requested_workload_names = set(benchmark_config.workloads)
-            workloads_to_run = [w for w in suite.workloads if w.name in requested_workload_names]
+            workloads_to_run = [w for w in workloads_to_run if w.name in requested_workload_names]
 
             if not workloads_to_run:
                 print(f"⚠️  No matching workloads found for {suite_name}. Requested: {benchmark_config.workloads}")

@@ -4,10 +4,10 @@
 
 - `llmemory_meter/`: core Python package (CLI, comparator, workloads, metrics, tool adapters).
 - `llmemory_meter/memory_tools/`: integrations for Mem0, OpenAI Memory, MemGPT, Claude, Zep; copy `template_tool.py` when adding a new tool.
-- `configs/`: YAML configs for benchmark runs (starter, comprehensive, single-tool variants).
+- `configs/`: YAML configs for benchmark runs (industry-benchmarks, longmemeval-only).
 - `examples/` and root scripts (`simple_example.py`, `benchmark_demo.py`, `benchmark_example.py`): usage demos.
 - `docs/` and `KNOWN_ISSUES.md`: architecture notes and known limitations.
-- `results/`, `logs/`, `quick-test/`, `comprehensive/`: generated outputs from runs.
+- `results/`, `logs/`: generated outputs from runs.
 
 ## Build, Test, and Development Commands
 
@@ -25,7 +25,7 @@
 ## Testing Guidelines
 
 - No formal test suite is present. Validate changes with:
-  - `./run_overnight.sh configs/mem0-only.yml` (swap config as appropriate for the change)
+  - `./run_overnight.sh configs/industry-benchmarks.yml`
 - Name custom configs with `.yml` and store in `configs/`.
 
 ## Commit & Pull Request Guidelines

@@ -44,16 +44,8 @@ LLMemoryMeter includes **two baseline implementations** to help you understand t
 - **Instant Response**: Sub-millisecond latency (no network calls)
 - **100% Reliability**: No external service failures
 
-**Quick Tests (no API keys needed):**
-
-```bash
-# Test individual baselines
-./run_overnight.sh configs/baseline-only.yml
-./run_overnight.sh configs/full-context-only.yml
-
-# Compare both strategies
-llmemory run --config baseline-comparison.yml
-```
+**Baseline testing:** Create a custom config from `configs/industry-benchmarks.yml`
+and enable `baseline`/`full_context` tools if you want quick no-API-key runs.
 
 ## Performance Metrics
 
@@ -123,42 +115,14 @@ WorkloadStep(
 - **Technical Performance**: Stress testing, capacity limits, concurrent access
 - **Domain-Specific**: Customer service, research assistant, personal assistant scenarios
 
-## Configuration Tiers
+## Configuration
 
-LLMemoryMeter offers **tiered configurations** for different use cases:
+### Current configs
 
-### 🚀 **Starter Configuration (Default)**
+- **`configs/industry-benchmarks.yml`** (default): LongMemEval + MemBench, store/retrieve only
+- **`configs/longmemeval-only.yml`**: LongMemEval-only run
 
-- **Tools**: Mem0 + OpenAI Memory + Baseline + Full-Context (4 tools)
-- **Benchmarks**: 2 basic scenarios
-- **Runtime**: ~2-3 minutes
-- **Use Case**: Quick evaluation, getting started
-- **Command**: `llmemory run` (uses `configs/starter.yml`)
-
-### 🧪 **Baseline-Only Configuration**
-
-- **Tools**: Baseline only (no API keys required)
-- **Benchmarks**: 1 scenario (Conversational AI Memory)
-- **Runtime**: < 1 second
-- **Use Case**: Smoke testing, framework validation without API keys
-- **Command**: `./run_overnight.sh configs/baseline-only.yml`
-
-### 📊 **Baseline Comparison**
-
-- **Tools**: Baseline (last k) + Full-Context (all messages)
-- **Benchmarks**: Conversational AI Memory + Long Context Memory
-- **Runtime**: < 2 seconds
-- **Use Case**: Compare context management strategies
-- **Command**: `llmemory run --config baseline-comparison.yml`
-- **Files**: `configs/baseline-comparison.yml`, `configs/full-context-only.yml`
-
-### 🔬 **Comprehensive Configuration**
-
-- **Tools**: Mem0 + OpenAI + MemGPT + Claude + Zep + Baseline + Full-Context (7 tools)
-- **Benchmarks**: All 5 scenarios enabled
-- **Runtime**: ~15-20 minutes
-- **Use Case**: Research, tech articles, vendor evaluation
-- **Command**: `llmemory run --config comprehensive`
+Legacy configs were moved to `configs/archived/` for reference.
 
 ## Quick Start
 
@@ -217,11 +181,8 @@ cp .env.example .env
 #### 6. Run benchmarks
 
 ```bash
-# Quick test without API keys (baseline tool only)
-./run_overnight.sh configs/baseline-only.yml
-
-# Full benchmark (requires API keys)
-python llmemory run
+# Phase 1 benchmark (store/retrieve only)
+python llmemory run --config industry-benchmarks.yml
 ```
 
 ### 🐍 **Option 2: Python API**
@@ -279,15 +240,26 @@ all_results = await comparator.run_all_benchmarks()
 comparator.print_summary(all_results)
 ```
 
+**External Industry Benchmarks (LongMemEval, MemBench):**
+
+```bash
+# Store/retrieve-only comparison (Phase 1)
+python llmemory run --config industry-benchmarks.yml
+python llmemory run --config longmemeval-only.yml
+
+# Official LongMemEval GPT-4o judge
+python llmemory evaluate --benchmark LongMemEval --judge gpt-4o --results industry_benchmarks_results.json
+```
+
 ## YAML Configuration
 
 ### 📋 **Configuration Files**
 
 LLMemoryMeter uses YAML configuration files stored in the `configs/` folder:
 
-- **`configs/starter.yml`** - Default config with 2 tools (quick evaluation)
-- **`configs/comprehensive.yml`** - Full config with 4+ tools (research/articles)
-- **`configs/example.yml`** - Alternative examples and options
+- **`configs/industry-benchmarks.yml`** - LongMemEval + MemBench (store/retrieve only)
+- **`configs/longmemeval-only.yml`** - LongMemEval only (store/retrieve only)
+- Legacy configs moved to `configs/archived/`
 
 ### 🎯 **Creating Custom Configs**
 
@@ -301,7 +273,7 @@ llmemory create-config --output my_experiment.yml
 #### Option 2: Copy and modify existing configs
 
 ```bash
-cp configs/starter.yml configs/my_config.yml
+cp configs/industry-benchmarks.yml configs/my_config.yml
 # Edit configs/my_config.yml as needed
 ```
 
@@ -332,6 +304,7 @@ general:
   timeout: 60        # Max seconds per operation
   max_retries: 2     # Retries for failed operations
   concurrent_tools: false  # Run tools sequentially
+  store_retrieve_only: true # Skip chat steps (memory-only phase)
   debug: false       # Debug mode (see below)
 ```
 
@@ -382,37 +355,35 @@ memory_tools:
 
 ```yaml
 benchmarks:
-  - name: Conversational AI Memory
+  - name: LongMemEval
     enabled: true
-  - name: Long Context Memory
+    settings:
+      subset: "S"
+  - name: MemBench
     enabled: true
-  - name: Persona Consistency
-    enabled: false # Skip this benchmark
 ```
 
 ### 📈 **CLI Commands**
 
 ```bash
-# Basic benchmarking (uses starter.yml by default)
+# Basic benchmarking (uses industry-benchmarks.yml by default)
 llmemory run
 
-# Comprehensive evaluation (for research/articles)
-llmemory run --config comprehensive
+# LongMemEval-only run
+llmemory run --config longmemeval-only.yml
 
 # Run with custom config (auto-finds in configs/ folder)
 llmemory run --config my_experiment
 
 # Overnight runner with logging and Telegram notifications (recommended)
-./run_overnight.sh configs/baseline-only.yml   # No API keys needed
-./run_overnight.sh configs/starter.yml
-./run_overnight.sh configs/comprehensive.yml
+./run_overnight.sh configs/industry-benchmarks.yml
 
 # Create new config file (saved to configs/ folder)
 llmemory create-config --output my_experiment.yml
 
 # Set preferred default config
-export LLMEMORY_DEFAULT_CONFIG=comprehensive.yml
-llmemory run  # Now uses comprehensive by default
+export LLMEMORY_DEFAULT_CONFIG=configs/industry-benchmarks.yml
+llmemory run  # Now uses industry-benchmarks.yml by default
 
 # Verbose output for debugging
 llmemory run --verbose
@@ -582,6 +553,11 @@ This shows:
 - **Needle-in-Haystack**: Specific fact retrieval from large contexts
 - Based on LongBench and InfiniteBench methodologies
 
+### 🧪 **Industry Benchmarks (External)**
+
+- **LongMemEval**: Long-term memory with abstention and temporal reasoning
+- **MemBench**: Factual + reflective memory, participation/observation scenarios
+
 ### ⚡ **Technical Performance Benchmarks**
 
 - **Memory Stress Testing**: High-frequency operations and capacity limits
@@ -630,8 +606,8 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Quick test without API keys or Docker (baseline tool only)
-./run_overnight.sh configs/baseline-only.yml
+# Phase 1 benchmark (store/retrieve only)
+./run_overnight.sh configs/industry-benchmarks.yml
 
 # For full testing: Start Qdrant for Mem0 (requires Docker)
 docker run -d --name qdrant -p 6333:6333 qdrant/qdrant

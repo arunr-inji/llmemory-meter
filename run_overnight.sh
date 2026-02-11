@@ -12,7 +12,7 @@ fi
 set -e
 
 # Configuration
-CONFIG_FILE="${1:-configs/comprehensive.yml}"
+CONFIG_FILE="${1:-configs/industry-benchmarks.yml}"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_DIR="logs"
 LOG_FILE="${LOG_DIR}/benchmark_${TIMESTAMP}.log"

@@ -9,22 +9,24 @@ LLMemoryMeter is a Python benchmarking framework for comparing AI memory systems
 ## Common Commands
 
 ```bash
-# Quick benchmark (2-3 min, uses configs/starter.yml)
+# Quick benchmark (Phase 1 default: industry-benchmarks.yml)
 python llmemory run
 
-# Comprehensive benchmark (15-20 min)
-python llmemory run --config comprehensive
+# Industry benchmarks (store/retrieve only, Phase 1)
+python llmemory run --config industry-benchmarks.yml
+python llmemory run --config longmemeval-only.yml
 
-# Single-tool testing
-python llmemory run --config mem0-only.yml
-python llmemory run --config baseline-only.yml
+# LongMemEval-only run
+python llmemory run --config longmemeval-only.yml
 
 # Debug with verbose output
 python llmemory run --verbose
 
 # Overnight runner with logging and notifications (preferred for testing)
-./run_overnight.sh configs/baseline-only.yml
-./run_overnight.sh configs/starter.yml
+./run_overnight.sh configs/industry-benchmarks.yml
+
+# Hybrid evaluation (LongMemEval official GPT-4o judge)
+python llmemory evaluate --benchmark LongMemEval --judge gpt-4o --results industry_benchmarks_results.json
 
 # Prerequisites: Qdrant for Mem0
 docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
@@ -167,26 +169,18 @@ Results stored in `StepResult.accuracy_by_provider` with keys like `"exact_match
 **Testing**:
 
 ```bash
-# Test individual baselines
-./run_overnight.sh configs/baseline-only.yml
-./run_overnight.sh configs/full-context-only.yml
-
-# Compare both strategies
-python llmemory run --config baseline-comparison.yml
+# Phase 1 runs
+./run_overnight.sh configs/industry-benchmarks.yml
+python llmemory run --config longmemeval-only.yml
 ```
 
 ## Configuration
 
 Configs live in `configs/`. Key files:
 
-- `starter.yml` - Default (4 tools, 2 benchmarks)
-- `comprehensive.yml` - Full suite (all tools/benchmarks)
-- `*-only.yml` - Single-tool configs for focused testing
-- `baseline-only.yml` - Baseline tool only (no API keys required)
-- `full-context-only.yml` - Full-context baseline only (no API keys required)
-- `baseline-comparison.yml` - Compare both baseline strategies (no API keys required)
-- `test-exact-match.yml` - Workloads with exact match checks only
-- `test-multi-model.yml` - Multi-model accuracy validation (no API keys required)
+- `industry-benchmarks.yml` - LongMemEval + MemBench (store/retrieve only)
+- `longmemeval-only.yml` - LongMemEval only (store/retrieve only)
+- Legacy configs moved to `configs/archived/`
 
 Five YAML sections: `memory_tools`, `benchmarks`, `metrics`, `output`, `general`
 
@@ -250,21 +244,10 @@ See `KNOWN_ISSUES.md` for detailed issue tracking.
 No formal test suite. Validate changes with:
 
 ```bash
-# Quick validation (no API keys required)
-./run_overnight.sh configs/baseline-only.yml
-./run_overnight.sh configs/full-context-only.yml
-
-# Compare baseline strategies (no API keys required)
-./run_overnight.sh configs/baseline-comparison.yml
-
-# Multi-model accuracy validation (no API keys required, requires OpenAI for embeddings)
-python llmemory run --config test-multi-model.yml
-
-# Standard validation (requires API keys)
-python llmemory run --config quick-test.yml   # Fast smoke test
-python llmemory run --config comprehensive.yml  # Full validation
+# Phase 1 validation
+python llmemory run --config industry-benchmarks.yml
+python llmemory run --config longmemeval-only.yml
 
 # Overnight runner with logging (preferred)
-./run_overnight.sh configs/starter.yml
-./run_overnight.sh configs/comprehensive.yml
+./run_overnight.sh configs/industry-benchmarks.yml
 ```

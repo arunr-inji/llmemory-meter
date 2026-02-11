@@ -15,6 +15,11 @@
 
 ### Changed
 
+- **Default config** now `configs/industry-benchmarks.yml` (Phase 1 industry benchmarks)
+- **Legacy configs** moved to `configs/archived/`
+
+### Changed
+
 - **Removed Memory Stress Testing benchmark**: Empty suite consolidated into Technical Performance
 - **Updated .gitignore**: Now excludes `results/` directory (already present in remote)
 - **Accuracy configuration format**: Now requires `providers: {dict of lists}` format only (all config files updated)
