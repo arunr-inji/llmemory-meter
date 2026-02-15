@@ -6,7 +6,8 @@ RUN_COUNT="${2:-3}"
 CAMPAIGN_DIR="${3:-results/validation_runs/campaign_$(date '+%Y%m%d_%H%M%S')}"
 PYTHON_BIN="${PYTHON_BIN:-.venv/bin/python}"
 JUDGE_MODEL="${JUDGE_MODEL:-gpt-4o}"
-MEMBENCH_OFFICIAL_EVAL_SCRIPT="${MEMBENCH_OFFICIAL_EVAL_SCRIPT:-}"
+MEMBENCH_OFFICIAL_EVAL_SCRIPT="${MEMBENCH_OFFICIAL_EVAL_SCRIPT:-third_party/membench/official_eval.py}"
+MEMBENCH_OFFICIAL_EVAL_METADATA="${MEMBENCH_OFFICIAL_EVAL_METADATA:-third_party/membench/official_eval.metadata.json}"
 
 log_phase() {
   local label="$1"
@@ -80,12 +81,9 @@ REQUIRED_TOOLS="$(resolve_enabled_tools)"
 LONGMEMEVAL_SUBSET="$(resolve_longmemeval_subset)"
 HYBRID_EVAL_DIR="benchmarks_data/hybrid_eval"
 
-if [ -z "${MEMBENCH_OFFICIAL_EVAL_SCRIPT:-}" ]; then
-  echo "MEMBENCH_OFFICIAL_EVAL_SCRIPT is not set. Export an official MemBench eval script path."
-  exit 1
-fi
 if [ ! -f "$MEMBENCH_OFFICIAL_EVAL_SCRIPT" ]; then
   echo "Official MemBench eval script not found: $MEMBENCH_OFFICIAL_EVAL_SCRIPT"
+  echo "Pin it first with scripts/pin_membench_official_eval.py or export MEMBENCH_OFFICIAL_EVAL_SCRIPT."
   exit 1
 fi
 
@@ -100,7 +98,11 @@ git rev-parse HEAD > "$CAMPAIGN_DIR/frozen_sha.txt" 2>/dev/null || echo "unknown
 "$PYTHON_BIN" scripts/check_tool_setup.py --config "$CONFIG_FILE"
 "$PYTHON_BIN" scripts/check_benchmark_setup.py --config "$CONFIG_FILE" --sample-limit 1
 "$PYTHON_BIN" scripts/check_operation_budget.py --config "$CONFIG_FILE"
-"$PYTHON_BIN" scripts/check_membench_eval_setup.py --eval-script "$MEMBENCH_OFFICIAL_EVAL_SCRIPT" --require-official
+"$PYTHON_BIN" scripts/check_membench_eval_setup.py \
+  --eval-script "$MEMBENCH_OFFICIAL_EVAL_SCRIPT" \
+  --metadata-file "$MEMBENCH_OFFICIAL_EVAL_METADATA" \
+  --require-official \
+  --require-pinned-metadata
 
 for run_idx in $(seq 1 "$RUN_COUNT"); do
   run_dir="$CAMPAIGN_DIR/run_${run_idx}"

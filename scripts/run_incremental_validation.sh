@@ -5,7 +5,8 @@ STAGE="${1:-all}"
 FINAL_READINESS_CONFIG="${2:-configs/industry-benchmarks.yml}"
 PYTHON_BIN="${PYTHON_BIN:-.venv/bin/python}"
 MEMBENCH_CANARY_EVAL_SCRIPT="scripts/membench_eval.py"
-MEMBENCH_OFFICIAL_EVAL_SCRIPT="${MEMBENCH_OFFICIAL_EVAL_SCRIPT:-}"
+MEMBENCH_OFFICIAL_EVAL_SCRIPT="${MEMBENCH_OFFICIAL_EVAL_SCRIPT:-third_party/membench/official_eval.py}"
+MEMBENCH_OFFICIAL_EVAL_METADATA="${MEMBENCH_OFFICIAL_EVAL_METADATA:-third_party/membench/official_eval.metadata.json}"
 RUN_ID="$(date '+%Y%m%d_%H%M%S')"
 RUN_CONTEXT_DIR="results/validation_runs/context_${RUN_ID}"
 
@@ -83,12 +84,9 @@ resolve_membench_eval_script() {
     return
   fi
 
-  if [ -z "${MEMBENCH_OFFICIAL_EVAL_SCRIPT:-}" ]; then
-    echo "MEMBENCH_OFFICIAL_EVAL_SCRIPT is not set. Export an official MemBench eval script path." >&2
-    exit 1
-  fi
   if [ ! -f "$MEMBENCH_OFFICIAL_EVAL_SCRIPT" ]; then
     echo "Official MemBench eval script not found: $MEMBENCH_OFFICIAL_EVAL_SCRIPT" >&2
+    echo "Pin it first with scripts/pin_membench_official_eval.py or export MEMBENCH_OFFICIAL_EVAL_SCRIPT." >&2
     exit 1
   fi
   echo "$MEMBENCH_OFFICIAL_EVAL_SCRIPT"
@@ -125,7 +123,9 @@ run_phase0_hygiene() {
   if [ "$require_official_eval" = "true" ]; then
     "$PYTHON_BIN" scripts/check_membench_eval_setup.py \
       --eval-script "$membench_eval_script" \
-      --require-official
+      --metadata-file "$MEMBENCH_OFFICIAL_EVAL_METADATA" \
+      --require-official \
+      --require-pinned-metadata
   else
     "$PYTHON_BIN" scripts/check_membench_eval_setup.py \
       --eval-script "$membench_eval_script"

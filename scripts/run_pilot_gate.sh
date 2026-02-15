@@ -3,7 +3,8 @@ set -euo pipefail
 
 CONFIG_FILE="${1:-configs/industry-benchmarks-pilot.yml}"
 PYTHON_BIN="${PYTHON_BIN:-.venv/bin/python}"
-MEMBENCH_OFFICIAL_EVAL_SCRIPT="${MEMBENCH_OFFICIAL_EVAL_SCRIPT:-}"
+MEMBENCH_OFFICIAL_EVAL_SCRIPT="${MEMBENCH_OFFICIAL_EVAL_SCRIPT:-third_party/membench/official_eval.py}"
+MEMBENCH_OFFICIAL_EVAL_METADATA="${MEMBENCH_OFFICIAL_EVAL_METADATA:-third_party/membench/official_eval.metadata.json}"
 RUN_ID="$(date '+%Y%m%d_%H%M%S')"
 RUN_CONTEXT_DIR="results/validation_runs/context_${RUN_ID}"
 
@@ -77,12 +78,9 @@ rm -f scripts/fixtures/*.eval.jsonl scripts/fixtures/*.summary.json
 REQUIRED_TOOLS="$(resolve_enabled_tools "$CONFIG_FILE")"
 LONGMEMEVAL_SUBSET="$(resolve_longmemeval_subset "$CONFIG_FILE")"
 
-if [ -z "${MEMBENCH_OFFICIAL_EVAL_SCRIPT:-}" ]; then
-  echo "MEMBENCH_OFFICIAL_EVAL_SCRIPT is not set. Export an official MemBench eval script path."
-  exit 1
-fi
 if [ ! -f "$MEMBENCH_OFFICIAL_EVAL_SCRIPT" ]; then
   echo "Official MemBench eval script not found: $MEMBENCH_OFFICIAL_EVAL_SCRIPT"
+  echo "Pin it first with scripts/pin_membench_official_eval.py or export MEMBENCH_OFFICIAL_EVAL_SCRIPT."
   exit 1
 fi
 
@@ -96,7 +94,11 @@ log_phase "[3/8] Operation budget validation"
 "$PYTHON_BIN" scripts/check_operation_budget.py --config "$CONFIG_FILE" --max-ops-per-tool 400 --max-total-ops 1200
 
 log_phase "[4/8] MemBench official eval setup validation"
-"$PYTHON_BIN" scripts/check_membench_eval_setup.py --eval-script "$MEMBENCH_OFFICIAL_EVAL_SCRIPT" --require-official
+"$PYTHON_BIN" scripts/check_membench_eval_setup.py \
+  --eval-script "$MEMBENCH_OFFICIAL_EVAL_SCRIPT" \
+  --metadata-file "$MEMBENCH_OFFICIAL_EVAL_METADATA" \
+  --require-official \
+  --require-pinned-metadata
 
 log_phase "[5/8] Pilot benchmark run"
 "$PYTHON_BIN" -u -m llmemory_meter.cli run --config "$CONFIG_FILE"

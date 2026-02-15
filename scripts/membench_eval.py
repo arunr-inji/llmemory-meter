@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Deterministic MemBench evaluator (exact + contains)."""
+"""Deterministic MemBench evaluator with MCQ-aware primary scoring."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 def _normalize(text: str) -> str:
@@ -32,10 +33,88 @@ def _require_hypothesis(row: Dict[str, Any], line_number: int) -> str:
     return str(hypothesis)
 
 
+def _safe_metadata(row: Dict[str, Any]) -> Dict[str, Any]:
+    metadata = row.get("metadata")
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def _extract_choices(row: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    for source in (row, _safe_metadata(row)):
+        choices = source.get("choices")
+        if isinstance(choices, dict) and choices:
+            normalized: Dict[str, str] = {}
+            for key, value in choices.items():
+                label = str(key).strip().upper()
+                text = str(value).strip()
+                if label and text:
+                    normalized[label] = text
+            if normalized:
+                return normalized
+    return None
+
+
+def _extract_ground_truth_label(row: Dict[str, Any]) -> Optional[str]:
+    for source in (row, _safe_metadata(row)):
+        value = source.get("ground_truth_label")
+        if value is None:
+            continue
+        label = str(value).strip().upper()
+        if label:
+            return label
+    return None
+
+
+def _derive_ground_truth_text(
+    row: Dict[str, Any],
+    choices: Optional[Dict[str, str]],
+    ground_truth_label: Optional[str],
+) -> Optional[str]:
+    ground_truth = row.get("ground_truth")
+    if ground_truth is not None and str(ground_truth).strip() != "":
+        return str(ground_truth)
+    if choices and ground_truth_label and ground_truth_label in choices:
+        return choices[ground_truth_label]
+    return None
+
+
+def _extract_predicted_label(hypothesis: str, choices: Dict[str, str]) -> Optional[str]:
+    if not hypothesis:
+        return None
+
+    hyp_norm = _normalize(hypothesis)
+
+    # First pass: explicit label declarations (e.g., "Answer: C", "Option B").
+    label_patterns = [
+        r"\b(?:answer|option|choice)\s*[:\-]?\s*\(?([A-Z])\)?\b",
+        r"^\s*\(?([A-Z])\)?\s*$",
+    ]
+    for pattern in label_patterns:
+        match = re.search(pattern, hypothesis, flags=re.IGNORECASE)
+        if match:
+            candidate = match.group(1).upper()
+            if candidate in choices:
+                return candidate
+
+    # Second pass: option text appears in hypothesis.
+    text_hits: List[str] = []
+    for label, option_text in choices.items():
+        option_norm = _normalize(option_text)
+        if option_norm and option_norm in hyp_norm:
+            text_hits.append(label)
+    if len(text_hits) == 1:
+        return text_hits[0]
+
+    return None
+
+
 def evaluate_rows(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     eval_rows: List[Dict[str, Any]] = []
     scored = 0
     unscorable = 0
+    scored_mcq = 0
+    scored_text = 0
+    primary_correct = 0
+    mcq_correct = 0
     contains_correct = 0
     exact_correct = 0
     by_category: Dict[str, Dict[str, int]] = {}
@@ -43,7 +122,6 @@ def evaluate_rows(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     for idx, row in enumerate(rows, start=1):
         hypothesis = _require_hypothesis(row, idx)
         category = _safe_category(row)
-        ground_truth = row.get("ground_truth")
         workload_id = row.get("workload_id", f"row::{idx}")
 
         category_bucket = by_category.setdefault(
@@ -51,38 +129,75 @@ def evaluate_rows(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
             {
                 "scored_count": 0,
                 "unscorable_count": 0,
+                "scored_mcq_count": 0,
+                "scored_text_count": 0,
+                "primary_correct": 0,
+                "mcq_correct": 0,
                 "contains_correct": 0,
                 "exact_correct": 0,
             },
         )
+
+        choices = _extract_choices(row)
+        ground_truth_label = _extract_ground_truth_label(row)
+        ground_truth_text = _derive_ground_truth_text(row, choices, ground_truth_label)
+        predicted_label = _extract_predicted_label(hypothesis, choices) if choices else None
 
         row_result: Dict[str, Any] = {
             "workload_id": workload_id,
             "category": category,
             "match_type": row.get("match_type", "contains"),
             "hypothesis": hypothesis,
-            "ground_truth": ground_truth,
+            "ground_truth": ground_truth_text,
+            "ground_truth_label": ground_truth_label,
+            "predicted_label": predicted_label,
+            "choices": choices,
             "scored": False,
+            "scoring_mode": None,
             "unscorable_reason": None,
+            "primary_match": False,
+            "mcq_match": False,
             "contains_match": False,
             "exact_match": False,
         }
 
-        if ground_truth is None or str(ground_truth).strip() == "":
+        if ground_truth_text is None or str(ground_truth_text).strip() == "":
             unscorable += 1
             category_bucket["unscorable_count"] += 1
             row_result["unscorable_reason"] = "missing_ground_truth"
             eval_rows.append(row_result)
             continue
 
-        gt_norm = _normalize(str(ground_truth))
+        gt_norm = _normalize(str(ground_truth_text))
         hyp_norm = _normalize(hypothesis)
+        is_mcq_scorable = bool(choices and ground_truth_label and ground_truth_label in choices)
 
         scored += 1
         category_bucket["scored_count"] += 1
         row_result["scored"] = True
         row_result["contains_match"] = gt_norm in hyp_norm if gt_norm else False
         row_result["exact_match"] = gt_norm == hyp_norm
+        row_result["mcq_match"] = (
+            predicted_label == ground_truth_label if is_mcq_scorable else False
+        )
+
+        if is_mcq_scorable:
+            scored_mcq += 1
+            category_bucket["scored_mcq_count"] += 1
+            row_result["scoring_mode"] = "mcq"
+            row_result["primary_match"] = row_result["mcq_match"]
+        else:
+            scored_text += 1
+            category_bucket["scored_text_count"] += 1
+            row_result["scoring_mode"] = "text"
+            row_result["primary_match"] = row_result["contains_match"]
+
+        if row_result["primary_match"]:
+            primary_correct += 1
+            category_bucket["primary_correct"] += 1
+        if row_result["mcq_match"]:
+            mcq_correct += 1
+            category_bucket["mcq_correct"] += 1
 
         if row_result["contains_match"]:
             contains_correct += 1
@@ -101,6 +216,14 @@ def evaluate_rows(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         per_category[category] = {
             "scored_count": scored_count,
             "unscorable_count": bucket["unscorable_count"],
+            "scored_mcq_count": bucket["scored_mcq_count"],
+            "scored_text_count": bucket["scored_text_count"],
+            "accuracy": (bucket["primary_correct"] / scored_count) if scored_count else None,
+            "accuracy_mcq": (
+                bucket["mcq_correct"] / bucket["scored_mcq_count"]
+                if bucket["scored_mcq_count"]
+                else None
+            ),
             "accuracy_contains": contains_acc,
             "accuracy_exact": exact_acc,
         }
@@ -109,6 +232,10 @@ def evaluate_rows(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "total_rows": len(rows),
         "scored_count": scored,
         "unscorable_count": unscorable,
+        "scored_mcq_count": scored_mcq,
+        "scored_text_count": scored_text,
+        "accuracy": (primary_correct / scored) if scored else None,
+        "accuracy_mcq": (mcq_correct / scored_mcq) if scored_mcq else None,
         "accuracy_contains": (contains_correct / scored) if scored else None,
         "accuracy_exact": (exact_correct / scored) if scored else None,
         "per_category": per_category,

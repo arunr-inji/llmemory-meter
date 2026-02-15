@@ -65,6 +65,18 @@ def main() -> int:
     parser.add_argument("--campaign-dir", type=Path, required=True, help="Campaign directory with run_*/ artifacts")
     parser.add_argument("--output-dir", type=Path, required=True, help="Output release directory")
     parser.add_argument("--config", type=Path, default=None, help="Config used for campaign (for manifest metadata)")
+    parser.add_argument(
+        "--membench-eval-script",
+        type=Path,
+        default=Path("third_party/membench/official_eval.py"),
+        help="Pinned MemBench official evaluator script to include in release package",
+    )
+    parser.add_argument(
+        "--membench-eval-metadata",
+        type=Path,
+        default=Path("third_party/membench/official_eval.metadata.json"),
+        help="Pinned MemBench evaluator metadata to include in release package",
+    )
     args = parser.parse_args()
 
     campaign_dir = args.campaign_dir
@@ -90,6 +102,10 @@ def main() -> int:
         for filename in RUN_FILES:
             _copy_if_exists(run_dir / filename, dst_run_dir / filename, copied_files)
         _copy_tree_if_exists(run_dir / "hybrid_eval", dst_run_dir / "hybrid_eval", copied_files)
+
+    membench_dir = output_dir / "membench_official_eval"
+    _copy_if_exists(args.membench_eval_script, membench_dir / "official_eval.py", copied_files)
+    _copy_if_exists(args.membench_eval_metadata, membench_dir / "official_eval.metadata.json", copied_files)
 
     manifest_entries: List[Dict[str, object]] = []
     for file_path in sorted(copied_files):

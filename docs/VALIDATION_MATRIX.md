@@ -54,7 +54,12 @@ Use staged gates before expensive runs:
 ./scripts/run_incremental_validation.sh smoke-memgpt
 ./scripts/run_incremental_validation.sh smoke-zep
 ./scripts/run_incremental_validation.sh smoke-all
-export MEMBENCH_OFFICIAL_EVAL_SCRIPT=/absolute/path/to/official_membench_eval.py
+python3 scripts/pin_membench_official_eval.py \
+  --source-script /absolute/path/to/official_membench_eval.py \
+  --repo-url https://github.com/<official-org>/<official-membench-repo> \
+  --commit <pinned_commit_sha>
+export MEMBENCH_OFFICIAL_EVAL_SCRIPT=third_party/membench/official_eval.py
+export MEMBENCH_OFFICIAL_EVAL_METADATA=third_party/membench/official_eval.metadata.json
 ./scripts/run_incremental_validation.sh pilot
 ./scripts/run_incremental_validation.sh final-readiness configs/industry-benchmarks-pilot.yml
 ```
@@ -81,7 +86,8 @@ For full publication campaign (3-run validation + repeatability + release packag
 | VM-10 | Metric invariant reconciliation | `python3 scripts/check_metrics_reconciliation.py <results_file> --report-file <report_path>` | Zero mismatches between raw step data and reported metrics | `reconciliation_report.json` |
 | VM-11 | Deterministic metric fixture checks | `python3 scripts/check_metric_fixtures.py` | Percentile/token/success/cost fixture cases pass | fixture check output |
 | VM-12 | MemBench canary evaluator (diagnostic only) | `python3 scripts/membench_eval.py <hypothesis_file.jsonl>` | Produces `.eval.jsonl` + `.summary.json` and exits 0 | `<hypothesis>.eval.jsonl`, `<hypothesis>.summary.json` |
-| VM-12b | MemBench official eval readiness | `python3 scripts/check_membench_eval_setup.py --eval-script "$MEMBENCH_OFFICIAL_EVAL_SCRIPT" --require-official` | Script executes on fixture and writes parseable artifacts; deterministic fallback is rejected | fixture `.eval.jsonl` + `.summary.json` |
+| VM-12b | MemBench official eval pinning | `python3 scripts/pin_membench_official_eval.py --source-script <official_script.py> --repo-url <official_repo> --commit <sha>` | Pinned script and metadata are written under `third_party/membench/` with commit + sha256 | `third_party/membench/official_eval.py`, `third_party/membench/official_eval.metadata.json` |
+| VM-12c | MemBench official eval readiness | `python3 scripts/check_membench_eval_setup.py --eval-script "$MEMBENCH_OFFICIAL_EVAL_SCRIPT" --metadata-file "$MEMBENCH_OFFICIAL_EVAL_METADATA" --require-official --require-pinned-metadata` | Script executes on fixture, metadata is valid, and script sha256 matches pinned metadata | fixture `.eval.jsonl` + `.summary.json` |
 | VM-13 | Tool setup validation | `python3 scripts/check_tool_setup.py --config configs/industry-benchmarks-pilot.yml` | Enabled tools have required env vars; Mem0 qdrant endpoint reachable | command output |
 | VM-14 | Pilot gate | `./scripts/run_pilot_gate.sh configs/industry-benchmarks-pilot.yml` | Pilot run + eval + reconciliation + bundle all pass | `results/validation_runs/pilot_reconciliation_report.json`, `results/final/pilot_bundle/` |
 | VM-15 | Per-tool smoke gates | `./scripts/run_incremental_validation.sh smoke-mem0|smoke-memgpt|smoke-zep` | Each tool passes isolated run + schema + coverage + reconciliation + MemBench eval | `results/validation_runs/smoke_*` |
@@ -105,3 +111,4 @@ For full publication campaign (3-run validation + repeatability + release packag
 - No critical security issues remain open.
 - Hybrid evaluation outputs are generated for LongMemEval with an approved judge model.
 - MemBench official evaluation outputs are generated and reproducible.
+- Publication package includes pinned MemBench evaluator script and metadata (repo + commit + sha256).

@@ -238,18 +238,30 @@ class BenchmarkLoader:
                 return None
 
             answer = qa.get("answer")
+            ground_truth_label = qa.get("ground_truth")
+            choices = qa.get("choices")
             if answer is None:
-                ground_truth = qa.get("ground_truth")
-                choices = qa.get("choices")
-                if isinstance(ground_truth, str) and isinstance(choices, dict):
-                    answer = choices.get(ground_truth, ground_truth)
+                if isinstance(ground_truth_label, str) and isinstance(choices, dict):
+                    answer = choices.get(ground_truth_label, ground_truth_label)
                 else:
-                    answer = ground_truth
+                    answer = ground_truth_label
+
+            normalized_choices = None
+            if isinstance(choices, dict):
+                normalized_choices = {
+                    str(key): str(value)
+                    for key, value in choices.items()
+                    if key is not None and value is not None
+                }
 
             return {
                 "question": question,
                 "answer": answer,
                 "history": message_list,
+                "choices": normalized_choices,
+                "ground_truth_label": str(ground_truth_label) if ground_truth_label is not None else None,
+                "question_id": qa.get("qid"),
+                "question_time": qa.get("time"),
             }
 
         # Already normalized shape from previously supported format.
@@ -332,6 +344,11 @@ class BenchmarkLoader:
         question = cls._first_present(entry, ["question", "query", "prompt", "instruction"])
         answer = cls._first_present(entry, ["answer", "ground_truth", "gold", "target"])
         history = cls._first_present(entry, ["history", "conversation", "dialogue", "context", "memory", "messages", "sessions"])
+        choices = cls._first_present(entry, ["choices", "options"])
+        ground_truth_label = cls._first_present(
+            entry,
+            ["ground_truth_label", "ground_truth_key", "answer_label"],
+        )
 
         if not question:
             return None
@@ -346,18 +363,33 @@ class BenchmarkLoader:
                 )
             )
 
+        retrieve_metadata = {
+            "benchmark": "membench",
+            "category": category,
+            "workload_id": f"membench::{category}::{index + 1}",
+            "ground_truth": str(answer) if answer is not None else None,
+            "ground_truth_label": str(ground_truth_label) if ground_truth_label is not None else None,
+            "match_type": "contains",
+        }
+        if isinstance(choices, dict):
+            retrieve_metadata["choices"] = {
+                str(key): str(value)
+                for key, value in choices.items()
+                if key is not None and value is not None
+            }
+        question_id = cls._first_present(entry, ["question_id", "qid"])
+        if question_id is not None:
+            retrieve_metadata["question_id"] = str(question_id)
+        question_time = cls._first_present(entry, ["question_time", "time"])
+        if question_time is not None:
+            retrieve_metadata["question_time"] = str(question_time)
+
         steps.append(
             WorkloadStep(
                 action="retrieve",
                 content=question,
                 ground_truth=str(answer) if answer is not None else None,
-                metadata={
-                    "benchmark": "membench",
-                    "category": category,
-                    "workload_id": f"membench::{category}::{index + 1}",
-                    "ground_truth": str(answer) if answer is not None else None,
-                    "match_type": "contains",
-                },
+                metadata=retrieve_metadata,
                 match_type="contains",
             )
         )
