@@ -74,8 +74,8 @@ echo ""
 # Move results to results directory with timestamp
 shopt -s nullglob
 for result_file in *_results.json; do
-    # Only move files created/updated by this run.
-    if [ ! "$result_file" -nt "$RUN_MARKER" ]; then
+    # Skip files older than the run marker; equal timestamp is treated as this run.
+    if [ "$result_file" -ot "$RUN_MARKER" ]; then
         continue
     fi
     base_name="${result_file%_results.json}"

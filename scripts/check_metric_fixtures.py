@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -53,7 +53,7 @@ def _build_workload_result(case_name: str, tool_name: str, payload: Dict[str, An
         total_latency_ms=sum(s.latency_ms for s in steps),
         total_tokens_used=sum((s.tokens_used or 0) for s in steps),
         success_rate=(sum(1 for s in steps if s.success) / len(steps)) if steps else 0.0,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
     )
 
 

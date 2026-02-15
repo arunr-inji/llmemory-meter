@@ -7,7 +7,7 @@ import argparse
 import json
 import platform
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -36,7 +36,7 @@ def main() -> int:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     payload = {
-        "captured_utc": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "captured_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "git_sha": _run(["git", "rev-parse", "HEAD"]),
         "git_branch": _run(["git", "branch", "--show-current"]),
         "python_version": _run(["python3", "--version"]),

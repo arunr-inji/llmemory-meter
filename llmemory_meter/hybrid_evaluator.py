@@ -264,6 +264,12 @@ class MemBenchEvaluator:
                 error="MemBench eval_script not configured.",
             )
 
+        summary_path = Path(f"{hypothesis_file}.summary.json")
+        row_eval_path = Path(f"{hypothesis_file}.eval.jsonl")
+        for stale_path in (summary_path, row_eval_path):
+            if stale_path.exists():
+                stale_path.unlink()
+
         result = subprocess.run(
             [sys.executable, str(eval_script), str(hypothesis_file)],
             capture_output=True,
@@ -280,10 +286,28 @@ class MemBenchEvaluator:
                 error=result.stderr.strip() or result.stdout.strip(),
             )
 
-        summary_path = Path(f"{hypothesis_file}.summary.json")
+        if not summary_path.exists():
+            output_snippet = (result.stdout.strip() or result.stderr.strip())
+            if output_snippet:
+                output_snippet = f" Script output: {output_snippet}"
+            else:
+                output_snippet = ""
+            return HybridEvalResult(
+                benchmark="membench",
+                tool_name=tool_name,
+                judge_model="official",
+                accuracy=None,
+                per_question_type=None,
+                hypothesis_file=hypothesis_file,
+                error=(
+                    f"MemBench eval script succeeded but summary file was not created: {summary_path}."
+                    f"{output_snippet}"
+                ),
+            )
+
         accuracy = None
         per_category = None
-        if summary_path.exists():
+        try:
             with summary_path.open("r", encoding="utf-8") as f:
                 summary = json.load(f)
             accuracy = summary.get("accuracy_contains")
@@ -298,6 +322,16 @@ class MemBenchEvaluator:
                         per_category[category] = contains_score
                 if not per_category:
                     per_category = None
+        except Exception as exc:
+            return HybridEvalResult(
+                benchmark="membench",
+                tool_name=tool_name,
+                judge_model="official",
+                accuracy=None,
+                per_question_type=None,
+                hypothesis_file=hypothesis_file,
+                error=f"Failed to parse MemBench summary file '{summary_path}': {exc}",
+            )
 
         return HybridEvalResult(
             benchmark="membench",

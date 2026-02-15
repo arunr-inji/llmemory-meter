@@ -6,7 +6,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime
+from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -50,7 +51,7 @@ def _reconstruct_workload_result(tool_name: str, workload_name: str, payload: Di
     if timestamp_raw:
         timestamp = datetime.fromisoformat(timestamp_raw)
     else:
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
 
     return WorkloadResult(
         tool_name=tool_name,
@@ -125,6 +126,31 @@ def _compare_reported_metrics(
     return mismatches
 
 
+def _categorize_mismatch(message: str) -> str:
+    if "missing metric key" in message or "missing sub-key" in message:
+        return "missing_metric_key"
+    if "payload must be an object" in message or "tool_results must be an object" in message:
+        return "invalid_payload_shape"
+    if "negative latency" in message:
+        return "negative_latency"
+    if "negative tokens" in message:
+        return "negative_tokens"
+    if "success_rate=" in message:
+        return "success_rate_mismatch"
+    if "total_tokens_used=" in message:
+        return "token_total_mismatch"
+    if "cannot reconcile metrics with zero step results" in message:
+        return "empty_step_results"
+    if "mismatch '" in message:
+        return "reported_vs_recomputed_mismatch"
+    return "other"
+
+
+def _summarize_mismatches(mismatches: List[str]) -> Dict[str, int]:
+    counts = Counter(_categorize_mismatch(msg) for msg in mismatches)
+    return dict(sorted(counts.items()))
+
+
 def reconcile(results_file: Path, report_file: Path) -> Tuple[bool, Dict[str, Any]]:
     with results_file.open("r", encoding="utf-8") as f:
         data = json.load(f)
@@ -134,7 +160,7 @@ def reconcile(results_file: Path, report_file: Path) -> Tuple[bool, Dict[str, An
 
     output: Dict[str, Any] = {
         "results_file": str(results_file),
-        "checked_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "checked_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "benchmark_reports": {},
         "mismatches": [],
     }
@@ -171,10 +197,9 @@ def reconcile(results_file: Path, report_file: Path) -> Tuple[bool, Dict[str, An
         for tool_name, tool_workloads in by_tool.items():
             step_count = sum(len(w.step_results) for w in tool_workloads)
             if step_count == 0:
-                if reported_overall and tool_name in reported_overall:
-                    benchmark_mismatches.append(
-                        f"{benchmark_name}/{tool_name}: cannot recompute overall metrics with zero step results"
-                    )
+                benchmark_mismatches.append(
+                    f"{benchmark_name}/{tool_name}: cannot reconcile metrics with zero step results"
+                )
                 continue
             metrics = MetricsCalculator.calculate_metrics(tool_workloads, config=calc_config)
             recomputed_overall[tool_name] = metrics.to_dict()
@@ -205,6 +230,7 @@ def reconcile(results_file: Path, report_file: Path) -> Tuple[bool, Dict[str, An
         output["mismatches"].extend(benchmark_mismatches)
 
     output["status"] = "pass" if not output["mismatches"] else "fail"
+    output["mismatch_summary"] = _summarize_mismatches(output["mismatches"])
 
     report_file.parent.mkdir(parents=True, exist_ok=True)
     with report_file.open("w", encoding="utf-8") as f:
@@ -223,6 +249,12 @@ def main() -> int:
         default=None,
         help="Output report path (default: <results_dir>/reconciliation_report.json)",
     )
+    parser.add_argument(
+        "--max-print",
+        type=int,
+        default=50,
+        help="Maximum mismatches to print to stdout (0 prints all)",
+    )
     args = parser.parse_args()
 
     if not args.results_file.exists():
@@ -238,8 +270,22 @@ def main() -> int:
         return 0
 
     print(f"Reconciliation failed with {len(output['mismatches'])} mismatch(es).")
-    for mismatch in output["mismatches"][:20]:
+    summary = output.get("mismatch_summary", {})
+    if summary:
+        print("Mismatch summary by type:")
+        for key, count in summary.items():
+            print(f"- {key}: {count}")
+
+    max_print = args.max_print
+    if max_print < 0:
+        max_print = 0
+    to_print = output["mismatches"] if max_print == 0 else output["mismatches"][:max_print]
+
+    for mismatch in to_print:
         print(f"- {mismatch}")
+    if max_print != 0 and len(output["mismatches"]) > max_print:
+        omitted = len(output["mismatches"]) - max_print
+        print(f"... omitted {omitted} additional mismatch(es); see full report for all details.")
     return 1
 
 

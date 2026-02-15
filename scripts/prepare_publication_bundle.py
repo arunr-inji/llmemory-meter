@@ -54,7 +54,7 @@ def main() -> int:
         print(f"Report template not found: {args.report_template}")
         return 1
 
-    stamp = dt.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d_%H%M%S")
     output_dir = args.output_dir or Path("results/final") / stamp
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -69,7 +69,7 @@ def main() -> int:
     }
 
     manifest = {
-        "created_utc": dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "created_utc": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "git_sha": _git_sha(),
         "source_results": str(args.results_file),
         "files": files,

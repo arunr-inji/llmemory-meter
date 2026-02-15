@@ -13,6 +13,20 @@ if [ ! -x "$PYTHON_BIN" ]; then
   fi
 fi
 
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo "Pilot config file not found: $CONFIG_FILE"
+  exit 1
+fi
+
+if ! "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1
+import yaml
+PY
+then
+  echo "PyYAML is not available in $PYTHON_BIN environment."
+  echo "Install dependencies first (for example: pip install -r requirements.txt)."
+  exit 1
+fi
+
 echo "[1/7] Tool setup validation"
 "$PYTHON_BIN" scripts/check_tool_setup.py --config "$CONFIG_FILE"
 
@@ -25,11 +39,20 @@ import sys
 import yaml
 from pathlib import Path
 cfg = Path(sys.argv[1])
-with cfg.open() as f:
-    data = yaml.safe_load(f)
+try:
+    with cfg.open() as f:
+        data = yaml.safe_load(f) or {}
+except Exception as exc:
+    print(f"ERROR: failed to parse config '{cfg}': {exc}", file=sys.stderr)
+    raise SystemExit(2)
 print(data.get("output", {}).get("output_file", "industry_benchmarks_pilot_results.json"))
 PY
 )
+
+if [ -z "${RESULTS_FILE:-}" ]; then
+  echo "Failed to resolve results file path from config: $CONFIG_FILE"
+  exit 1
+fi
 
 if [ ! -f "$RESULTS_FILE" ]; then
   echo "Pilot results file not found: $RESULTS_FILE"
