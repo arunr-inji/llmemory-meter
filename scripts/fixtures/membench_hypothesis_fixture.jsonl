@@ -1,0 +1,3 @@
+{"workload_id":"membench::qa::1","benchmark":"membench","category":"qa","ground_truth":"johns hopkins","hypothesis":"She trained at Johns Hopkins and Mayo Clinic.","match_type":"contains","metadata":{"category":"qa"}}
+{"workload_id":"membench::qa::2","benchmark":"membench","category":"qa","ground_truth":"$20 credit","hypothesis":"The agent offered a $20 credit compensation.","match_type":"contains","metadata":{"category":"qa"}}
+{"workload_id":"membench::qa::3","benchmark":"membench","category":"qa","ground_truth":null,"hypothesis":"No answer available","match_type":"contains","metadata":{"category":"qa"}}

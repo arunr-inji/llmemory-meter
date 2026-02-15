@@ -1,0 +1,62 @@
+general:
+  concurrent_tools: false
+  timeout: 60
+  max_retries: 2
+  store_retrieve_only: true
+
+memory_tools:
+- name: mem0
+  enabled: true
+  api_key_env: MEM0_API_KEY
+  model: gpt-4o-mini
+  settings:
+    llm_provider: openai
+    llm_api_key_env: OPENAI_API_KEY
+    llm_config:
+      model: gpt-4o-mini
+      temperature: 0.2
+      max_tokens: 1500
+    vector_store:
+      provider: qdrant
+      host: localhost
+      port: 6333
+      collection_name: llmemory_benchmarks
+- name: zep
+  enabled: true
+  api_key_env: ZEP_API_KEY
+  model: null
+  settings:
+    api_url: https://api.getzep.com
+- name: memgpt
+  enabled: true
+  api_key_env: MEMGPT_API_KEY
+  model: gpt-4o-mini
+  settings:
+    memgpt_config:
+      # agent_name auto-generated to prevent context accumulation
+
+benchmarks:
+- name: LongMemEval
+  enabled: true
+  settings:
+    subset: "S"
+    limit: 5
+- name: MemBench
+  enabled: true
+  settings:
+    categories: null
+    limit: 5
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: false
+  memory_quality: false
+  cost_analysis: true
+
+output:
+  save_results: true
+  output_file: industry_benchmarks_pilot_results.json
+  print_summary: true
+  detailed_logs: false

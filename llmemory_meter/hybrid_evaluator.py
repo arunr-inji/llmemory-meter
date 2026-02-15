@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 import json
 import subprocess
+import sys
 
 from llmemory_meter.benchmark_loader import BenchmarkLoader
 
@@ -143,7 +144,7 @@ class LongMemEvalEvaluator:
         self._validate_judge_model(judge_model)
         result = subprocess.run(
             [
-                "python",
+                sys.executable,
                 str(self.eval_script_path),
                 judge_model,
                 str(hypothesis_file),
@@ -264,7 +265,7 @@ class MemBenchEvaluator:
             )
 
         result = subprocess.run(
-            ["python", str(eval_script), str(hypothesis_file)],
+            [sys.executable, str(eval_script), str(hypothesis_file)],
             capture_output=True,
             text=True,
         )
@@ -279,14 +280,33 @@ class MemBenchEvaluator:
                 error=result.stderr.strip() or result.stdout.strip(),
             )
 
+        summary_path = Path(f"{hypothesis_file}.summary.json")
+        accuracy = None
+        per_category = None
+        if summary_path.exists():
+            with summary_path.open("r", encoding="utf-8") as f:
+                summary = json.load(f)
+            accuracy = summary.get("accuracy_contains")
+            category_metrics = summary.get("per_category")
+            if isinstance(category_metrics, dict):
+                per_category = {}
+                for category, metrics in category_metrics.items():
+                    if not isinstance(metrics, dict):
+                        continue
+                    contains_score = metrics.get("accuracy_contains")
+                    if contains_score is not None:
+                        per_category[category] = contains_score
+                if not per_category:
+                    per_category = None
+
         return HybridEvalResult(
             benchmark="membench",
             tool_name=tool_name,
             judge_model="official",
-            accuracy=None,
-            per_question_type=None,
+            accuracy=accuracy,
+            per_question_type=per_category,
             hypothesis_file=hypothesis_file,
-            eval_log_file=None,
+            eval_log_file=summary_path if summary_path.exists() else None,
         )
 
     @staticmethod
@@ -303,9 +323,17 @@ class MemBenchEvaluator:
                 if step.get("action") != "retrieve":
                     continue
                 metadata = step.get("metadata") or {}
+                category = metadata.get("category", "unknown")
+                workload_id = metadata.get("workload_id") or f"membench::{workload_name}"
+                match_type = metadata.get("match_type", "contains")
                 hypotheses.append({
+                    "workload_id": workload_id,
+                    "benchmark": "membench",
                     "workload": workload_name,
+                    "category": category,
+                    "ground_truth": metadata.get("ground_truth"),
                     "hypothesis": step.get("response", "").strip(),
+                    "match_type": match_type,
                     "metadata": metadata,
                 })
         return hypotheses

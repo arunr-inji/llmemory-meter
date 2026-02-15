@@ -1,0 +1,58 @@
+{
+  "config": {
+    "tools": ["mem0"],
+    "benchmarks": ["MemBench"],
+    "metrics": {
+      "latency": true,
+      "success_rate": true,
+      "token_usage": true,
+      "accuracy": false,
+      "memory_quality": false,
+      "cost_analysis": false
+    }
+  },
+  "results": {
+    "MemBench": {
+      "standard_results": {
+        "workload_results": {
+          "MemBench sample": {
+            "mem0": {
+              "tool_name": "mem0",
+              "workload_name": "MemBench sample",
+              "total_latency_ms": 12.0,
+              "avg_latency_ms": 12.0,
+              "p95_latency_ms": 12.0,
+              "total_tokens_used": 20,
+              "success_rate": 1.0,
+              "num_steps": 1,
+              "step_results": [
+                {
+                  "step_index": 0,
+                  "action": "retrieve",
+                  "response": "The compensation offered was a $20 credit.",
+                  "latency_ms": 12.0,
+                  "tokens_used": 20,
+                  "input_tokens": 10,
+                  "output_tokens": 10,
+                  "model": "gpt-4o-mini",
+                  "success": true,
+                  "error_message": null,
+                  "metadata": {
+                    "benchmark": "membench",
+                    "category": "qa",
+                    "workload_id": "membench::qa::1",
+                    "ground_truth": "$20 credit",
+                    "match_type": "contains"
+                  },
+                  "accuracy": null,
+                  "accuracy_by_provider": null
+                }
+              ],
+              "timestamp": "2026-02-15T00:00:00"
+            }
+          }
+        }
+      }
+    }
+  }
+}

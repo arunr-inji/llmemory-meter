@@ -1,0 +1,69 @@
+{
+  "cases": [
+    {
+      "name": "percentiles_success_tokens",
+      "tool_name": "mem0",
+      "config": {
+        "metrics": {
+          "cost_analysis": false
+        }
+      },
+      "steps": [
+        {"action": "retrieve", "latency_ms": 10.0, "tokens_used": 5, "success": true, "model": "gpt-4o-mini"},
+        {"action": "retrieve", "latency_ms": 20.0, "tokens_used": null, "success": false, "model": "gpt-4o-mini"},
+        {"action": "retrieve", "latency_ms": 30.0, "tokens_used": 15, "success": true, "model": "gpt-4o-mini"},
+        {"action": "retrieve", "latency_ms": 100.0, "tokens_used": 10, "success": true, "model": "gpt-4o-mini"}
+      ],
+      "expected": {
+        "avg_latency_ms": 40.0,
+        "p95_latency_ms": 100.0,
+        "p99_latency_ms": 100.0,
+        "total_tokens": 30,
+        "avg_tokens_per_query": 10,
+        "success_rate": 75.0,
+        "total_queries": 4
+      }
+    },
+    {
+      "name": "cost_analysis_priced_unpriced",
+      "tool_name": "memgpt",
+      "config": {
+        "metrics": {
+          "cost_analysis": true
+        },
+        "pricing": {
+          "test-model": {
+            "input": 1.0,
+            "output": 2.0
+          }
+        }
+      },
+      "steps": [
+        {
+          "action": "retrieve",
+          "latency_ms": 50.0,
+          "tokens_used": 150,
+          "input_tokens": 100,
+          "output_tokens": 50,
+          "success": true,
+          "model": "test-model"
+        },
+        {
+          "action": "retrieve",
+          "latency_ms": 30.0,
+          "tokens_used": 100,
+          "success": true,
+          "model": "unknown-model"
+        }
+      ],
+      "expected": {
+        "total_queries": 2,
+        "success_rate": 100.0,
+        "total_cost_usd": 0.0002,
+        "avg_cost_per_query_usd": 0.0002,
+        "cost_per_1k_ops_usd": 0.2,
+        "cost_priced_queries": 1
+      }
+    }
+  ]
+}

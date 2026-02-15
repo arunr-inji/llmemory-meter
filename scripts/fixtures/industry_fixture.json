@@ -1,0 +1,49 @@
+{
+  "config": {
+    "tools": ["mem0"],
+    "benchmarks": ["LongMemEval", "MemBench"],
+    "metrics": {
+      "latency": true,
+      "success_rate": true,
+      "token_usage": true,
+      "accuracy": false,
+      "memory_quality": false
+    }
+  },
+  "results": {
+    "LongMemEval": {
+      "standard_results": {
+        "workload_results": {
+          "LongMemEval Workload": {
+            "mem0": {
+              "tool_name": "mem0",
+              "workload_name": "LongMemEval Workload",
+              "step_results": [],
+              "total_latency_ms": 0.0,
+              "total_tokens_used": 0,
+              "success_rate": 0.0,
+              "timestamp": "2026-02-11T00:00:00"
+            }
+          }
+        }
+      }
+    },
+    "MemBench": {
+      "standard_results": {
+        "workload_results": {
+          "MemBench Workload": {
+            "mem0": {
+              "tool_name": "mem0",
+              "workload_name": "MemBench Workload",
+              "step_results": [],
+              "total_latency_ms": 0.0,
+              "total_tokens_used": 0,
+              "success_rate": 0.0,
+              "timestamp": "2026-02-11T00:00:00"
+            }
+          }
+        }
+      }
+    }
+  }
+}

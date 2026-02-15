@@ -294,7 +294,11 @@ class BenchmarkLoader:
                 metadata={
                     "benchmark": "membench",
                     "category": category,
+                    "workload_id": f"membench::{category}::{index + 1}",
+                    "ground_truth": str(answer) if answer is not None else None,
+                    "match_type": "contains",
                 },
+                match_type="contains",
             )
         )
 

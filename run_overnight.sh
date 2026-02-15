@@ -9,7 +9,7 @@ if [ -f .env ]; then
     set +a
 fi
 
-set -e
+set -euo pipefail
 
 # Configuration
 CONFIG_FILE="${1:-configs/industry-benchmarks.yml}"
@@ -17,6 +17,7 @@ TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_DIR="logs"
 LOG_FILE="${LOG_DIR}/benchmark_${TIMESTAMP}.log"
 RESULTS_DIR="results"
+RUN_MARKER=".run_marker_${TIMESTAMP}"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -26,6 +27,8 @@ NC='\033[0m' # No Color
 
 # Create directories
 mkdir -p "$LOG_DIR" "$RESULTS_DIR"
+touch "$RUN_MARKER"
+trap 'rm -f "$RUN_MARKER"' EXIT
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}  LLMemory Meter - Overnight Runner${NC}"
@@ -52,9 +55,10 @@ echo -e "${YELLOW}📊 Results will be saved automatically${NC}"
 echo ""
 
 # Run benchmark with output to both terminal and log file
+set +e
 .venv/bin/python -m llmemory_meter.cli run --config "$CONFIG_FILE" 2>&1 | tee "$LOG_FILE"
-
-EXIT_CODE=$?
+EXIT_CODE=${PIPESTATUS[0]}
+set -e
 
 echo ""
 echo -e "${BLUE}========================================${NC}"
@@ -70,13 +74,16 @@ echo ""
 # Move results to results directory with timestamp
 shopt -s nullglob
 for result_file in *_results.json; do
+    # Only move files created/updated by this run.
+    if [ ! "$result_file" -nt "$RUN_MARKER" ]; then
+        continue
+    fi
     base_name="${result_file%_results.json}"
     dest_file="${RESULTS_DIR}/${base_name}_${TIMESTAMP}.json"
     mv "$result_file" "$dest_file"
     echo -e "${GREEN}📊 Results moved:${NC} $dest_file"
 done
 shopt -u nullglob
-
 # Print summary of results files
 echo ""
 echo -e "${BLUE}📋 Available Results:${NC}"

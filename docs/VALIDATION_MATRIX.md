@@ -33,6 +33,17 @@ Pass criteria:
 - CLI exits `0` for smoke run.
 - Results JSON is written.
 
+## Fast Path Automation
+
+Run the offline validation + publication-prep pipeline:
+
+```bash
+./scripts/validate_and_publish_prep.sh scripts/fixtures/industry_fixture.json
+```
+
+This validates CLI wiring, results schema, judge-model hardening, and generates a publication bundle with checksums.
+It also runs deterministic metric fixtures, reconciliation checks, and MemBench deterministic eval fixture checks.
+
 ## Validation Matrix
 
 | ID | Area | Command | Pass Criteria | Artifact |
@@ -46,6 +57,11 @@ Pass criteria:
 | VM-07 | MemBench eval script path handling | `.venv/bin/python llmemory evaluate --benchmark MemBench --results <results_file> --eval-script <path>` | If script exists, command executes; if missing, returns actionable error | command output |
 | VM-08 | Output schema integrity | Inspect final JSON keys for `config` and `results` plus per-benchmark `standard_results` | Required keys exist with parseable JSON | `results/*.json` |
 | VM-09 | Reproducibility repeat run | Repeat VM-03 3 times on same commit/config | Runtime and success metrics are stable enough for reporting | `results/validation_runs/<date>/` |
+| VM-10 | Metric invariant reconciliation | `python3 scripts/check_metrics_reconciliation.py <results_file> --report-file <report_path>` | Zero mismatches between raw step data and reported metrics | `reconciliation_report.json` |
+| VM-11 | Deterministic metric fixture checks | `python3 scripts/check_metric_fixtures.py` | Percentile/token/success/cost fixture cases pass | fixture check output |
+| VM-12 | MemBench deterministic evaluator | `python3 scripts/membench_eval.py <hypothesis_file.jsonl>` | Produces `.eval.jsonl` + `.summary.json` and exits 0 | `<hypothesis>.eval.jsonl`, `<hypothesis>.summary.json` |
+| VM-13 | Tool setup validation | `python3 scripts/check_tool_setup.py --config configs/industry-benchmarks-pilot.yml` | Enabled tools have required env vars; Mem0 qdrant endpoint reachable | command output |
+| VM-14 | Pilot gate | `./scripts/run_pilot_gate.sh configs/industry-benchmarks-pilot.yml` | Pilot run + eval + reconciliation + bundle all pass | `results/validation_runs/pilot_reconciliation_report.json`, `results/final/pilot_bundle/` |
 
 ## Execution Protocol
 
@@ -60,3 +76,4 @@ Pass criteria:
 - VM-03 and VM-09 pass on the same commit used for publication artifacts.
 - No critical security issues remain open.
 - Hybrid evaluation outputs are generated for LongMemEval with an approved judge model.
+- MemBench deterministic evaluation outputs are generated and reproducible.
