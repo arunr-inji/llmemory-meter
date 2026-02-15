@@ -1,0 +1,90 @@
+{
+  "config": {
+    "tools": ["mem0"],
+    "benchmarks": ["LongMemEval", "MemBench"],
+    "metrics": {
+      "latency": true,
+      "success_rate": true,
+      "token_usage": true,
+      "accuracy": false,
+      "memory_quality": false
+    }
+  },
+  "results": {
+    "LongMemEval": {
+      "standard_results": {
+        "workload_results": {
+          "LongMemEval Workload": {
+            "mem0": {
+              "tool_name": "mem0",
+              "workload_name": "LongMemEval Workload",
+              "step_results": [
+                {
+                  "step_index": 0,
+                  "action": "retrieve",
+                  "response": "fixture answer",
+                  "latency_ms": 8.0,
+                  "tokens_used": 5,
+                  "input_tokens": 3,
+                  "output_tokens": 2,
+                  "model": "gpt-4o-mini",
+                  "success": true,
+                  "error_message": null,
+                  "metadata": {
+                    "benchmark": "longmemeval",
+                    "question_id": "fixture-q1"
+                  },
+                  "accuracy": null,
+                  "accuracy_by_provider": null
+                }
+              ],
+              "total_latency_ms": 8.0,
+              "total_tokens_used": 5,
+              "success_rate": 1.0,
+              "timestamp": "2026-02-11T00:00:00"
+            }
+          }
+        }
+      }
+    },
+    "MemBench": {
+      "standard_results": {
+        "workload_results": {
+          "MemBench Workload": {
+            "mem0": {
+              "tool_name": "mem0",
+              "workload_name": "MemBench Workload",
+              "step_results": [
+                {
+                  "step_index": 0,
+                  "action": "retrieve",
+                  "response": "fixture membench response",
+                  "latency_ms": 10.0,
+                  "tokens_used": 6,
+                  "input_tokens": 3,
+                  "output_tokens": 3,
+                  "model": "gpt-4o-mini",
+                  "success": true,
+                  "error_message": null,
+                  "metadata": {
+                    "benchmark": "membench",
+                    "category": "qa",
+                    "workload_id": "membench::qa::1",
+                    "ground_truth": "fixture",
+                    "match_type": "contains"
+                  },
+                  "accuracy": null,
+                  "accuracy_by_provider": null
+                }
+              ],
+              "total_latency_ms": 10.0,
+              "total_tokens_used": 6,
+              "success_rate": 1.0,
+              "timestamp": "2026-02-11T00:00:00"
+            }
+          }
+        }
+      }
+    }
+  }
+}

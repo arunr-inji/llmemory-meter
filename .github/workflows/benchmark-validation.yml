@@ -1,0 +1,71 @@
+name: Benchmark Validation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validation-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: CLI sanity check
+        run: |
+          .venv/bin/python -m llmemory_meter.cli --help
+
+      - name: Results schema check
+        run: |
+          .venv/bin/python scripts/check_results_schema.py \
+            scripts/fixtures/industry_fixture.json \
+            --require-benchmarks LongMemEval MemBench
+
+      - name: Deterministic metric fixtures
+        run: |
+          .venv/bin/python scripts/check_metric_fixtures.py
+
+      - name: Reconciliation check
+        run: |
+          .venv/bin/python scripts/check_metrics_reconciliation.py \
+            scripts/fixtures/reconciliation_fixture.json \
+            --report-file results/validation_runs/reconciliation_fixture_report.json
+
+      - name: Judge model hardening check
+        run: |
+          set +e
+          .venv/bin/python -c "from llmemory_meter.hybrid_evaluator import LongMemEvalEvaluator; LongMemEvalEvaluator._validate_judge_model('bad-model')" 2>/dev/null
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "invalid judge model was accepted"
+            exit 1
+          fi
+
+      - name: MemBench deterministic eval fixture
+        run: |
+          .venv/bin/python scripts/membench_eval.py scripts/fixtures/membench_hypothesis_fixture.jsonl
+
+      - name: Publication bundle smoke test
+        run: |
+          .venv/bin/python scripts/prepare_publication_bundle.py \
+            --results-file scripts/fixtures/industry_fixture.json \
+            --output-dir results/final/ci-smoke
+
+      - name: Upload publication smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: publication-smoke
+          path: results/final/ci-smoke

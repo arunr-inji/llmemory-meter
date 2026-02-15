@@ -1,0 +1,62 @@
+{
+  "config": {
+    "metrics": {
+      "latency": true,
+      "success_rate": true,
+      "token_usage": true,
+      "accuracy": false,
+      "memory_quality": false,
+      "cost_analysis": false
+    }
+  },
+  "results": {
+    "LongMemEval": {
+      "standard_results": {
+        "workload_results": {
+          "LongMemEval W1": {
+            "mem0": {
+              "tool_name": "mem0",
+              "workload_name": "LongMemEval W1",
+              "total_latency_ms": 160.0,
+              "avg_latency_ms": 40.0,
+              "p95_latency_ms": 100.0,
+              "total_tokens_used": 30,
+              "success_rate": 0.75,
+              "num_steps": 4,
+              "step_results": [
+                {"step_index": 0, "action": "retrieve", "response": "a", "latency_ms": 10.0, "tokens_used": 5, "input_tokens": 3, "output_tokens": 2, "model": "gpt-4o-mini", "success": true, "error_message": null, "metadata": null, "accuracy": null, "accuracy_by_provider": null},
+                {"step_index": 1, "action": "retrieve", "response": "b", "latency_ms": 20.0, "tokens_used": null, "input_tokens": null, "output_tokens": null, "model": "gpt-4o-mini", "success": false, "error_message": "test", "metadata": null, "accuracy": null, "accuracy_by_provider": null},
+                {"step_index": 2, "action": "retrieve", "response": "c", "latency_ms": 30.0, "tokens_used": 15, "input_tokens": 10, "output_tokens": 5, "model": "gpt-4o-mini", "success": true, "error_message": null, "metadata": null, "accuracy": null, "accuracy_by_provider": null},
+                {"step_index": 3, "action": "retrieve", "response": "d", "latency_ms": 100.0, "tokens_used": 10, "input_tokens": 6, "output_tokens": 4, "model": "gpt-4o-mini", "success": true, "error_message": null, "metadata": null, "accuracy": null, "accuracy_by_provider": null}
+              ],
+              "timestamp": "2026-02-15T00:00:00"
+            }
+          }
+        },
+        "overall_metrics": {
+          "mem0": {
+            "tool_name": "mem0",
+            "avg_latency_ms": 40.0,
+            "p95_latency_ms": 100.0,
+            "p99_latency_ms": 100.0,
+            "total_tokens": 30,
+            "avg_tokens_per_query": 10,
+            "success_rate": 75.0,
+            "total_queries": 4,
+            "operation_metrics": {
+              "retrieve": {
+                "avg_latency_ms": 40.0,
+                "p95_latency_ms": 100.0,
+                "p99_latency_ms": 100.0,
+                "total_tokens": 30,
+                "avg_tokens_per_query": 10,
+                "success_rate": 75.0,
+                "total_queries": 4
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
