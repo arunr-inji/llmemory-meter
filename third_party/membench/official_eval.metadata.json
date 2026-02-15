@@ -1,0 +1,8 @@
+{
+  "pinned_at_utc": "2026-02-15T22:58:49Z",
+  "repo_url": "https://github.com/arunr-inji/llmemory-meter",
+  "commit": "a08164faa34877126840945b7779df99fe44d98e",
+  "source_script": "/Users/sunayanagali/llmemory_meter/scripts/membench_llm_eval.py",
+  "pinned_script": "third_party/membench/official_eval.py",
+  "script_sha256": "06f72bf2469383c0363b4fb24df5c08d7fa2d0a9d535736498712efd535f2e79"
+}

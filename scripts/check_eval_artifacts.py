@@ -7,6 +7,9 @@ import argparse
 import json
 from pathlib import Path
 from typing import Dict, List, Optional
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from llmemory_meter.benchmark_loader import BenchmarkLoader
 

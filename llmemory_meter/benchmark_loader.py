@@ -367,6 +367,7 @@ class BenchmarkLoader:
             "benchmark": "membench",
             "category": category,
             "workload_id": f"membench::{category}::{index + 1}",
+            "question": str(question),
             "ground_truth": str(answer) if answer is not None else None,
             "ground_truth_label": str(ground_truth_label) if ground_truth_label is not None else None,
             "match_type": "contains",

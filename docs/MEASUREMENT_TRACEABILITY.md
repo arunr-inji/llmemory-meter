@@ -15,11 +15,14 @@ This document maps each published metric to raw inputs, transformation code, and
 | `cost_per_1k_ops_usd` | average cost per query | `llmemory_meter/metrics.py:204` | `avg_cost_per_query * 1000` | exact after rounding | Block run, emit reconciliation mismatch |
 | LongMemEval judged accuracy | eval logs `.eval-results-*` | `llmemory_meter/hybrid_evaluator.py:198` | labels mean from official eval output | exact | Block publication, inspect judge/eval artifact |
 | LongMemEval per-question-type | eval logs + reference JSON | `llmemory_meter/hybrid_evaluator.py:210` | grouped label means by type | exact | Block publication, inspect eval join |
-| MemBench deterministic `accuracy_contains` | hypothesis JSONL with ground truth | `scripts/membench_eval.py` | normalized substring match ratio on scored rows | exact | Block publication, inspect hypothesis payload |
-| MemBench deterministic `accuracy_exact` | hypothesis JSONL with ground truth | `scripts/membench_eval.py` | normalized exact-match ratio on scored rows | exact | Block publication, inspect hypothesis payload |
+| MemBench primary accuracy (`accuracy`) | hypothesis JSONL + question/choices + model response | `scripts/membench_llm_eval.py` | MCQ label match after deterministic parsing + LLM adjudication | exact | Block publication, inspect row-level eval + judge cache |
+| MemBench MCQ-only accuracy (`accuracy_mcq`) | same as above | `scripts/membench_llm_eval.py` | label match on MCQ-scored rows | exact | Block publication, inspect category-specific failures |
+| MemBench adjudication rate | same as above | `scripts/membench_llm_eval.py` | `scored_llm_count / scored_mcq_count` | exact | Flag high-judge dependence for review |
+| MemBench deterministic `accuracy_contains` | hypothesis JSONL with ground truth | `scripts/membench_eval.py` or `scripts/membench_llm_eval.py` | normalized substring match ratio on scored rows | exact | Diagnostic only; do not publish as headline metric |
+| MemBench deterministic `accuracy_exact` | hypothesis JSONL with ground truth | `scripts/membench_eval.py` or `scripts/membench_llm_eval.py` | normalized exact-match ratio on scored rows | exact | Diagnostic only; do not publish as headline metric |
 
 ## Gate
 
 - `scripts/check_metrics_reconciliation.py` enforces raw-to-reported consistency.
 - `scripts/check_metric_fixtures.py` enforces deterministic behavior on edge cases.
-- `scripts/membench_eval.py` enforces deterministic MemBench accuracy scoring.
+- `scripts/membench_llm_eval.py` enforces MemBench MCQ adjudication with cached LLM decisions.

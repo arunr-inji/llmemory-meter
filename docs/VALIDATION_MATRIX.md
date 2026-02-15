@@ -86,6 +86,7 @@ For full publication campaign (3-run validation + repeatability + release packag
 | VM-10 | Metric invariant reconciliation | `python3 scripts/check_metrics_reconciliation.py <results_file> --report-file <report_path>` | Zero mismatches between raw step data and reported metrics | `reconciliation_report.json` |
 | VM-11 | Deterministic metric fixture checks | `python3 scripts/check_metric_fixtures.py` | Percentile/token/success/cost fixture cases pass | fixture check output |
 | VM-12 | MemBench canary evaluator (diagnostic only) | `python3 scripts/membench_eval.py <hypothesis_file.jsonl>` | Produces `.eval.jsonl` + `.summary.json` and exits 0 | `<hypothesis>.eval.jsonl`, `<hypothesis>.summary.json` |
+| VM-12a | MemBench LLM evaluator | `python3 scripts/membench_llm_eval.py <hypothesis_file.jsonl>` | Produces `.eval.jsonl` + `.summary.json` with `accuracy`/`accuracy_mcq` and strict row decisions | `<hypothesis>.eval.jsonl`, `<hypothesis>.summary.json`, `<hypothesis>.llm_cache.json` |
 | VM-12b | MemBench official eval pinning | `python3 scripts/pin_membench_official_eval.py --source-script <official_script.py> --repo-url <official_repo> --commit <sha>` | Pinned script and metadata are written under `third_party/membench/` with commit + sha256 | `third_party/membench/official_eval.py`, `third_party/membench/official_eval.metadata.json` |
 | VM-12c | MemBench official eval readiness | `python3 scripts/check_membench_eval_setup.py --eval-script "$MEMBENCH_OFFICIAL_EVAL_SCRIPT" --metadata-file "$MEMBENCH_OFFICIAL_EVAL_METADATA" --require-official --require-pinned-metadata` | Script executes on fixture, metadata is valid, and script sha256 matches pinned metadata | fixture `.eval.jsonl` + `.summary.json` |
 | VM-13 | Tool setup validation | `python3 scripts/check_tool_setup.py --config configs/industry-benchmarks-pilot.yml` | Enabled tools have required env vars; Mem0 qdrant endpoint reachable | command output |
@@ -112,3 +113,4 @@ For full publication campaign (3-run validation + repeatability + release packag
 - Hybrid evaluation outputs are generated for LongMemEval with an approved judge model.
 - MemBench official evaluation outputs are generated and reproducible.
 - Publication package includes pinned MemBench evaluator script and metadata (repo + commit + sha256).
+- If using local LLM adjudication, fix and record `MEMBENCH_LLM_JUDGE_MODEL`, prompt version, and cached row judgments in artifacts.

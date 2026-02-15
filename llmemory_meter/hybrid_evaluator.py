@@ -476,6 +476,7 @@ class MemBenchEvaluator:
                     "benchmark": "membench",
                     "workload": workload_name,
                     "category": category,
+                    "question": str(metadata.get("question", "") or ""),
                     "ground_truth": metadata.get("ground_truth"),
                     "ground_truth_label": (
                         str(ground_truth_label) if ground_truth_label is not None else None
