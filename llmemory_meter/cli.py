@@ -336,6 +336,9 @@ def evaluate_command(args):
         if result.error:
             print(f"  • {result.tool_name}: error - {result.error}")
             continue
+        if benchmark_name.lower() == "membench" and result.judge_model == "deterministic_canary":
+            print(f"  • {result.tool_name}: deterministic canary completed (diagnostic only; not publication accuracy)")
+            continue
         if result.accuracy is not None:
             print(f"  • {result.tool_name}: {result.accuracy*100:.2f}% accuracy")
         else:

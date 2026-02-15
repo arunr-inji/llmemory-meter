@@ -8,6 +8,8 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 import json
 import zipfile
 import tarfile
+import re
+from urllib.parse import urljoin
 
 import httpx
 from tqdm import tqdm
@@ -186,9 +188,10 @@ class BenchmarkLoader:
             with json_file.open("r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            items = data.get("data") if isinstance(data, dict) else data
-            if not isinstance(items, list):
-                raise ValueError(f"Unsupported MemBench format in {json_file}")
+            items = cls._extract_membench_items(data)
+            if not items:
+                # Some MemBench files contain auxiliary/noise data only.
+                continue
 
             for idx, item in enumerate(items):
                 workload = cls._convert_membench_entry(item, json_file.stem, idx)
@@ -198,6 +201,63 @@ class BenchmarkLoader:
                     return workloads
 
         return workloads
+
+    @classmethod
+    def _extract_membench_items(cls, payload: Any) -> List[Dict[str, Any]]:
+        """Extract QA-style MemBench entries from varied dataset layouts."""
+        extracted: List[Dict[str, Any]] = []
+
+        def walk(node: Any) -> None:
+            if isinstance(node, dict):
+                direct = cls._normalize_membench_raw_entry(node)
+                if direct:
+                    extracted.append(direct)
+                    if "QA" in node and "message_list" in node:
+                        return
+
+                for value in node.values():
+                    if isinstance(value, (list, dict)):
+                        walk(value)
+                return
+
+            if isinstance(node, list):
+                for item in node:
+                    walk(item)
+
+        walk(payload)
+        return extracted
+
+    @staticmethod
+    def _normalize_membench_raw_entry(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Normalize MemBench raw records into question/answer/history shape."""
+        qa = entry.get("QA")
+        message_list = entry.get("message_list")
+        if isinstance(qa, dict) and message_list is not None:
+            question = qa.get("question")
+            if not question:
+                return None
+
+            answer = qa.get("answer")
+            if answer is None:
+                ground_truth = qa.get("ground_truth")
+                choices = qa.get("choices")
+                if isinstance(ground_truth, str) and isinstance(choices, dict):
+                    answer = choices.get(ground_truth, ground_truth)
+                else:
+                    answer = ground_truth
+
+            return {
+                "question": question,
+                "answer": answer,
+                "history": message_list,
+            }
+
+        # Already normalized shape from previously supported format.
+        has_question = any(key in entry for key in ("question", "query", "prompt", "instruction"))
+        if has_question:
+            return entry
+
+        return None
 
     @classmethod
     def get_membench_root(cls, data_dir: Optional[Path] = None) -> Path:
@@ -352,6 +412,22 @@ class BenchmarkLoader:
             lines = []
             for turn in session:
                 if isinstance(turn, dict):
+                    if "user_message" in turn or "assistant_message" in turn:
+                        user_message = turn.get("user_message")
+                        assistant_message = turn.get("assistant_message")
+                        if user_message:
+                            lines.append(f"user: {user_message}")
+                        if assistant_message:
+                            lines.append(f"assistant: {assistant_message}")
+
+                        # Preserve structured memory hints when available.
+                        rel = turn.get("rel")
+                        attr = turn.get("attr")
+                        value = turn.get("value")
+                        if rel and attr and value is not None:
+                            lines.append(f"memory_fact: {rel}.{attr}={value}")
+                        continue
+
                     role = turn.get("role", "unknown")
                     content = turn.get("content", "")
                     lines.append(f"{role}: {content}")
@@ -406,19 +482,32 @@ class BenchmarkLoader:
 
         with httpx.Client(follow_redirects=True, timeout=120) as client:
             response = client.get(download_url)
-            if "confirm=" in response.text:
-                confirm_token = cls._extract_confirm_token(response.text)
-                if confirm_token:
-                    response = client.get(
-                        "https://drive.google.com/uc",
-                        params={"export": "download", "confirm": confirm_token, "id": file_id},
-                    )
+            content_type = response.headers.get("content-type", "").lower()
+            if "text/html" in content_type and "download-form" in response.text:
+                action_url, params = cls._extract_drive_download_form(response.text)
+                if action_url and params:
+                    response = client.get(action_url, params=params)
+                else:
+                    confirm_token = cls._extract_confirm_token(response.text)
+                    if confirm_token:
+                        response = client.get(
+                            "https://drive.google.com/uc",
+                            params={"export": "download", "confirm": confirm_token, "id": file_id},
+                        )
 
             response.raise_for_status()
             with archive_path.open("wb") as f:
                 for chunk in response.iter_bytes():
                     if chunk:
                         f.write(chunk)
+
+        if not zipfile.is_zipfile(archive_path) and not tarfile.is_tarfile(archive_path):
+            with archive_path.open("r", encoding="utf-8", errors="ignore") as f:
+                preview = f.read(400)
+            raise ValueError(
+                f"MemBench download did not produce a valid archive: {archive_path}. "
+                f"File preview: {preview!r}"
+            )
 
         cls._extract_archive(archive_path, target_dir)
 
@@ -432,6 +521,34 @@ class BenchmarkLoader:
         if end == -1:
             end = start + 100
         return html_text[start:end]
+
+    @staticmethod
+    def _extract_drive_download_form(html_text: str) -> Tuple[Optional[str], Dict[str, str]]:
+        form_match = re.search(
+            r'<form[^>]*id=["\']download-form["\'][^>]*action=["\']([^"\']+)["\']',
+            html_text,
+            flags=re.IGNORECASE,
+        )
+        action_url: Optional[str] = None
+        if form_match:
+            action_url = urljoin("https://drive.google.com", form_match.group(1))
+
+        params: Dict[str, str] = {}
+        input_pattern = re.compile(r"<input[^>]+>", flags=re.IGNORECASE)
+        for tag in input_pattern.findall(html_text):
+            name_match = re.search(r'name=["\']([^"\']+)["\']', tag, flags=re.IGNORECASE)
+            value_match = re.search(r'value=["\']([^"\']*)["\']', tag, flags=re.IGNORECASE)
+            type_match = re.search(r'type=["\']([^"\']+)["\']', tag, flags=re.IGNORECASE)
+            if not name_match or not value_match:
+                continue
+            if type_match and type_match.group(1).lower() != "hidden":
+                continue
+            params[name_match.group(1)] = value_match.group(1)
+
+        if not action_url and params:
+            action_url = "https://drive.google.com/uc"
+
+        return action_url, params
 
     @staticmethod
     def _extract_archive(archive_path: Path, target_dir: Path) -> None:

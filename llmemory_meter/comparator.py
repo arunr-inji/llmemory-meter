@@ -4,6 +4,7 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
+import time
 
 from llmemory_meter.memory_tools import MemoryTool, Mem0Tool, OpenAIMemoryTool, MemGPTTool, ClaudeMemoryTool, ZepTool, NoMemoryTool, FullContextTool
 from llmemory_meter.workload import Workload, WorkloadResult, StepResult, WorkloadStep
@@ -36,6 +37,8 @@ class MemoryComparator:
 
     # Supported memory tools
     SUPPORTED_TOOLS = ["mem0", "openai_memory", "memgpt", "claude_memory", "zep", "baseline", "full_context"]
+    STEP_TIMEOUT_SECONDS = 300.0
+    STEP_HEARTBEAT_SECONDS = 30.0
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config_obj = None
@@ -46,8 +49,27 @@ class MemoryComparator:
             self.config = config or {}
         self.available_tools = Config.get_available_tools()
         self._tool_instances: Dict[str, MemoryTool] = {}
+        general_config = self.config.get("general", {}) if isinstance(self.config.get("general", {}), dict) else {}
         # Get concurrent_tools setting from config
-        self.concurrent_tools = self.config.get('concurrent_tools', True)
+        self.concurrent_tools = general_config.get("concurrent_tools", self.config.get('concurrent_tools', True))
+        self.step_timeout_seconds = float(
+            general_config.get(
+                "step_timeout_seconds",
+                self.config.get("step_timeout_seconds", self.STEP_TIMEOUT_SECONDS)
+            )
+        )
+        self.step_heartbeat_seconds = float(
+            general_config.get(
+                "step_heartbeat_seconds",
+                self.config.get("step_heartbeat_seconds", self.STEP_HEARTBEAT_SECONDS)
+            )
+        )
+        if self.step_timeout_seconds <= 0:
+            self.step_timeout_seconds = self.STEP_TIMEOUT_SECONDS
+        if self.step_heartbeat_seconds <= 0:
+            self.step_heartbeat_seconds = self.STEP_HEARTBEAT_SECONDS
+        if self.step_heartbeat_seconds > self.step_timeout_seconds:
+            self.step_heartbeat_seconds = self.step_timeout_seconds
         # Track if this is the first workload (skip clear_memory for first workload)
         self._workload_count = 0
 
@@ -106,10 +128,64 @@ class MemoryComparator:
                 raise Exception(f"Failed to initialize {tool_name}: {e}")
         
         return self._tool_instances[tool_name]
+
+    async def _execute_step_with_heartbeat(
+        self,
+        tool: MemoryTool,
+        step: WorkloadStep,
+        step_index: int,
+        tool_name: str,
+        workload_name: str,
+        progress_index: int,
+        total_steps: int
+    ) -> StepResult:
+        """Execute a step with periodic heartbeat output while waiting."""
+        print(
+            f"    [{tool_name}] Step {progress_index + 1}/{total_steps} starting: "
+            f"workload='{workload_name}' step_index={step_index} action={step.action}",
+            flush=True
+        )
+
+        started = time.monotonic()
+        task = asyncio.create_task(tool.execute_step(step, step_index))
+
+        while True:
+            elapsed = time.monotonic() - started
+            remaining = self.step_timeout_seconds - elapsed
+            if remaining <= 0:
+                task.cancel()
+                try:
+                    await task
+                except BaseException:
+                    pass
+                raise asyncio.TimeoutError
+
+            wait_timeout = min(self.step_heartbeat_seconds, remaining)
+            try:
+                step_result = await asyncio.wait_for(asyncio.shield(task), timeout=wait_timeout)
+                status = "ok" if step_result.success else "failed"
+                print(
+                    f"    [{tool_name}] Step {progress_index + 1}/{total_steps} {status}: "
+                    f"{step_result.latency_ms:.0f}ms",
+                    flush=True
+                )
+                return step_result
+            except asyncio.TimeoutError:
+                heartbeat_elapsed = int(time.monotonic() - started)
+                print(
+                    f"    [{tool_name}] Step {progress_index + 1}/{total_steps} still running "
+                    f"({heartbeat_elapsed}s elapsed): workload='{workload_name}' "
+                    f"step_index={step_index} action={step.action}",
+                    flush=True
+                )
     
     async def run_workload_on_tool(self, workload: Workload, tool_name: str) -> WorkloadResult:
         """Run a workload on a specific memory tool."""
-        print(f"  → {tool_name} starting...")
+        print(
+            f"  → {tool_name} starting... "
+            f"(step_timeout={self.step_timeout_seconds:.0f}s heartbeat={self.step_heartbeat_seconds:.0f}s)",
+            flush=True
+        )
         tool = self._get_tool_instance(tool_name)
         step_results = []
         total_start_time = datetime.now()
@@ -121,38 +197,38 @@ class MemoryComparator:
                 continue
             steps_to_run.append((step_index, step))
         
+        total_steps = len(steps_to_run)
+
         # Phase 1: Run benchmark (pure performance measurement)
         for progress_index, (step_index, step) in enumerate(steps_to_run):
-            # Progress print every 10 steps
-            if progress_index > 0 and progress_index % 10 == 0:
-                from datetime import timezone, timedelta
-                pst = timezone(timedelta(hours=-8))
-                timestamp = datetime.now(pst).strftime("%H:%M:%S")
-                print(f"    [{tool_name}] Progress: {progress_index}/{len(steps_to_run)} steps @ {timestamp} PST")
-            
             try:
-                # Add timeout per step to prevent indefinite hangs (especially for Zep)
-                # 5 minutes = 3.2x the max ever observed (92s) with generous buffer
-                # Prevents deadlocks while allowing legitimate slow operations
-                STEP_TIMEOUT = 300.0  # 5 minutes
-                step_result = await asyncio.wait_for(
-                    tool.execute_step(step, step_index),
-                    timeout=STEP_TIMEOUT
+                step_result = await self._execute_step_with_heartbeat(
+                    tool=tool,
+                    step=step,
+                    step_index=step_index,
+                    tool_name=tool_name,
+                    workload_name=workload.name,
+                    progress_index=progress_index,
+                    total_steps=total_steps
                 )
             except asyncio.TimeoutError:
                 # Step timed out - mark as failed
-                print(f"⏱️ Timeout: Step {step_index} ({step.action}) exceeded {STEP_TIMEOUT/60:.0f} minutes - marking as failed")
+                print(
+                    f"⏱️ Timeout: Step {step_index} ({step.action}) exceeded "
+                    f"{self.step_timeout_seconds/60:.0f} minutes - marking as failed",
+                    flush=True
+                )
                 step_result = StepResult(
                     step_index=step_index,
                     action=step.action,
                     response="",
-                    latency_ms=STEP_TIMEOUT * 1000,
+                    latency_ms=self.step_timeout_seconds * 1000,
                     tokens_used=0,
                     input_tokens=0,
                     output_tokens=0,
                     model=getattr(tool, "model", None),
                     success=False,
-                    error_message=f"Operation timed out after {STEP_TIMEOUT/60:.0f} minutes",
+                    error_message=f"Operation timed out after {self.step_timeout_seconds/60:.0f} minutes",
                     metadata=step.metadata
                 )
             # Preserve step metadata for downstream scenario metrics
@@ -171,7 +247,7 @@ class MemoryComparator:
                     # Timeout already printed above, don't duplicate
                     pass
                 else:
-                    print(f"❌ [{tool_name}] Step {step_index} ({step.action}) failed: {error_msg}")
+                    print(f"❌ [{tool_name}] Step {step_index} ({step.action}) failed: {error_msg}", flush=True)
             
             step_results.append(step_result)
         

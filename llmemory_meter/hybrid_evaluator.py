@@ -242,7 +242,7 @@ class MemBenchEvaluator:
             return HybridEvalResult(
                 benchmark="membench",
                 tool_name=tool_name,
-                judge_model="official",
+                judge_model="membench",
                 accuracy=None,
                 per_question_type=None,
                 hypothesis_file=hypothesis_file,
@@ -257,12 +257,14 @@ class MemBenchEvaluator:
             return HybridEvalResult(
                 benchmark="membench",
                 tool_name=tool_name,
-                judge_model="official",
+                judge_model="membench",
                 accuracy=None,
                 per_question_type=None,
                 hypothesis_file=hypothesis_file,
                 error="MemBench eval_script not configured.",
             )
+
+        eval_mode = self._resolve_eval_mode(eval_script)
 
         summary_path = Path(f"{hypothesis_file}.summary.json")
         row_eval_path = Path(f"{hypothesis_file}.eval.jsonl")
@@ -279,7 +281,7 @@ class MemBenchEvaluator:
             return HybridEvalResult(
                 benchmark="membench",
                 tool_name=tool_name,
-                judge_model="official",
+                judge_model=eval_mode,
                 accuracy=None,
                 per_question_type=None,
                 hypothesis_file=hypothesis_file,
@@ -295,7 +297,7 @@ class MemBenchEvaluator:
             return HybridEvalResult(
                 benchmark="membench",
                 tool_name=tool_name,
-                judge_model="official",
+                judge_model=eval_mode,
                 accuracy=None,
                 per_question_type=None,
                 hypothesis_file=hypothesis_file,
@@ -305,43 +307,93 @@ class MemBenchEvaluator:
                 ),
             )
 
-        accuracy = None
-        per_category = None
         try:
             with summary_path.open("r", encoding="utf-8") as f:
                 summary = json.load(f)
-            accuracy = summary.get("accuracy_contains")
-            category_metrics = summary.get("per_category")
-            if isinstance(category_metrics, dict):
-                per_category = {}
-                for category, metrics in category_metrics.items():
-                    if not isinstance(metrics, dict):
-                        continue
-                    contains_score = metrics.get("accuracy_contains")
-                    if contains_score is not None:
-                        per_category[category] = contains_score
-                if not per_category:
-                    per_category = None
+            if not isinstance(summary, dict):
+                raise ValueError("summary JSON payload must be an object")
         except Exception as exc:
             return HybridEvalResult(
                 benchmark="membench",
                 tool_name=tool_name,
-                judge_model="official",
+                judge_model=eval_mode,
                 accuracy=None,
                 per_question_type=None,
                 hypothesis_file=hypothesis_file,
                 error=f"Failed to parse MemBench summary file '{summary_path}': {exc}",
             )
 
+        # Deterministic script is kept as a diagnostic canary only (not publication accuracy).
+        if eval_mode == "deterministic_canary":
+            return HybridEvalResult(
+                benchmark="membench",
+                tool_name=tool_name,
+                judge_model=eval_mode,
+                accuracy=None,
+                per_question_type=None,
+                hypothesis_file=hypothesis_file,
+                eval_log_file=summary_path if summary_path.exists() else None,
+            )
+
+        accuracy, per_category = self._parse_official_summary(summary)
+
         return HybridEvalResult(
             benchmark="membench",
             tool_name=tool_name,
-            judge_model="official",
+            judge_model=eval_mode,
             accuracy=accuracy,
             per_question_type=per_category,
             hypothesis_file=hypothesis_file,
             eval_log_file=summary_path if summary_path.exists() else None,
         )
+
+    @staticmethod
+    def _resolve_eval_mode(eval_script: Path) -> str:
+        deterministic_script = Path(__file__).resolve().parents[1] / "scripts" / "membench_eval.py"
+        if eval_script.resolve() == deterministic_script.resolve():
+            return "deterministic_canary"
+        return "official"
+
+    @staticmethod
+    def _coerce_float(value: Any) -> Optional[float]:
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    @classmethod
+    def _parse_official_summary(cls, summary: Dict[str, Any]) -> tuple[Optional[float], Optional[Dict[str, float]]]:
+        accuracy: Optional[float] = None
+        for key in ("accuracy", "overall_accuracy", "acc", "score", "accuracy_contains"):
+            candidate = cls._coerce_float(summary.get(key))
+            if candidate is not None:
+                accuracy = candidate
+                break
+
+        per_category = None
+        for key in ("per_category", "per_question_type", "by_category"):
+            category_metrics = summary.get(key)
+            if not isinstance(category_metrics, dict):
+                continue
+            parsed: Dict[str, float] = {}
+            for category, metrics in category_metrics.items():
+                if isinstance(metrics, dict):
+                    score = None
+                    for nested_key in ("accuracy", "overall_accuracy", "acc", "score", "accuracy_contains"):
+                        score = cls._coerce_float(metrics.get(nested_key))
+                        if score is not None:
+                            break
+                else:
+                    score = cls._coerce_float(metrics)
+                if score is not None:
+                    parsed[category] = score
+            if parsed:
+                per_category = parsed
+                break
+
+        return accuracy, per_category
 
     @staticmethod
     def _extract_hypotheses(workload_results: Dict[str, Any], tool_name: str) -> List[Dict[str, Any]]:
