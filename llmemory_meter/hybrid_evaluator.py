@@ -197,8 +197,15 @@ class LongMemEvalEvaluator:
         if not eval_file.exists():
             raise FileNotFoundError(f"Missing evaluation file: {eval_file}")
 
+        logs = []
         with eval_file.open("r", encoding="utf-8") as f:
-            logs = [json.loads(line) for line in f if line.strip()]
+            for line_num, line in enumerate(f, start=1):
+                if not line.strip():
+                    continue
+                try:
+                    logs.append(json.loads(line))
+                except json.JSONDecodeError as e:
+                    print(f"Warning: Skipping malformed JSON at line {line_num}: {e}")
 
         if not logs:
             return 0.0, {}
@@ -226,6 +233,15 @@ class LongMemEvalEvaluator:
 class MemBenchEvaluator:
     """Run MemBench official evaluation scripts when provided."""
 
+    _REQUIRED_FIELDS = (
+        "workload_id",
+        "benchmark",
+        "category",
+        "hypothesis",
+        "match_type",
+        "metadata",
+    )
+
     def evaluate(
         self,
         tool_name: str,
@@ -242,11 +258,27 @@ class MemBenchEvaluator:
             return HybridEvalResult(
                 benchmark="membench",
                 tool_name=tool_name,
-                judge_model="official",
+                judge_model="membench",
                 accuracy=None,
                 per_question_type=None,
                 hypothesis_file=hypothesis_file,
                 error="No MemBench hypotheses found in results.",
+            )
+
+        contract_issues = self._validate_hypothesis_contract(hypotheses)
+        if contract_issues:
+            return HybridEvalResult(
+                benchmark="membench",
+                tool_name=tool_name,
+                judge_model="membench",
+                accuracy=None,
+                per_question_type=None,
+                hypothesis_file=hypothesis_file,
+                error=(
+                    "MemBench hypothesis contract validation failed before eval script run: "
+                    + "; ".join(contract_issues[:5])
+                    + (" ..." if len(contract_issues) > 5 else "")
+                ),
             )
 
         with hypothesis_file.open("w", encoding="utf-8") as f:
@@ -257,12 +289,14 @@ class MemBenchEvaluator:
             return HybridEvalResult(
                 benchmark="membench",
                 tool_name=tool_name,
-                judge_model="official",
+                judge_model="membench",
                 accuracy=None,
                 per_question_type=None,
                 hypothesis_file=hypothesis_file,
                 error="MemBench eval_script not configured.",
             )
+
+        eval_mode = self._resolve_eval_mode(eval_script)
 
         summary_path = Path(f"{hypothesis_file}.summary.json")
         row_eval_path = Path(f"{hypothesis_file}.eval.jsonl")
@@ -279,7 +313,7 @@ class MemBenchEvaluator:
             return HybridEvalResult(
                 benchmark="membench",
                 tool_name=tool_name,
-                judge_model="official",
+                judge_model=eval_mode,
                 accuracy=None,
                 per_question_type=None,
                 hypothesis_file=hypothesis_file,
@@ -295,7 +329,7 @@ class MemBenchEvaluator:
             return HybridEvalResult(
                 benchmark="membench",
                 tool_name=tool_name,
-                judge_model="official",
+                judge_model=eval_mode,
                 accuracy=None,
                 per_question_type=None,
                 hypothesis_file=hypothesis_file,
@@ -305,43 +339,116 @@ class MemBenchEvaluator:
                 ),
             )
 
-        accuracy = None
-        per_category = None
         try:
             with summary_path.open("r", encoding="utf-8") as f:
                 summary = json.load(f)
-            accuracy = summary.get("accuracy_contains")
-            category_metrics = summary.get("per_category")
-            if isinstance(category_metrics, dict):
-                per_category = {}
-                for category, metrics in category_metrics.items():
-                    if not isinstance(metrics, dict):
-                        continue
-                    contains_score = metrics.get("accuracy_contains")
-                    if contains_score is not None:
-                        per_category[category] = contains_score
-                if not per_category:
-                    per_category = None
+            if not isinstance(summary, dict):
+                raise ValueError("summary JSON payload must be an object")
         except Exception as exc:
             return HybridEvalResult(
                 benchmark="membench",
                 tool_name=tool_name,
-                judge_model="official",
+                judge_model=eval_mode,
                 accuracy=None,
                 per_question_type=None,
                 hypothesis_file=hypothesis_file,
                 error=f"Failed to parse MemBench summary file '{summary_path}': {exc}",
             )
 
+        # Deterministic script is kept as a diagnostic canary only (not publication accuracy).
+        if eval_mode == "deterministic_canary":
+            return HybridEvalResult(
+                benchmark="membench",
+                tool_name=tool_name,
+                judge_model=eval_mode,
+                accuracy=None,
+                per_question_type=None,
+                hypothesis_file=hypothesis_file,
+                eval_log_file=summary_path if summary_path.exists() else None,
+            )
+
+        accuracy, per_category = self._parse_official_summary(summary)
+
         return HybridEvalResult(
             benchmark="membench",
             tool_name=tool_name,
-            judge_model="official",
+            judge_model=eval_mode,
             accuracy=accuracy,
             per_question_type=per_category,
             hypothesis_file=hypothesis_file,
             eval_log_file=summary_path if summary_path.exists() else None,
         )
+
+    @staticmethod
+    def _validate_hypothesis_contract(rows: List[Dict[str, Any]]) -> List[str]:
+        issues: List[str] = []
+        for idx, row in enumerate(rows, start=1):
+            for field in MemBenchEvaluator._REQUIRED_FIELDS:
+                if field not in row:
+                    issues.append(f"row {idx}: missing field '{field}'")
+            if row.get("benchmark") != "membench":
+                issues.append(f"row {idx}: benchmark must be 'membench'")
+            if not isinstance(row.get("workload_id"), str) or not row.get("workload_id", "").strip():
+                issues.append(f"row {idx}: workload_id must be a non-empty string")
+            if not isinstance(row.get("category"), str) or not row.get("category", "").strip():
+                issues.append(f"row {idx}: category must be a non-empty string")
+            if not isinstance(row.get("hypothesis"), str):
+                issues.append(f"row {idx}: hypothesis must be a string")
+            if not isinstance(row.get("match_type"), str):
+                issues.append(f"row {idx}: match_type must be a string")
+            if row.get("match_type") not in {"contains", "exact"}:
+                issues.append(f"row {idx}: match_type must be one of ['contains', 'exact']")
+            if not isinstance(row.get("metadata"), dict):
+                issues.append(f"row {idx}: metadata must be an object")
+        return issues
+
+    @staticmethod
+    def _resolve_eval_mode(eval_script: Path) -> str:
+        deterministic_script = Path(__file__).resolve().parents[1] / "scripts" / "membench_eval.py"
+        if eval_script.resolve() == deterministic_script.resolve():
+            return "deterministic_canary"
+        return "official"
+
+    @staticmethod
+    def _coerce_float(value: Any) -> Optional[float]:
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    @classmethod
+    def _parse_official_summary(cls, summary: Dict[str, Any]) -> tuple[Optional[float], Optional[Dict[str, float]]]:
+        accuracy: Optional[float] = None
+        for key in ("accuracy", "overall_accuracy", "acc", "score", "accuracy_contains"):
+            candidate = cls._coerce_float(summary.get(key))
+            if candidate is not None:
+                accuracy = candidate
+                break
+
+        per_category = None
+        for key in ("per_category", "per_question_type", "by_category"):
+            category_metrics = summary.get(key)
+            if not isinstance(category_metrics, dict):
+                continue
+            parsed: Dict[str, float] = {}
+            for category, metrics in category_metrics.items():
+                if isinstance(metrics, dict):
+                    score = None
+                    for nested_key in ("accuracy", "overall_accuracy", "acc", "score", "accuracy_contains"):
+                        score = cls._coerce_float(metrics.get(nested_key))
+                        if score is not None:
+                            break
+                else:
+                    score = cls._coerce_float(metrics)
+                if score is not None:
+                    parsed[category] = score
+            if parsed:
+                per_category = parsed
+                break
+
+        return accuracy, per_category
 
     @staticmethod
     def _extract_hypotheses(workload_results: Dict[str, Any], tool_name: str) -> List[Dict[str, Any]]:
@@ -357,15 +464,31 @@ class MemBenchEvaluator:
                 if step.get("action") != "retrieve":
                     continue
                 metadata = step.get("metadata") or {}
-                category = metadata.get("category", "unknown")
+                category = str(metadata.get("category", "unknown") or "unknown")
                 workload_id = metadata.get("workload_id") or f"membench::{workload_name}"
-                match_type = metadata.get("match_type", "contains")
+                match_type = str(metadata.get("match_type", "contains") or "contains").lower()
+                if match_type not in {"contains", "exact"}:
+                    match_type = "contains"
+                choices = metadata.get("choices")
+                normalized_choices = None
+                if isinstance(choices, dict):
+                    normalized_choices = {
+                        str(key): str(value)
+                        for key, value in choices.items()
+                        if key is not None and value is not None
+                    }
+                ground_truth_label = metadata.get("ground_truth_label")
                 hypotheses.append({
-                    "workload_id": workload_id,
+                    "workload_id": str(workload_id),
                     "benchmark": "membench",
                     "workload": workload_name,
                     "category": category,
+                    "question": str(metadata.get("question", "") or ""),
                     "ground_truth": metadata.get("ground_truth"),
+                    "ground_truth_label": (
+                        str(ground_truth_label) if ground_truth_label is not None else None
+                    ),
+                    "choices": normalized_choices,
                     "hypothesis": step.get("response", "").strip(),
                     "match_type": match_type,
                     "metadata": metadata,
