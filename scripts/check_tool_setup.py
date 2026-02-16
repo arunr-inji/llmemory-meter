@@ -52,7 +52,28 @@ def _probe_memgpt_auth(api_key: str) -> Optional[str]:
 
     try:
         client = Letta(api_key=api_key)
-        list(client.agents.list())  # read-only call
+        agents = list(client.agents.list())  # read-only call
+        if not agents:
+            return "memgpt: auth probe found zero agents; create one agent or increase account limits"
+
+        # Write probe to catch plan/quota failures (e.g., agents-limit-exceeded) early.
+        probe_agent_id = agents[0].id
+        try:
+            client.agents.messages.create(
+                agent_id=probe_agent_id,
+                messages=[{"role": "user", "content": "healthcheck ping"}],
+            )
+        except Exception as write_exc:
+            write_status = _status_code_from_exception(write_exc)
+            details = str(write_exc)[:240]
+            if write_status in (401, 403):
+                return f"memgpt: write probe unauthorized status={write_status}"
+            if "agents-limit-exceeded" in details or "limit for agents" in details:
+                return (
+                    "memgpt: write probe failed due plan/agent limit "
+                    "(agents-limit-exceeded). Delete unused agents or upgrade plan."
+                )
+            return f"memgpt: write probe failed ({type(write_exc).__name__}: {details})"
         return None
     except Exception as exc:
         status = _status_code_from_exception(exc)

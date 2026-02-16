@@ -20,6 +20,7 @@ class MemGPTTool(MemoryTool):
             raise ValueError("MEMGPT_API_KEY required for Letta Cloud")
         
         self._agent_id = None
+        self._fatal_error: Optional[str] = None
         self._last_tokens = 0  # Track token usage from last API call
         self._last_input_tokens = 0
         self._last_output_tokens = 0
@@ -116,8 +117,34 @@ class MemGPTTool(MemoryTool):
                 
                 new_agent = self.client.agents.create(
                     name=agent_name,
-                    memory_blocks=[],
-                    llm_config=llm_config
+                    memory_blocks=[
+                        {
+                            "label": "human",
+                            "value": "",
+                            "description": (
+                                "Stores key facts and details about the person you are "
+                                "conversing with. Update this block whenever you learn "
+                                "new information about them."
+                            ),
+                            "limit": 5000,
+                        },
+                        {
+                            "label": "persona",
+                            "value": (
+                                "I am a memory assistant. I proactively store important "
+                                "facts and details using my memory tools, and recall them "
+                                "accurately when asked."
+                            ),
+                            "description": (
+                                "Stores details about your current persona. You are a "
+                                "memory-focused assistant that prioritizes remembering "
+                                "and recalling information accurately."
+                            ),
+                            "limit": 5000,
+                        },
+                    ],
+                    include_base_tools=True,
+                    llm_config=llm_config,
                 )
                 self._agent_id = new_agent.id
                 
@@ -140,6 +167,8 @@ class MemGPTTool(MemoryTool):
     
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store memory in Letta by sending a message to the agent."""
+        if self._fatal_error:
+            raise Exception(self._fatal_error)
         try:
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
@@ -182,10 +211,19 @@ class MemGPTTool(MemoryTool):
         except Exception as e:
             # Fallback: estimate tokens from content
             self._set_last_usage(self._estimate_tokens(content))
+            details = str(e)
+            if "agents-limit-exceeded" in details or "limit for agents" in details:
+                self._fatal_error = (
+                    "Letta API rate limited by agent plan/quota (agents-limit-exceeded). "
+                    "Delete unused agents or upgrade plan."
+                )
+                raise Exception(f"Letta API error in store: {self._fatal_error}")
             raise Exception(f"Letta API error in store: {e}")
     
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve memory from Letta by querying the agent."""
+        if self._fatal_error:
+            raise Exception(self._fatal_error)
         try:
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
@@ -238,10 +276,19 @@ class MemGPTTool(MemoryTool):
         except Exception as e:
             # Fallback: estimate tokens from query
             self._set_last_usage(self._estimate_tokens(query))
+            details = str(e)
+            if "agents-limit-exceeded" in details or "limit for agents" in details:
+                self._fatal_error = (
+                    "Letta API rate limited by agent plan/quota (agents-limit-exceeded). "
+                    "Delete unused agents or upgrade plan."
+                )
+                raise Exception(f"Letta API error in retrieve: {self._fatal_error}")
             raise Exception(f"Letta API error in retrieve: {e}")
     
     async def chat(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Chat with Letta agent using its memory context."""
+        if self._fatal_error:
+            raise Exception(self._fatal_error)
         try:
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
@@ -308,6 +355,13 @@ class MemGPTTool(MemoryTool):
         except Exception as e:
             # Fallback: estimate tokens from message
             self._set_last_usage(self._estimate_tokens(message))
+            details = str(e)
+            if "agents-limit-exceeded" in details or "limit for agents" in details:
+                self._fatal_error = (
+                    "Letta API rate limited by agent plan/quota (agents-limit-exceeded). "
+                    "Delete unused agents or upgrade plan."
+                )
+                raise Exception(f"Letta API error in chat: {self._fatal_error}")
             raise Exception(f"Letta API error in chat: {e}")
     
     async def execute_step(self, step, step_index: int):
