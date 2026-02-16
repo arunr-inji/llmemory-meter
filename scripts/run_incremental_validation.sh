@@ -1,4 +1,8 @@
 #!/bin/bash
+if [ -z "$BASH_VERSION" ]; then
+  echo "Error: This script requires bash. Run with: bash $0" >&2
+  exit 1
+fi
 set -euo pipefail
 
 STAGE="${1:-all}"
@@ -105,7 +109,10 @@ run_phase0_hygiene() {
   "$PYTHON_BIN" --version > "$RUN_CONTEXT_DIR/python_version.txt" 2>&1 || true
   "$PYTHON_BIN" -m pip freeze > "$RUN_CONTEXT_DIR/dependency_snapshot.txt" 2>/dev/null || true
   "$PYTHON_BIN" scripts/record_baseline.py --config "$config_file" --output "$RUN_CONTEXT_DIR/baseline_snapshot.json" >/dev/null 2>&1 || true
-  rm -f scripts/fixtures/*.eval.jsonl scripts/fixtures/*.summary.json
+  local fixture_work_dir="$RUN_CONTEXT_DIR/fixtures"
+  mkdir -p "$fixture_work_dir"
+  cp scripts/fixtures/*.jsonl "$fixture_work_dir/" 2>/dev/null || true
+  rm -f "$fixture_work_dir"/*.eval.jsonl "$fixture_work_dir"/*.summary.json
 
   log_phase "[phase-0] environment + hygiene checks"
   "$PYTHON_BIN" scripts/check_tool_setup.py --config "$config_file"

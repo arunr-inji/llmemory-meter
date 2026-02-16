@@ -197,8 +197,15 @@ class LongMemEvalEvaluator:
         if not eval_file.exists():
             raise FileNotFoundError(f"Missing evaluation file: {eval_file}")
 
+        logs = []
         with eval_file.open("r", encoding="utf-8") as f:
-            logs = [json.loads(line) for line in f if line.strip()]
+            for line_num, line in enumerate(f, start=1):
+                if not line.strip():
+                    continue
+                try:
+                    logs.append(json.loads(line))
+                except json.JSONDecodeError as e:
+                    print(f"Warning: Skipping malformed JSON at line {line_num}: {e}")
 
         if not logs:
             return 0.0, {}

@@ -96,19 +96,35 @@ def main() -> int:
     print(f"Estimated operations per tool: {ops_per_tool}")
     print(f"Estimated total operations (all tools): {total_ops}")
 
-    if args.max_ops_per_tool is not None and ops_per_tool > args.max_ops_per_tool:
-        print(
-            f"Operation budget exceeded: ops_per_tool={ops_per_tool} "
-            f"> max_ops_per_tool={args.max_ops_per_tool}"
-        )
-        return 1
+    warning_threshold = 0.9
 
-    if args.max_total_ops is not None and total_ops > args.max_total_ops:
-        print(
-            f"Operation budget exceeded: total_ops={total_ops} "
-            f"> max_total_ops={args.max_total_ops}"
-        )
-        return 1
+    if args.max_ops_per_tool is not None:
+        if ops_per_tool > args.max_ops_per_tool:
+            print(
+                f"Operation budget exceeded: ops_per_tool={ops_per_tool} "
+                f"> max_ops_per_tool={args.max_ops_per_tool}\n"
+                f"Suggestion: Reduce benchmark limit or increase --max-ops-per-tool"
+            )
+            return 1
+        if ops_per_tool > args.max_ops_per_tool * warning_threshold:
+            print(
+                f"Warning: Approaching ops_per_tool limit "
+                f"({ops_per_tool}/{args.max_ops_per_tool})"
+            )
+
+    if args.max_total_ops is not None:
+        if total_ops > args.max_total_ops:
+            print(
+                f"Operation budget exceeded: total_ops={total_ops} "
+                f"> max_total_ops={args.max_total_ops}\n"
+                f"Suggestion: Reduce benchmark limit or increase --max-total-ops"
+            )
+            return 1
+        if total_ops > args.max_total_ops * warning_threshold:
+            print(
+                f"Warning: Approaching total_ops limit "
+                f"({total_ops}/{args.max_total_ops})"
+            )
 
     print(f"Operation budget check passed for config: {args.config}")
     return 0
