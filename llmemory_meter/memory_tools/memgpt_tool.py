@@ -296,8 +296,8 @@ class MemGPTTool(MemoryTool):
             )
             if human_block and human_block.value and human_block.value.strip():
                 parts.append(human_block.value.strip())
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to retrieve human block for agent {self._agent_id}: {e}", flush=True)
 
         # 2. Search archival passages (semantic search over stored details)
         try:
@@ -311,8 +311,8 @@ class MemGPTTool(MemoryTool):
                     text = getattr(passage, 'text', '') or getattr(passage, 'content', '')
                     if text and text.strip():
                         parts.append(text.strip())
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to search archival passages for agent {self._agent_id}: {e}", flush=True)
 
         # 3. Build response and estimate tokens (no LLM call during retrieval)
         response_text = " | ".join(parts) if parts else f"No memories found for: {query}"

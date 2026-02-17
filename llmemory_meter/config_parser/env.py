@@ -32,24 +32,24 @@ class Config:
     ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
     
     # MEMGPT_API_KEY: Special handling for base64 keys ending with =
-    # load_dotenv() has a bug that truncates values ending with = even with quotes
-    # Workaround: manually parse from .env file
+    # load_dotenv() has a known bug that truncates values ending with = even
+    # when quoted.  Instead of hardcoding an expected key length, we always
+    # cross-check against the raw .env value and prefer the longer one.
     _memgpt_key = os.getenv("MEMGPT_API_KEY")
-    if _memgpt_key and len(_memgpt_key) < 107:  # Expected length is 107
-        # Try to read directly from .env file
-        try:
-            current_dir = Path(__file__).resolve().parent
-            project_root = current_dir.parent.parent
-            env_file = project_root / ".env"
-            if env_file.exists():
-                with open(env_file, 'r') as f:
-                    for line in f:
-                        if line.startswith('MEMGPT_API_KEY'):
-                            # Extract value after =, remove quotes and whitespace
-                            _memgpt_key = line.split('=', 1)[1].strip().strip('"').strip("'")
-                            break
-        except:
-            pass
+    try:
+        current_dir = Path(__file__).resolve().parent
+        project_root = current_dir.parent.parent
+        env_file = project_root / ".env"
+        if env_file.exists():
+            with open(env_file, 'r') as f:
+                for line in f:
+                    if line.startswith('MEMGPT_API_KEY'):
+                        _raw = line.split('=', 1)[1].strip().strip('"').strip("'")
+                        if _raw and (not _memgpt_key or len(_raw) > len(_memgpt_key)):
+                            _memgpt_key = _raw
+                        break
+    except Exception:
+        pass
     MEMGPT_API_KEY: Optional[str] = _memgpt_key
     
     ZEP_API_KEY: Optional[str] = os.getenv("ZEP_API_KEY")
