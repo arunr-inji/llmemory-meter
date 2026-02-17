@@ -232,7 +232,7 @@ Available workloads per benchmark:
 ## Known Limitations
 
 - **Claude Memory**: Rate limits with >20 rapid operations
-- **Zep**: 8-second artificial delays for knowledge graph processing
+- **Zep**: 2-second minimal waits with polling-based verification for knowledge graph processing
 - **MemGPT**: Token usage grows with conversation history
 - **Mem0**: Requires Qdrant running on localhost:6333
 - **Benchmarks**: Synthetic workloads (inspired by MSC/PersonaChat/LongBench, not actual datasets)
