@@ -40,7 +40,7 @@ memory_tools:
 
 benchmarks:
 - name: LongMemEval
-  enabled: true
+  enabled: false
   settings:
     subset: "S"
     limit: 1
@@ -60,6 +60,6 @@ metrics:
 
 output:
   save_results: true
-  output_file: results/validation_runs/smoke_zep_results.json
+  output_file: results/validation_runs/smoke_zep_membench_results.json
   print_summary: true
   detailed_logs: false

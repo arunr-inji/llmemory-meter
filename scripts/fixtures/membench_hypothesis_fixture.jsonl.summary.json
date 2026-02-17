@@ -1,0 +1,32 @@
+{
+  "prompt_version": "membench_llm_judge_v2",
+  "judge_model": "gpt-4o-mini",
+  "total_rows": 3,
+  "scored_count": 2,
+  "unscorable_count": 1,
+  "scored_mcq_count": 0,
+  "scored_text_count": 2,
+  "scored_llm_count": 0,
+  "unresolved_count": 0,
+  "cache_hit_count": 0,
+  "llm_call_count": 0,
+  "accuracy": 1.0,
+  "accuracy_mcq": null,
+  "accuracy_contains": 1.0,
+  "accuracy_exact": 0.0,
+  "adjudication_rate": null,
+  "per_category": {
+    "qa": {
+      "scored_count": 2,
+      "unscorable_count": 1,
+      "scored_mcq_count": 0,
+      "scored_text_count": 2,
+      "scored_llm_count": 0,
+      "unresolved_count": 0,
+      "accuracy": 1.0,
+      "accuracy_contains": 1.0,
+      "accuracy_exact": 0.0,
+      "adjudication_rate": null
+    }
+  }
+}

@@ -1,0 +1,42 @@
+general:
+  concurrent_tools: false
+  timeout: 60
+  max_retries: 1
+  store_retrieve_only: true
+  step_timeout_seconds: 180
+  step_heartbeat_seconds: 10
+
+memory_tools:
+- name: memgpt_archival_storage
+  enabled: true
+  api_key_env: MEMGPT_API_KEY
+  model: gpt-4o-mini
+  settings:
+    memory_mode: archival
+    memgpt_config: {}
+
+benchmarks:
+- name: LongMemEval
+  enabled: true
+  settings:
+    subset: "S"
+    limit: 1
+- name: MemBench
+  enabled: false
+  settings:
+    categories: null
+    limit: 1
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: false
+  memory_quality: false
+  cost_analysis: true
+
+output:
+  save_results: true
+  output_file: results/validation_runs/smoke_memgpt_archival_longmemeval_results.json
+  print_summary: true
+  detailed_logs: false
