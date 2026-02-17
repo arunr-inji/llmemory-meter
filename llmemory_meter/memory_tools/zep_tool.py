@@ -361,8 +361,8 @@ class ZepTool(MemoryTool):
                         data=message_data
                     )
                 )
-                # Wait for graph processing when using graph.add
-                await asyncio.sleep(8)
+                # Brief wait for graph processing when using graph.add
+                await asyncio.sleep(2)
 
             # For this implementation, we'll return context-aware response
             # In a real implementation, you'd integrate with an LLM here
@@ -407,8 +407,8 @@ class ZepTool(MemoryTool):
                         data=response_data
                     )
                 )
-                # Wait for graph processing when using graph.add
-                await asyncio.sleep(8)
+                # Brief wait for graph processing when using graph.add
+                await asyncio.sleep(2)
 
             return response
 
@@ -481,20 +481,16 @@ class ZepTool(MemoryTool):
             timeout: Maximum seconds to wait (default 30)
         """
         if not task_id and not episode_uuid and not message_uuid:
-            # No polling info available, use fallback wait
-            await asyncio.sleep(8)
-            return
+            # No polling info available, fall through to Phase 2 polling
+            pass
         
         start_time = time.time()
         
         try:
-            # Option C: For single messages, skip broken polling and use fixed wait
-            FIXED_WAIT_SINGLE_MESSAGE = 15  # Fixed wait for single messages
-            
             if message_uuid:
-                print(f"⏱️ Waiting {FIXED_WAIT_SINGLE_MESSAGE}s for Zep processing...")
-                await asyncio.sleep(FIXED_WAIT_SINGLE_MESSAGE)
-                elapsed = FIXED_WAIT_SINGLE_MESSAGE
+                # Small initial buffer then fall through to Phase 2 polling
+                await asyncio.sleep(2)
+                elapsed = 2
             else:
                 # Phase 1: Poll for task_id or episode_uuid (these work reliably)
                 poll_count = 0
@@ -560,8 +556,8 @@ class ZepTool(MemoryTool):
             # Indexing timeout - continue anyway (facts may still be processing)
             
         except Exception as e:
-            # Polling failed, fall back to static wait
-            await asyncio.sleep(8)
+            # Polling failed, fall back to brief wait
+            await asyncio.sleep(2)
     
     async def execute_step(self, step: WorkloadStep, step_index: int) -> StepResult:
         """Execute a single workload step and measure performance."""
