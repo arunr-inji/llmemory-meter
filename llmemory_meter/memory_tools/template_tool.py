@@ -105,11 +105,11 @@ class TemplateTool(MemoryTool):
 # Example implementations for common memory tools:
 
 class MemGPTTool(TemplateTool):
-    """MemGPT memory tool implementation."""
+    """MemGPT memory tool implementation (use memgpt_memory_blocks or memgpt_archival_storage)."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
-        self.name = "memgpt"
+        self.name = "memgpt_memory_blocks"
         # Add MemGPT-specific initialization
     
     # Implement MemGPT-specific methods here

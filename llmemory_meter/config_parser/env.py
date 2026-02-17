@@ -61,7 +61,7 @@ class Config:
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     
     # Memory tool settings
-    SUPPORTED_TOOLS = ["mem0", "openai_memory", "memgpt", "claude_memory"]
+    SUPPORTED_TOOLS = ["mem0", "openai_memory", "memgpt_memory_blocks", "memgpt_archival_storage", "claude_memory"]
     
     @classmethod
     def validate_api_keys(cls) -> dict:

@@ -149,12 +149,13 @@ def main() -> int:
 
     if not args.skip_auth_probes:
         # Probe OpenAI once if any enabled tool depends on it.
-        if enabled_tool_names.intersection({"mem0", "memgpt"}) and os.getenv("OPENAI_API_KEY"):
+        memgpt_tools = {"memgpt_memory_blocks", "memgpt_archival_storage"}
+        if enabled_tool_names.intersection({"mem0"} | memgpt_tools) and os.getenv("OPENAI_API_KEY"):
             err = _probe_openai_auth(os.getenv("OPENAI_API_KEY", ""), timeout_seconds=args.auth_timeout_seconds)
             if err:
                 issues.append(err)
 
-        if "memgpt" in enabled_tool_names and os.getenv("MEMGPT_API_KEY"):
+        if enabled_tool_names.intersection(memgpt_tools) and os.getenv("MEMGPT_API_KEY"):
             err = _probe_memgpt_auth(os.getenv("MEMGPT_API_KEY", ""))
             if err:
                 issues.append(err)

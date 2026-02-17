@@ -152,3 +152,6 @@ logs/
 
 .env.backup*
 results_backup/
+
+# Benchmark datasets (auto-downloaded on first run)
+benchmarks_data/

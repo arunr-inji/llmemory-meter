@@ -36,7 +36,7 @@ class MemoryComparator:
     CONSISTENCY_MODERATE_AVG_DELTA = 0.15    # Average delta threshold for moderate
 
     # Supported memory tools
-    SUPPORTED_TOOLS = ["mem0", "openai_memory", "memgpt", "claude_memory", "zep", "baseline", "full_context"]
+    SUPPORTED_TOOLS = ["mem0", "openai_memory", "memgpt_memory_blocks", "memgpt_archival_storage", "claude_memory", "zep", "baseline", "full_context"]
     STEP_TIMEOUT_SECONDS = 300.0
     STEP_HEARTBEAT_SECONDS = 30.0
 
@@ -108,8 +108,16 @@ class MemoryComparator:
                     self._tool_instances[tool_name] = Mem0Tool(self.config.get("mem0", {}), debug=debug_mode)
                 elif tool_name == "openai_memory":
                     self._tool_instances[tool_name] = OpenAIMemoryTool(self.config.get("openai_memory", {}), debug=debug_mode)
-                elif tool_name == "memgpt":
-                    self._tool_instances[tool_name] = MemGPTTool(self.config.get("memgpt", {}), debug=debug_mode)
+                elif tool_name == "memgpt_memory_blocks":
+                    self._tool_instances[tool_name] = MemGPTTool(
+                        self.config.get("memgpt_memory_blocks", {}), debug=debug_mode,
+                        tool_name="memgpt_memory_blocks",
+                    )
+                elif tool_name == "memgpt_archival_storage":
+                    self._tool_instances[tool_name] = MemGPTTool(
+                        self.config.get("memgpt_archival_storage", {}), debug=debug_mode,
+                        tool_name="memgpt_archival_storage",
+                    )
                 elif tool_name == "claude_memory":
                     self._tool_instances[tool_name] = ClaudeMemoryTool(self.config.get("claude_memory", {}), debug=debug_mode)
                 elif tool_name == "zep":
@@ -119,7 +127,7 @@ class MemoryComparator:
                 elif tool_name == "full_context":
                     self._tool_instances[tool_name] = FullContextTool(self.config.get("full_context", {}), debug=debug_mode)
                 else:
-                    raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory, memgpt, claude_memory, zep, baseline, full_context")
+                    raise ValueError(f"Unknown tool: {tool_name}. Supported tools: mem0, openai_memory, memgpt, memgpt_memory_blocks, memgpt_archival_storage, claude_memory, zep, baseline, full_context")
             except (ValueError, ImportError) as e:
                 # Re-raise configuration and import errors
                 raise e

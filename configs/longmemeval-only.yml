@@ -27,11 +27,12 @@ memory_tools:
   model: null
   settings:
     api_url: https://api.getzep.com
-- name: memgpt
+- name: memgpt_memory_blocks
   enabled: false
   api_key_env: MEMGPT_API_KEY
   model: gpt-4o-mini
   settings:
+    memory_mode: default
     memgpt_config:
       # agent_name auto-generated to prevent context accumulation
 

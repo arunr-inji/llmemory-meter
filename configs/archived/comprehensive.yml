@@ -27,11 +27,12 @@ memory_tools:
   settings:
     temperature: 0.3
     max_tokens: 300
-- name: memgpt
+- name: memgpt_memory_blocks
   enabled: true
   api_key_env: MEMGPT_API_KEY
   model: gpt-4o-mini
   settings:
+    memory_mode: default
     memgpt_config:
       # agent_name auto-generated per run to prevent context accumulation
 - name: claude_memory
