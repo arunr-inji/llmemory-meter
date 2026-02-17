@@ -62,12 +62,26 @@ def _extract_membench_accuracy(hybrid_eval_dir: Path) -> Dict[str, Dict[str, flo
         except Exception:
             continue
         tool_entry: Dict[str, float] = {}
+        primary = _safe_float(payload.get("accuracy"))
+        mcq = _safe_float(payload.get("accuracy_mcq"))
         contains = _safe_float(payload.get("accuracy_contains"))
         exact = _safe_float(payload.get("accuracy_exact"))
+        adjudication = _safe_float(payload.get("adjudication_rate"))
+        unresolved = _safe_float(payload.get("unresolved_count"))
+        scored_count = _safe_float(payload.get("scored_count"))
+        unresolved_rate = (unresolved / scored_count) if scored_count else None
+        if primary is not None:
+            tool_entry["accuracy"] = primary
+        if mcq is not None:
+            tool_entry["accuracy_mcq"] = mcq
         if contains is not None:
             tool_entry["accuracy_contains"] = contains
         if exact is not None:
             tool_entry["accuracy_exact"] = exact
+        if adjudication is not None:
+            tool_entry["adjudication_rate"] = adjudication
+        if unresolved_rate is not None:
+            tool_entry["unresolved_rate"] = unresolved_rate
         if tool_entry:
             out[tool_name] = tool_entry
     return out
@@ -148,12 +162,24 @@ def main() -> int:
 
         membench_scores = _extract_membench_accuracy(run_dir / "hybrid_eval")
         for tool_name, metric_map in membench_scores.items():
+            if "accuracy" in metric_map:
+                key = ("MemBench", tool_name, "accuracy_membench_primary")
+                by_metric.setdefault(key, {})[run_name] = metric_map["accuracy"]
+            if "accuracy_mcq" in metric_map:
+                key = ("MemBench", tool_name, "accuracy_membench_mcq")
+                by_metric.setdefault(key, {})[run_name] = metric_map["accuracy_mcq"]
             if "accuracy_contains" in metric_map:
                 key = ("MemBench", tool_name, "accuracy_membench_contains")
                 by_metric.setdefault(key, {})[run_name] = metric_map["accuracy_contains"]
             if "accuracy_exact" in metric_map:
                 key = ("MemBench", tool_name, "accuracy_membench_exact")
                 by_metric.setdefault(key, {})[run_name] = metric_map["accuracy_exact"]
+            if "adjudication_rate" in metric_map:
+                key = ("MemBench", tool_name, "membench_adjudication_rate")
+                by_metric.setdefault(key, {})[run_name] = metric_map["adjudication_rate"]
+            if "unresolved_rate" in metric_map:
+                key = ("MemBench", tool_name, "membench_unresolved_rate")
+                by_metric.setdefault(key, {})[run_name] = metric_map["unresolved_rate"]
         if not membench_scores:
             notes.append(f"- {run_name}: no MemBench summary files found under {run_dir / 'hybrid_eval'}")
 
