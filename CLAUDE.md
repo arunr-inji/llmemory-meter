@@ -232,7 +232,7 @@ Available workloads per benchmark:
 ## Known Limitations
 
 - **Claude Memory**: Rate limits with >20 rapid operations
-- **Zep**: 2-second minimal waits with polling-based verification for knowledge graph processing
+- **Zep**: Async knowledge graph with eventual consistency — 60s pre-retrieve indexing delay, content chunking for >9K messages, Flex plan ($25/mo) required for benchmarking, LongMemEval limited to 10 questions due to credit constraints
 - **MemGPT**: Token usage grows with conversation history
 - **Mem0**: Requires Qdrant running on localhost:6333
 - **Benchmarks**: Synthetic workloads (inspired by MSC/PersonaChat/LongBench, not actual datasets)
