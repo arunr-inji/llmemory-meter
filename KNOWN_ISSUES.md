@@ -35,7 +35,7 @@
 
 - **Store latency**: ~25-46s per store (graph.add + polling for indexing)
 - **Content chunking**: Messages >9K chars are split into multiple graph.add calls (API has 10K limit). Previously truncated, causing data loss.
-- **Eventual consistency**: Recently stored facts may not be immediately searchable via graph.search. A 60s pre-retrieve delay is included to allow indexing to complete. This delay is reflected in retrieve latency.
+- **Eventual consistency**: Recently stored facts may not be immediately searchable via graph.search. Retrieve uses polling-based verification (up to 30s, 5s intervals) that returns early when facts are available. Polling time is reflected in retrieve latency.
 - **Retrieval relevance**: Graph search returns individual fact edges, not aggregated answers. For questions requiring counting or synthesis, the raw facts need LLM-as-judge evaluation.
 - **Credit-based pricing**: Free plan (1,000 credits/mo) insufficient for benchmarking. Flex plan ($25/mo, 20,000 credits) required. LongMemEval limited to 10 questions for Zep due to credit constraints.
 - **Rate limiting**: Free plan has 5 req/burst limit. Flex plan has 600 req/min. Retry-with-backoff (respects retry-after header) handles transient 429 errors.
@@ -44,7 +44,7 @@
 
 ```text
 Store latency:     ~40s avg (includes graph processing + polling)
-Retrieve latency:  ~60s (indexing wait) + <1s (graph search)
+Retrieve latency:  <1s to ~30s (polling-based, returns early when facts available)
 Store success:     100% (Flex plan, with chunking)
 Retrieve success:  100% (with 60s indexing delay)
 ```

@@ -321,7 +321,7 @@ class MemoryTool:
   - `memgpt_memory_blocks` - Letta defaults (20K char core memory blocks)
   - `memgpt_archival_storage` - Small blocks + forced archival inserts for granular fact storage
 - `ClaudeMemoryTool` - Claude API with memory
-- `ZepTool` - Zep knowledge graph platform (async processing, content chunking, 60s pre-retrieve indexing delay)
+- `ZepTool` - Zep knowledge graph platform (async processing, content chunking, polling-based retrieve up to 30s)
 
 **Responsibilities:**
 
