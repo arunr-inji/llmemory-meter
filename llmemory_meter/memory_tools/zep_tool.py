@@ -242,40 +242,44 @@ class ZepTool(MemoryTool):
 
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Retrieve information from Zep memory.
-        Includes a pre-retrieve wait to allow Zep's knowledge graph to finish
-        indexing recently stored facts (eventual consistency). This wait is
-        intentionally included in the reported retrieve latency."""
+        Uses polling to handle Zep's eventual consistency — retries graph search
+        with backoff if no results found initially. Total polling time is included
+        in reported retrieve latency."""
         try:
-            indexing_wait = 60
-            print(f"⏳ Waiting {indexing_wait}s for Zep knowledge graph indexing before retrieve...")
-            await asyncio.sleep(indexing_wait)
+            max_poll_time = 30
+            poll_interval = 5
+            poll_start = time.time()
+            facts = []
 
-            graph_search_response = await self._retry_on_rate_limit(
-                lambda: self.client.graph.search(
-                    user_id=self.user_id,
-                    query=query,
-                    limit=5
+            while (time.time() - poll_start) < max_poll_time:
+                graph_search_response = await self._retry_on_rate_limit(
+                    lambda: self.client.graph.search(
+                        user_id=self.user_id,
+                        query=query,
+                        limit=5
+                    )
                 )
-            )
-            
-            # Extract facts from graph search results
-            if graph_search_response and hasattr(graph_search_response, 'edges') and graph_search_response.edges:
-                facts = []
-                for edge in graph_search_response.edges[:5]:
-                    if hasattr(edge, 'fact') and edge.fact:
-                        facts.append(edge.fact)
-                
-                if facts:
-                    if self.debug:
-                        response = f"[zep] Retrieved: {'; '.join(facts)}"
-                    else:
-                        response = '; '.join(facts)
-                    input_tokens = self._estimate_tokens(query)
-                    output_tokens = self._estimate_tokens(response)
-                    self._last_input_tokens = input_tokens
-                    self._last_output_tokens = output_tokens
-                    self._last_tokens = input_tokens + output_tokens
-                    return response
+
+                if graph_search_response and hasattr(graph_search_response, 'edges') and graph_search_response.edges:
+                    facts = [e.fact for e in graph_search_response.edges[:5] if hasattr(e, 'fact') and e.fact]
+                    if facts:
+                        break
+
+                elapsed = time.time() - poll_start
+                print(f"⏳ No graph results yet ({elapsed:.0f}s), retrying in {poll_interval}s...")
+                await asyncio.sleep(poll_interval)
+
+            if facts:
+                if self.debug:
+                    response = f"[zep] Retrieved: {'; '.join(facts)}"
+                else:
+                    response = '; '.join(facts)
+                input_tokens = self._estimate_tokens(query)
+                output_tokens = self._estimate_tokens(response)
+                self._last_input_tokens = input_tokens
+                self._last_output_tokens = output_tokens
+                self._last_tokens = input_tokens + output_tokens
+                return response
             
             context_response = await self._retry_on_rate_limit(
                 lambda: self.client.thread.get_user_context(
@@ -492,21 +496,18 @@ class ZepTool(MemoryTool):
             episode_uuid: Episode UUID from graph.add (for single episode)
             timeout: Maximum seconds to wait (default 30)
         """
-        if not task_id and not episode_uuid and not message_uuid:
-            # No polling info available, fall through to Phase 2 polling
-            pass
-        
         start_time = time.time()
-        
+        elapsed = 0
+
         try:
-            if message_uuid:
-                # Small initial buffer then fall through to Phase 2 polling
+            # Phase 1: Poll for task/episode completion
+            if not task_id and not episode_uuid and not message_uuid:
+                pass  # No polling info — skip to Phase 2
+            elif message_uuid:
                 await asyncio.sleep(2)
                 elapsed = 2
             else:
-                poll_count = 0
                 while (time.time() - start_time) < timeout:
-                    poll_count += 1
                     try:
                         if task_id:
                             task = await asyncio.get_event_loop().run_in_executor(
@@ -526,21 +527,19 @@ class ZepTool(MemoryTool):
                             if hasattr(episode, 'processed') and episode.processed:
                                 break
                     except Exception as e:
-                        status = getattr(e, 'status_code', None)
-                        if status == 429:
+                        if getattr(e, 'status_code', None) == 429:
                             print(f"⏳ Phase 1 poll: rate limited (429), backing off...")
                             await asyncio.sleep(10)
                             continue
-                    
+
                     await asyncio.sleep(3)
-                
+
                 elapsed = time.time() - start_time
-            
-            # Phase 2: Wait for facts to be searchable (indexing delay)
-            # Poll every 5s to stay well within Zep's 600 req/min rate limit
+
+            # Phase 2: Poll graph search until facts are searchable
             remaining_timeout = max(15, timeout - elapsed)
             indexing_start = time.time()
-            
+
             while (time.time() - indexing_start) < remaining_timeout:
                 try:
                     search_result = await asyncio.get_event_loop().run_in_executor(
@@ -551,7 +550,7 @@ class ZepTool(MemoryTool):
                             limit=1
                         )
                     )
-                    
+
                     if search_result and hasattr(search_result, 'edges') and search_result.edges:
                         print(f"✅ Facts indexed and ready ({time.time() - start_time:.1f}s total)")
                         return
@@ -560,13 +559,10 @@ class ZepTool(MemoryTool):
                         print(f"⏳ Phase 2 poll: rate limited (429), backing off...")
                         await asyncio.sleep(10)
                         continue
-                
+
                 await asyncio.sleep(5)
-            
-            # Indexing timeout - continue anyway (facts may still be processing)
-            
+
         except Exception as e:
-            # Polling failed, fall back to brief wait
             await asyncio.sleep(2)
     
     async def execute_step(self, step: WorkloadStep, step_index: int) -> StepResult:

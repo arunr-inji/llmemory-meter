@@ -75,7 +75,7 @@ This phase is documented in the roadmap but intentionally not implemented yet.
 
 ```yaml
 memory_tools:
-    - name: mem0 # Tool identifier (mem0|openai_memory|memgpt_memory_blocks|memgpt_archival_storage|claude_memory|zep)
+  - name: mem0 # Tool identifier (mem0|openai_memory|memgpt_memory_blocks|memgpt_archival_storage|claude_memory|zep)
     enabled: true # Toggle this tool on/off
     api_key_env: MEM0_API_KEY # Environment variable containing API key
     model: gpt-4o-mini # LLM model to use
