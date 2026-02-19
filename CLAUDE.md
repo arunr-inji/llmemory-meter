@@ -180,6 +180,9 @@ Configs live in `configs/`. Key files:
 
 - `industry-benchmarks.yml` - LongMemEval + MemBench (store/retrieve only)
 - `longmemeval-only.yml` - LongMemEval only (store/retrieve only)
+- `production-longmemeval-small-all-tools.yml` - LongMemEval limit:10, all 4 tools (mem0, memgpt x2, zep)
+- `production-membench-all-tools.yml` - MemBench limit:100, all 4 tools
+- `production-longmemeval-full-no-zep.yml` - LongMemEval limit:100, no zep (credit constraints)
 - Legacy configs moved to `configs/archived/`
 
 Five YAML sections: `memory_tools`, `benchmarks`, `metrics`, `output`, `general`
@@ -206,7 +209,7 @@ general:
 - Useful for development, debugging, and understanding tool behavior
 - Example: `"[mem0] Stored (ID: abc123): Hi! I'm Sarah, a software engineer..."`
 
-All memory tools (mem0, openai_memory, memgpt, claude_memory, zep, baseline) support the debug flag.
+All memory tools (mem0, openai_memory, memgpt_memory_blocks, memgpt_archival_storage, claude_memory, zep, baseline) support the debug flag.
 
 ### Workload Filtering
 
@@ -232,8 +235,8 @@ Available workloads per benchmark:
 ## Known Limitations
 
 - **Claude Memory**: Rate limits with >20 rapid operations
-- **Zep**: 8-second artificial delays for knowledge graph processing
-- **MemGPT**: Token usage grows with conversation history
+- **Zep**: Async knowledge graph with eventual consistency — polling-based retrieve (up to 30s, returns early when facts available), content chunking for >9K messages, Flex plan ($25/mo) required for benchmarking, LongMemEval limited to 10 questions due to credit constraints
+- **MemGPT**: Two configs — `memgpt_memory_blocks` (Letta defaults, 20K char blocks) and `memgpt_archival_storage` (small blocks, forced archival inserts). Archival mode may timeout on long sessions due to many sequential tool calls. Token usage grows with conversation history
 - **Mem0**: Requires Qdrant running on localhost:6333
 - **Benchmarks**: Synthetic workloads (inspired by MSC/PersonaChat/LongBench, not actual datasets)
 

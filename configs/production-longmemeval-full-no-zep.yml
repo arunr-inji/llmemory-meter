@@ -1,0 +1,65 @@
+general:
+  concurrent_tools: false
+  timeout: 60
+  max_retries: 2
+  store_retrieve_only: true
+  step_timeout_seconds: 180
+  step_heartbeat_seconds: 10
+
+# Tools included: mem0, memgpt (2 configs)
+# Excluded: zep (Flex plan credit limit insufficient for 100 questions),
+#           openai_memory (no persistent memory API), claude_memory (rate limits at scale)
+memory_tools:
+- name: mem0
+  enabled: true
+  api_key_env: MEM0_API_KEY
+  model: gpt-4o-mini
+  settings:
+    llm_provider: openai
+    llm_api_key_env: OPENAI_API_KEY
+    llm_config:
+      model: gpt-4o-mini
+      temperature: 0.2
+      max_tokens: 1500
+    vector_store:
+      provider: qdrant
+      host: localhost
+      port: 6333
+      collection_name: llmemory_benchmarks
+- name: memgpt_memory_blocks
+  enabled: true
+  api_key_env: MEMGPT_API_KEY
+  model: gpt-4o-mini
+  settings:
+    memory_mode: default
+    memgpt_config: {}
+- name: memgpt_archival_storage
+  enabled: true
+  api_key_env: MEMGPT_API_KEY
+  model: gpt-4o-mini
+  settings:
+    memory_mode: archival
+    memgpt_config: {}
+
+benchmarks:
+- name: LongMemEval
+  enabled: true
+  settings:
+    subset: "S"
+    limit: 100
+- name: MemBench
+  enabled: false
+
+metrics:
+  latency: true
+  success_rate: true
+  token_usage: true
+  accuracy: false
+  memory_quality: false
+  cost_analysis: true
+
+output:
+  save_results: true
+  output_file: results/longmemeval_full_no_zep_results.json
+  print_summary: true
+  detailed_logs: false
