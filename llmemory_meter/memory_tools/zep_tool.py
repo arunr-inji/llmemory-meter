@@ -79,13 +79,22 @@ class ZepTool(MemoryTool):
             return [text] if text else []
         
         chunks = []
-        turns = text.split('\n')
+        turns = text.split('\n\n')
         current = ""
         for turn in turns:
-            candidate = (current + "\n" + turn) if current else turn
+            if len(turn) > limit:
+                if current:
+                    chunks.append(current)
+                    current = ""
+                # Split oversized turn into limit-sized pieces
+                print(f"⚠️ Single turn exceeds {limit} chars ({len(turn)}), splitting further")
+                for i in range(0, len(turn), limit):
+                    chunks.append(turn[i:i + limit])
+                continue
+            candidate = (current + "\n\n" + turn) if current else turn
             if len(candidate) > limit and current:
                 chunks.append(current)
-                current = turn[:limit]
+                current = turn
             else:
                 current = candidate
         if current:
@@ -376,7 +385,6 @@ class ZepTool(MemoryTool):
                             data=cd
                         )
                     )
-                    await asyncio.sleep(2)
             if self.debug:
                 response = f"[zep] Chat response: {context}. Responding to: {message}"
             else:
@@ -413,7 +421,6 @@ class ZepTool(MemoryTool):
                             data=cd
                         )
                     )
-                    await asyncio.sleep(2)
 
             return response
 
@@ -518,8 +525,12 @@ class ZepTool(MemoryTool):
                             )
                             if hasattr(episode, 'processed') and episode.processed:
                                 break
-                    except Exception:
-                        pass  # 429s or transient errors — just retry after sleep
+                    except Exception as e:
+                        status = getattr(e, 'status_code', None)
+                        if status == 429:
+                            print(f"⏳ Phase 1 poll: rate limited (429), backing off...")
+                            await asyncio.sleep(10)
+                            continue
                     
                     await asyncio.sleep(3)
                 
@@ -545,7 +556,10 @@ class ZepTool(MemoryTool):
                         print(f"✅ Facts indexed and ready ({time.time() - start_time:.1f}s total)")
                         return
                 except Exception as e:
-                    pass
+                    if getattr(e, 'status_code', None) == 429:
+                        print(f"⏳ Phase 2 poll: rate limited (429), backing off...")
+                        await asyncio.sleep(10)
+                        continue
                 
                 await asyncio.sleep(5)
             

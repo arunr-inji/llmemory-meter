@@ -75,7 +75,7 @@ This phase is documented in the roadmap but intentionally not implemented yet.
 
 ```yaml
 memory_tools:
-  - name: mem0 # Tool identifier (mem0|openai_memory|memgpt|claude_memory|zep)
+    - name: mem0 # Tool identifier (mem0|openai_memory|memgpt_memory_blocks|memgpt_archival_storage|claude_memory|zep)
     enabled: true # Toggle this tool on/off
     api_key_env: MEM0_API_KEY # Environment variable containing API key
     model: gpt-4o-mini # LLM model to use
@@ -317,9 +317,11 @@ class MemoryTool:
 
 - `Mem0Tool` - Mem0 API integration
 - `OpenAIMemoryTool` - OpenAI Memory API integration
-- `MemGPTTool` - MemGPT local instance
+- `MemGPTTool` - Letta/MemGPT via Letta Cloud SDK, two configs:
+  - `memgpt_memory_blocks` - Letta defaults (20K char core memory blocks)
+  - `memgpt_archival_storage` - Small blocks + forced archival inserts for granular fact storage
 - `ClaudeMemoryTool` - Claude API with memory
-- `ZepTool` - Zep memory platform
+- `ZepTool` - Zep knowledge graph platform (async processing, content chunking, 60s pre-retrieve indexing delay)
 
 **Responsibilities:**
 
@@ -519,6 +521,9 @@ Output (JSON file + console summary)
 - `llmemory_meter/config_parser/manager.py:150-259` - Config loading/validation
 - `configs/industry-benchmarks.yml` - Default Phase 1 config
 - `configs/longmemeval-only.yml` - LongMemEval-only config
+- `configs/production-longmemeval-small-all-tools.yml` - LongMemEval limit:10, all tools (Zep credit-constrained)
+- `configs/production-membench-all-tools.yml` - MemBench limit:100, all tools
+- `configs/production-longmemeval-full-no-zep.yml` - LongMemEval limit:100, no Zep
 - Legacy configs moved to `configs/archived/`
 - `configs/example.yml` - Documented example
 

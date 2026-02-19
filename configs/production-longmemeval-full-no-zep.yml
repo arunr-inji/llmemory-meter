@@ -6,6 +6,9 @@ general:
   step_timeout_seconds: 180
   step_heartbeat_seconds: 10
 
+# Tools included: mem0, memgpt (2 configs)
+# Excluded: zep (Flex plan credit limit insufficient for 100 questions),
+#           openai_memory (no persistent memory API), claude_memory (rate limits at scale)
 memory_tools:
 - name: mem0
   enabled: true

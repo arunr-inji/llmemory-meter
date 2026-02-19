@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 
 - `llmemory_meter/`: core Python package (CLI, comparator, workloads, metrics, tool adapters).
-- `llmemory_meter/memory_tools/`: integrations for Mem0, OpenAI Memory, MemGPT, Claude, Zep; copy `template_tool.py` when adding a new tool.
+- `llmemory_meter/memory_tools/`: integrations for Mem0, OpenAI Memory, MemGPT (two configs: `memgpt_memory_blocks`, `memgpt_archival_storage`), Claude, Zep; copy `template_tool.py` when adding a new tool.
 - `configs/`: YAML configs for benchmark runs (industry-benchmarks, longmemeval-only).
 - `examples/` and root scripts (`simple_example.py`, `benchmark_demo.py`, `benchmark_example.py`): usage demos.
 - `docs/` and `KNOWN_ISSUES.md`: architecture notes and known limitations.
