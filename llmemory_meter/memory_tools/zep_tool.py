@@ -14,11 +14,13 @@ from concurrent.futures import ThreadPoolExecutor
 try:
     from zep_cloud.client import Zep
     from zep_cloud.types import Message
+    from zep_cloud.core.api_error import ApiError as ZepApiError
     ZEP_AVAILABLE = True
 except ImportError:
     ZEP_AVAILABLE = False
     Zep = None
     Message = None
+    ZepApiError = None
 
 from llmemory_meter.memory_tools.base import MemoryTool
 from llmemory_meter.workload import WorkloadStep, StepResult
@@ -70,11 +72,25 @@ class ZepTool(MemoryTool):
         self._ensure_thread_exists()
         print("✅ Zep client initialized")
 
-    def _truncate_for_graph(self, text: str, limit: int = 9000) -> str:
-        """Truncate text to stay within graph.add 10k char limit (leave buffer)."""
-        if not text:
-            return ""
-        return text[:limit]
+    def _chunk_for_graph(self, text: str, limit: int = 9000) -> List[str]:
+        """Split text into chunks for graph.add (10k char API limit, 9k with buffer).
+        Splits on double-newlines (conversation turn boundaries) to keep context intact."""
+        if not text or len(text) <= limit:
+            return [text] if text else []
+        
+        chunks = []
+        turns = text.split('\n')
+        current = ""
+        for turn in turns:
+            candidate = (current + "\n" + turn) if current else turn
+            if len(candidate) > limit and current:
+                chunks.append(current)
+                current = turn[:limit]
+            else:
+                current = candidate
+        if current:
+            chunks.append(current)
+        return chunks
 
     def _ensure_user_exists(self):
         """Ensure user exists in Zep."""
@@ -118,6 +134,31 @@ class ZepTool(MemoryTool):
             print(f"ℹ️ Zep thread creation: {type(e).__name__}: {error_msg}")
             # Don't fail - thread creation might fail if it already exists, continue anyway
 
+    async def _retry_on_rate_limit(self, func, max_retries=3):
+        """Execute a sync function with retry on 429 rate limit errors.
+        Respects the retry-after header from Zep's API."""
+        for attempt in range(max_retries + 1):
+            try:
+                return await asyncio.wait_for(
+                    asyncio.get_event_loop().run_in_executor(self._executor, func),
+                    timeout=35.0
+                )
+            except Exception as e:
+                status = getattr(e, 'status_code', None)
+                if status == 429 and attempt < max_retries:
+                    retry_after = 10
+                    headers = getattr(e, 'headers', {})
+                    if isinstance(headers, dict) and 'retry-after' in headers:
+                        try:
+                            retry_after = int(headers['retry-after'])
+                        except (ValueError, TypeError):
+                            pass
+                    wait = min(retry_after, 65)
+                    print(f"⏳ Rate limited (429), waiting {wait}s before retry {attempt + 1}/{max_retries}...")
+                    await asyncio.sleep(wait)
+                else:
+                    raise
+
     async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """Store information in Zep memory."""
         try:
@@ -130,52 +171,36 @@ class ZepTool(MemoryTool):
             message_uuid = None
             
             if len(content) < MAX_MESSAGE_LENGTH:
-                # Short message - use thread.add_messages
                 message = Message(
                     role="user",
                     content=content
                 )
-                # Wrap with timeout to prevent indefinite hangs
-                # Note: SDK-level timeout (30s) + asyncio timeout (45s) = defense in depth
-                result = await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
-                        self._executor,  # Use dedicated executor
-                        lambda: self.client.thread.add_messages(
-                            thread_id=self.session_id,
-                            messages=[message]
-                        )
-                    ),
-                    timeout=35.0  # 35s asyncio timeout (SDK has 30s + 5s buffer)
+                result = await self._retry_on_rate_limit(
+                    lambda: self.client.thread.add_messages(
+                        thread_id=self.session_id,
+                        messages=[message]
+                    )
                 )
                 
-                # Get message_uuids for polling (task_id is None for single messages)
                 if hasattr(result, 'message_uuids') and result.message_uuids:
                     message_uuid = result.message_uuids[0]
+                await self._wait_for_processing(task_id, episode_uuid, timeout=30, message_uuid=message_uuid)
             else:
-                # Long content - use graph.add (no size limit)
-                message_data = self._truncate_for_graph(f"User: {content}")
-                # Wrap with timeout to prevent indefinite hangs
-                # Note: SDK-level timeout (30s) + asyncio timeout (45s) = defense in depth
-                episode = await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
-                        self._executor,  # Use dedicated executor
-                        lambda: self.client.graph.add(
+                chunks = self._chunk_for_graph(f"User: {content}")
+                print(f"📦 Splitting {len(content)} chars into {len(chunks)} chunks for graph.add")
+                last_ep_uuid = None
+                for i, chunk in enumerate(chunks):
+                    ep = await self._retry_on_rate_limit(
+                        lambda cd=chunk: self.client.graph.add(
                             user_id=self.user_id,
                             type="message",
-                            data=message_data
+                            data=cd
                         )
-                    ),
-                    timeout=35.0  # 35s asyncio timeout (SDK has 30s + 5s buffer)
-                )
-                
-                # Get episode UUID for polling
-                if hasattr(episode, 'uuid_') and episode.uuid_:
-                    episode_uuid = episode.uuid_
-
-            # IMPORTANT: Poll for Zep to finish processing the message
-            # Zep processes messages asynchronously (typically 5-10 seconds per message)
-            # Poll until processing completes (max 30 seconds timeout)
-            await self._wait_for_processing(task_id, episode_uuid, timeout=30, message_uuid=message_uuid)
+                    )
+                    last_ep_uuid = getattr(ep, 'uuid_', None)
+                    print(f"  ✓ Chunk {i+1}/{len(chunks)} sent")
+                # Poll only after all chunks are sent
+                await self._wait_for_processing(None, last_ep_uuid, timeout=45, message_uuid=None)
 
             if self.debug:
                 response = f"[zep] Successfully stored memory: {content}"
@@ -207,20 +232,21 @@ class ZepTool(MemoryTool):
             raise Exception(f"Zep API error in store: {error_type}: {str(e)[:200]}")
 
     async def retrieve_memory(self, query: str, metadata: Optional[Dict[str, Any]] = None) -> str:
-        """Retrieve information from Zep memory."""
+        """Retrieve information from Zep memory.
+        Includes a pre-retrieve wait to allow Zep's knowledge graph to finish
+        indexing recently stored facts (eventual consistency). This wait is
+        intentionally included in the reported retrieve latency."""
         try:
-            # Use graph search for better fact retrieval (with timeout)
-            # SDK timeout: 30s, asyncio timeout: 35s
-            graph_search_response = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(
-                    self._executor,
-                    lambda: self.client.graph.search(
-                        user_id=self.user_id,
-                        query=query,
-                        limit=5
-                    )
-                ),
-                timeout=35.0  # 35s asyncio timeout (SDK has 30s)
+            indexing_wait = 60
+            print(f"⏳ Waiting {indexing_wait}s for Zep knowledge graph indexing before retrieve...")
+            await asyncio.sleep(indexing_wait)
+
+            graph_search_response = await self._retry_on_rate_limit(
+                lambda: self.client.graph.search(
+                    user_id=self.user_id,
+                    query=query,
+                    limit=5
+                )
             )
             
             # Extract facts from graph search results
@@ -242,16 +268,10 @@ class ZepTool(MemoryTool):
                     self._last_tokens = input_tokens + output_tokens
                     return response
             
-            # Fallback to thread context if graph search returns nothing (with timeout)
-            # SDK timeout: 30s, asyncio timeout: 35s
-            context_response = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(
-                    self._executor,
-                    lambda: self.client.thread.get_user_context(
-                        thread_id=self.session_id
-                    )
-                ),
-                timeout=35.0  # 35s asyncio timeout (SDK has 30s)
+            context_response = await self._retry_on_rate_limit(
+                lambda: self.client.thread.get_user_context(
+                    thread_id=self.session_id
+                )
             )
 
             # Extract context from response
@@ -336,36 +356,27 @@ class ZepTool(MemoryTool):
             # Use graph.add for longer content
             MAX_MESSAGE_LENGTH = 2400  # Leave some buffer
             
-            # Add user message
             if len(message) < MAX_MESSAGE_LENGTH:
-                # Short message - use thread.add_messages to maintain thread structure
                 user_message = Message(
                     role="user",
                     content=message
                 )
-                await asyncio.get_event_loop().run_in_executor(
-                    self._executor,
+                await self._retry_on_rate_limit(
                     lambda: self.client.thread.add_messages(
                         thread_id=self.session_id,
                         messages=[user_message]
                     )
                 )
             else:
-                # Long message - use graph.add (no size limit)
-                message_data = self._truncate_for_graph(f"User: {message}")
-                await asyncio.get_event_loop().run_in_executor(
-                    self._executor,
-                    lambda: self.client.graph.add(
-                        user_id=self.user_id,
-                        type="message",
-                        data=message_data
+                for chunk in self._chunk_for_graph(f"User: {message}"):
+                    await self._retry_on_rate_limit(
+                        lambda cd=chunk: self.client.graph.add(
+                            user_id=self.user_id,
+                            type="message",
+                            data=cd
+                        )
                     )
-                )
-                # Brief wait for graph processing when using graph.add
-                await asyncio.sleep(2)
-
-            # For this implementation, we'll return context-aware response
-            # In a real implementation, you'd integrate with an LLM here
+                    await asyncio.sleep(2)
             if self.debug:
                 response = f"[zep] Chat response: {context}. Responding to: {message}"
             else:
@@ -382,33 +393,27 @@ class ZepTool(MemoryTool):
             self._last_output_tokens = output_tokens
             self._last_tokens = input_tokens + output_tokens
 
-            # Store assistant response
             if len(response) < MAX_MESSAGE_LENGTH:
-                # Short response - use thread.add_messages
                 assistant_message = Message(
                     role="assistant",
                     content=response
                 )
-                await asyncio.get_event_loop().run_in_executor(
-                    self._executor,
+                await self._retry_on_rate_limit(
                     lambda: self.client.thread.add_messages(
                         thread_id=self.session_id,
                         messages=[assistant_message]
                     )
                 )
             else:
-                # Long response - use graph.add (no size limit)
-                response_data = self._truncate_for_graph(f"Assistant: {response}")
-                await asyncio.get_event_loop().run_in_executor(
-                    self._executor,
-                    lambda: self.client.graph.add(
-                        user_id=self.user_id,
-                        type="message",
-                        data=response_data
+                for chunk in self._chunk_for_graph(f"Assistant: {response}"):
+                    await self._retry_on_rate_limit(
+                        lambda cd=chunk: self.client.graph.add(
+                            user_id=self.user_id,
+                            type="message",
+                            data=cd
+                        )
                     )
-                )
-                # Brief wait for graph processing when using graph.add
-                await asyncio.sleep(2)
+                    await asyncio.sleep(2)
 
             return response
 
@@ -492,66 +497,57 @@ class ZepTool(MemoryTool):
                 await asyncio.sleep(2)
                 elapsed = 2
             else:
-                # Phase 1: Poll for task_id or episode_uuid (these work reliably)
                 poll_count = 0
                 while (time.time() - start_time) < timeout:
                     poll_count += 1
-                    
-                    if task_id:
-                        # Poll task status for thread.add_messages_batch
-                        task = await asyncio.get_event_loop().run_in_executor(
-                            self._executor,
-                            lambda: self.client.task.get(task_id=task_id)
-                        )
-                        if hasattr(task, 'status'):
-                            if task.status == "completed":
+                    try:
+                        if task_id:
+                            task = await asyncio.get_event_loop().run_in_executor(
+                                self._executor,
+                                lambda: self.client.task.get(task_id=task_id)
+                            )
+                            if hasattr(task, 'status'):
+                                if task.status == "completed":
+                                    break
+                                elif task.status == "failed":
+                                    return
+                        elif episode_uuid:
+                            episode = await asyncio.get_event_loop().run_in_executor(
+                                self._executor,
+                                lambda: self.client.graph.episode.get(uuid_=episode_uuid)
+                            )
+                            if hasattr(episode, 'processed') and episode.processed:
                                 break
-                            elif task.status == "failed":
-                                return
+                    except Exception:
+                        pass  # 429s or transient errors — just retry after sleep
                     
-                    elif episode_uuid:
-                        # Poll episode status for graph.add
-                        episode = await asyncio.get_event_loop().run_in_executor(
-                            self._executor,
-                            lambda: self.client.graph.episode.get(uuid_=episode_uuid)
-                        )
-                        if hasattr(episode, 'processed') and episode.processed:
-                            break
-                    
-                    # Wait 1 second before next poll
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(3)
                 
                 elapsed = time.time() - start_time
             
             # Phase 2: Wait for facts to be searchable (indexing delay)
-            # Even after "processing complete", search index needs time to update
-            # Poll graph search until we get results or timeout
-            remaining_timeout = max(10, timeout - elapsed)  # At least 10s for Phase 2
+            # Poll every 5s to stay well within Zep's 600 req/min rate limit
+            remaining_timeout = max(15, timeout - elapsed)
             indexing_start = time.time()
-            index_poll_count = 0
             
             while (time.time() - indexing_start) < remaining_timeout:
-                index_poll_count += 1
                 try:
-                    # Do a simple graph search to check if facts are available
-                    # Let SDK timeout (30s) handle slow/stuck calls naturally
                     search_result = await asyncio.get_event_loop().run_in_executor(
                         self._executor,
                         lambda: self.client.graph.search(
                             user_id=self.user_id,
-                            query="user",  # Generic query to check for any facts
+                            query="user",
                             limit=1
                         )
                     )
                     
                     if search_result and hasattr(search_result, 'edges') and search_result.edges:
-                        # Facts are now searchable!
                         print(f"✅ Facts indexed and ready ({time.time() - start_time:.1f}s total)")
                         return
                 except Exception as e:
-                    pass  # Silently continue polling on any error
+                    pass
                 
-                await asyncio.sleep(1)
+                await asyncio.sleep(5)
             
             # Indexing timeout - continue anyway (facts may still be processing)
             
